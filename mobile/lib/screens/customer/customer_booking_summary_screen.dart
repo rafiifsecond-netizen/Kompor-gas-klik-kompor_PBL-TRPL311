@@ -313,6 +313,29 @@ class _CustomerBookingSummaryScreenState extends State<CustomerBookingSummaryScr
               height: 54,
               child: ElevatedButton(
                 onPressed: () {
+                  if (_selectedDamageType == null || _selectedDamageType!.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: Colors.white),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Harap pilih jenis kerusakan terlebih dahulu!',
+                                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: Colors.red.shade600,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    );
+                    return;
+                  }
+
                   Navigator.pushNamed(
                     context,
                     AppRoutes.customerPayment,
@@ -320,7 +343,7 @@ class _CustomerBookingSummaryScreenState extends State<CustomerBookingSummaryScr
                       'address': 'Jl. Raplesia No. 10, Kel. Patriot Kec. Lubuk Baja, Kepulauan Riau',
                       'date': _selectedDate,
                       'time': _selectedTime,
-                      'damageType': _selectedDamageType ?? 'Umum',
+                      'damageType': _selectedDamageType!,
                       'notes': _notesController.text,
                       'priceRange': 'Rp 75.000 - Rp 150.000',
                     },

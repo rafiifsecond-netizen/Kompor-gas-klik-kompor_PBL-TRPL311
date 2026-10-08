@@ -89,7 +89,7 @@
         </div>
     </aside>
 
-    <!-- Main Content Area with Orange Highlight Ambient Background -->
+    <!-- Main Content Area -->
     <main class="flex-1 flex flex-col h-screen overflow-y-auto bg-gradient-to-br from-slate-50 via-orange-50/40 to-amber-50/20 rounded-tl-3xl shadow-2xl relative">
 
         <!-- Subtle Ambient Floating Glow Orbs in Background -->
@@ -131,15 +131,21 @@
         <!-- Body Content -->
         <div class="p-8 space-y-8 animate-fade-in relative z-10">
 
+            @if(session('success'))
+                <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold flex items-center gap-3 shadow-sm">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-emerald-600"></i>
+                    <span>{{ session('success') }}</span>
+                </div>
+            @endif
+
             <!-- Page Title -->
             <div>
                 <h1 class="text-3xl font-extrabold text-slate-900">Teknisi</h1>
             </div>
 
-            <!-- Top 4 Metric Cards with Exact Dashboard Structure & Animations -->
+            <!-- Top 4 Metric Cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-
-                <!-- Card 1: Total Pengguna -->
+                <!-- Card 1 -->
                 <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border border-orange-100 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
                     <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-bl-full group-hover:scale-125 transition-transform"></div>
                     <div class="relative z-10 flex items-center justify-between">
@@ -156,7 +162,7 @@
                     </div>
                 </div>
 
-                <!-- Card 2: Total Teknisi -->
+                <!-- Card 2 -->
                 <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border border-orange-100 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
                     <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-bl-full group-hover:scale-125 transition-transform"></div>
                     <div class="relative z-10 flex items-center justify-between">
@@ -173,7 +179,7 @@
                     </div>
                 </div>
 
-                <!-- Card 3: Pesanan Hari Ini -->
+                <!-- Card 3 -->
                 <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border border-orange-100 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
                     <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-bl-full group-hover:scale-125 transition-transform"></div>
                     <div class="relative z-10 flex items-center justify-between">
@@ -190,7 +196,7 @@
                     </div>
                 </div>
 
-                <!-- Card 4: Layanan Selesai -->
+                <!-- Card 4 -->
                 <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border border-orange-100 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
                     <div class="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-bl-full group-hover:scale-125 transition-transform"></div>
                     <div class="relative z-10 flex items-center justify-between">
@@ -206,7 +212,6 @@
                         </div>
                     </div>
                 </div>
-
             </div>
 
             <!-- Kelola Teknisi Section -->
@@ -219,14 +224,14 @@
                     </div>
 
                     <div class="flex items-center gap-4">
-                        <!-- Search Bar with Enter Icon Switch -->
+                        <!-- Search Bar -->
                         <div class="relative w-72">
                             <input type="text" placeholder="Cari..." class="w-full bg-slate-100 border border-slate-200 rounded-xl py-2.5 pl-4 pr-10 text-xs outline-none focus:border-orange-500 focus:bg-white transition" />
                             <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute right-3.5 top-3 transition-all duration-300"></i>
                         </div>
                         <!-- Button Tambah -->
-                        <button class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-orange-500/25 transition">
-                            <i data-lucide="plus" class="w-4 h-4"></i> Tambah Pengguna
+                        <button onclick="openModal()" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-orange-500/25 transition">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Tambah Teknisi
                         </button>
                     </div>
                 </div>
@@ -242,7 +247,7 @@
                                 <th class="py-4 px-6">No. Telepon</th>
                                 <th class="py-4 px-6">Alamat</th>
                                 <th class="py-4 px-6">Jumlah Orderan</th>
-                                <th class="py-4 px-6 rounded-r-xl">Bergabung</th>
+                                <th class="py-4 px-6 rounded-r-xl">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-xs">
@@ -254,17 +259,19 @@
                                     <td class="py-4 px-6 text-slate-800 font-semibold">{{ $tech->phone ?? '-' }}</td>
                                     <td class="py-4 px-6 text-slate-700">{{ $tech->address ?? 'Jl. Bunga' }}</td>
                                     <td class="py-4 px-6 text-slate-900 font-bold text-center">{{ $tech->technician_orders_count ?? 0 }}</td>
-                                    <td class="py-4 px-6 text-slate-600 font-medium">{{ $tech->created_at->format('d/m/Y') }}</td>
+                                    <td class="py-4 px-6">
+                                        <form method="POST" action="{{ route('admin.technicians.destroy', $tech->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus teknisi ini?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-500 hover:text-red-700 font-bold transition flex items-center gap-1">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i> Hapus
+                                            </button>
+                                        </form>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr class="hover:bg-slate-50">
-                                    <td class="py-4 px-6 font-bold text-slate-900">1</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold">Setiawan Ade</td>
-                                    <td class="py-4 px-6 text-blue-600 underline font-medium">ade123@gmail.com</td>
-                                    <td class="py-4 px-6 text-slate-800 font-semibold">0867276565</td>
-                                    <td class="py-4 px-6 text-slate-700">Jl. Bunga</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold text-center">12</td>
-                                    <td class="py-4 px-6 text-slate-600 font-medium">24/7/2026</td>
+                                    <td colspan="7" class="py-6 text-center text-slate-400">Belum ada data teknisi.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -276,27 +283,68 @@
         </div>
     </main>
 
+    <!-- Modal Tambah Teknisi -->
+    <div id="addModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 space-y-6 shadow-2xl relative animate-fade-in">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <h3 class="text-lg font-extrabold text-slate-900">Tambah Teknisi Baru</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-black text-xl font-bold">&times;</button>
+            </div>
+            <form method="POST" action="{{ route('admin.technicians.store') }}" class="space-y-4">
+                @csrf
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Teknisi</label>
+                    <input type="text" name="name" required placeholder="Contoh: Setiawan Ade" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Email</label>
+                    <input type="email" name="email" required placeholder="ade123@gmail.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">No. Telepon (WhatsApp)</label>
+                    <input type="text" name="phone" required placeholder="0867276565" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Alamat Lengkap</label>
+                    <input type="text" name="address" placeholder="Jl. Bunga No. 12" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Kata Sandi</label>
+                    <input type="password" name="password" required placeholder="Minimal 6 karakter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
+                </div>
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-md shadow-orange-500/25">Simpan Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         lucide.createIcons();
 
-        // Interactive Live Search & Search Icon Switch to Enter Icon
+        function openModal() {
+            document.getElementById('addModal').classList.remove('hidden');
+        }
+        function closeModal() {
+            document.getElementById('addModal').classList.add('hidden');
+        }
+
+        // Live Search & Icon Switch
         document.querySelectorAll('input[type="text"]').forEach(input => {
             const iconContainer = input.parentElement.querySelector('i');
-
             input.addEventListener('focus', () => {
                 if(iconContainer) {
                     iconContainer.setAttribute('data-lucide', 'corner-down-left');
                     lucide.createIcons();
                 }
             });
-
             input.addEventListener('blur', () => {
                 if(iconContainer && input.value === '') {
                     iconContainer.setAttribute('data-lucide', 'search');
                     lucide.createIcons();
                 }
             });
-
             input.addEventListener('input', (e) => {
                 const query = e.target.value.toLowerCase();
                 const container = input.closest('.bg-white\\/90, .bg-white');
@@ -309,13 +357,6 @@
                             row.style.display = text.includes(query) ? '' : 'none';
                         });
                     }
-                }
-            });
-
-            input.addEventListener('keypress', (e) => {
-                if(e.key === 'Enter') {
-                    e.preventDefault();
-                    alert('Pencarian untuk: "' + input.value + '" dijalankan.');
                 }
             });
         });
