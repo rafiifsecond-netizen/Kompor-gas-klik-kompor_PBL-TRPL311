@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Pelanggan - Admin KlikKompor</title>
+    <title>Kelola Pembayaran - Admin KlikKompor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -28,7 +28,7 @@
 </head>
 <body class="flex h-screen overflow-hidden bg-[#090b27]">
 
-    <!-- Sidebar (Dark #090b27 with Active Pelanggan) -->
+    <!-- Sidebar (Dark #090b27 with Active Pembayaran) -->
     <aside class="w-68 bg-[#090b27] text-white flex flex-col justify-between hidden md:flex shrink-0 relative overflow-hidden border-r border-slate-800">
         <div class="absolute -top-24 -left-24 w-64 h-64 bg-orange-500/20 rounded-full blur-3xl animate-glow pointer-events-none"></div>
 
@@ -47,7 +47,7 @@
                 <a href="{{ route('admin.orders') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="clipboard-list" class="w-5 h-5"></i> Pesanan
                 </a>
-                <a href="{{ route('admin.customers') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold transition shadow-lg shadow-orange-500/25">
+                <a href="{{ route('admin.customers') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="users" class="w-5 h-5"></i> Pelanggan
                 </a>
                 <a href="{{ route('admin.technicians') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
@@ -56,7 +56,7 @@
                 <a href="{{ route('admin.services') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="briefcase" class="w-5 h-5"></i> Layanan
                 </a>
-                <a href="{{ route('admin.payments') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
+                <a href="{{ route('admin.payments') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold transition shadow-lg shadow-orange-500/25">
                     <i data-lucide="credit-card" class="w-5 h-5"></i> Pembayaran
                 </a>
                 <a href="#" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
@@ -106,7 +106,7 @@
             <div class="flex items-center gap-8">
                 <!-- Search -->
                 <div class="relative w-96">
-                    <input type="text" placeholder="Cari pelanggan..." class="w-full bg-slate-100 border border-slate-200 rounded-full py-3 pl-5 pr-12 text-sm outline-none focus:border-orange-500 focus:bg-white transition shadow-sm" />
+                    <input type="text" placeholder="Cari transaksi pembayaran..." class="w-full bg-slate-100 border border-slate-200 rounded-full py-3 pl-5 pr-12 text-sm outline-none focus:border-orange-500 focus:bg-white transition shadow-sm" />
                     <i data-lucide="search" class="w-5 h-5 text-slate-400 absolute right-4 top-3.5"></i>
                 </div>
                 <!-- Notification Bell -->
@@ -133,7 +133,7 @@
 
             <!-- Page Title -->
             <div>
-                <h1 class="text-3xl font-extrabold text-slate-900">Pelanggan</h1>
+                <h1 class="text-3xl font-extrabold text-slate-900">Pembayaran</h1>
             </div>
 
             <!-- Top 4 Metric Cards with Exact Dashboard Structure & Animations -->
@@ -209,62 +209,89 @@
 
             </div>
 
-            <!-- Kelola Pelanggan Section -->
+            <!-- Kelola Pembayaran Section -->
             <div class="bg-white/90 backdrop-blur-md rounded-3xl border border-orange-100 shadow-sm p-8 space-y-6 hover:shadow-md transition">
 
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h2 class="text-xl font-extrabold text-slate-900">Kelola Pelanggan</h2>
-                        <p class="text-xs text-slate-500 mt-0.5">{{ $customers->count() }} Pelanggan Terdaftar</p>
+                        <h2 class="text-xl font-extrabold text-slate-900">Daftar Transaksi Pembayaran</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ $payments->count() }} Transaksi Tercatat</p>
                     </div>
 
                     <div class="flex items-center gap-4">
                         <!-- Search Bar with Enter Icon Switch -->
                         <div class="relative w-72">
-                            <input type="text" placeholder="Cari..." class="w-full bg-slate-100 border border-slate-200 rounded-xl py-2.5 pl-4 pr-10 text-xs outline-none focus:border-orange-500 focus:bg-white transition" />
+                            <input type="text" placeholder="Cari transaksi..." class="w-full bg-slate-100 border border-slate-200 rounded-xl py-2.5 pl-4 pr-10 text-xs outline-none focus:border-orange-500 focus:bg-white transition" />
                             <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute right-3.5 top-3 transition-all duration-300"></i>
                         </div>
-                        <!-- Button Tambah -->
-                        <button class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-orange-500/25 transition">
-                            <i data-lucide="plus" class="w-4 h-4"></i> Tambah Pengguna
-                        </button>
                     </div>
                 </div>
 
-                <!-- Customers Table -->
+                <!-- Payments Table -->
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm border-collapse">
                         <thead>
                             <tr class="bg-orange-500 text-white font-bold rounded-xl overflow-hidden text-xs">
-                                <th class="py-4 px-6 rounded-l-xl">No</th>
-                                <th class="py-4 px-6">Nama Pelanggan</th>
-                                <th class="py-4 px-6">Email</th>
-                                <th class="py-4 px-6">No. Telepon</th>
-                                <th class="py-4 px-6">Alamat</th>
-                                <th class="py-4 px-6">Jumlah Pesanan</th>
-                                <th class="py-4 px-6 rounded-r-xl">Bergabung</th>
+                                <th class="py-4 px-6 rounded-l-xl">No. Transaksi</th>
+                                <th class="py-4 px-6">Pelanggan</th>
+                                <th class="py-4 px-6">Metode</th>
+                                <th class="py-4 px-6">Jumlah</th>
+                                <th class="py-4 px-6">Status</th>
+                                <th class="py-4 px-6">Waktu</th>
+                                <th class="py-4 px-6 rounded-r-xl text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-xs">
-                            @forelse($customers as $index => $customer)
+                            @forelse($payments as $index => $payment)
                                 <tr class="hover:bg-slate-50 transition">
-                                    <td class="py-4 px-6 font-bold text-slate-900">{{ $index + 1 }}</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold">{{ $customer->name }}</td>
-                                    <td class="py-4 px-6 text-blue-600 underline font-medium">{{ $customer->email }}</td>
-                                    <td class="py-4 px-6 text-slate-800 font-semibold">{{ $customer->phone ?? '-' }}</td>
-                                    <td class="py-4 px-6 text-slate-700">{{ $customer->address ?? 'Jl. Bunga' }}</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold text-center">{{ $customer->customer_orders_count ?? 0 }}</td>
-                                    <td class="py-4 px-6 text-slate-600 font-medium">{{ $customer->created_at->format('d/m/Y') }}</td>
+                                    <td class="py-4 px-6 font-bold text-slate-900">{{ $payment->payment_number ?? '#PAY-2026-00'.($index+1) }}</td>
+                                    <td class="py-4 px-6 text-slate-900 font-bold">{{ $payment->customer?->name ?? $payment->order?->customer_name ?? 'Pelanggan' }}</td>
+                                    <td class="py-4 px-6 text-slate-800 font-semibold uppercase">
+                                        @php
+                                            $methodLabel = match($payment->payment_method) {
+                                                'cash' => 'Tunai (COD)',
+                                                'transfer' => 'Transfer Bank',
+                                                'qris' => 'QRIS',
+                                                default => strtoupper($payment->payment_method ?? 'Tunai'),
+                                            };
+                                        @endphp
+                                        {{ $methodLabel }}
+                                    </td>
+                                    <td class="py-4 px-6 text-slate-900 font-bold">Rp.{{ number_format($payment->amount ?? 90000, 0, ',', '.') }}</td>
+                                    <td class="py-4 px-6">
+                                        @php
+                                            $stPaid = $payment->payment_status === 'paid';
+                                        @endphp
+                                        <span class="px-3 py-1 rounded-full text-[11px] font-bold {{ $stPaid ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white' }}">
+                                            {{ $stPaid ? 'Lunas' : 'Menunggu' }}
+                                        </span>
+                                    </td>
+                                    <td class="py-4 px-6 text-slate-600 font-medium">{{ $payment->created_at->format('d/m/Y H:i') }}</td>
+                                    <td class="py-4 px-6 text-center">
+                                        <div class="flex items-center justify-center gap-3">
+                                            <button class="text-slate-600 hover:text-orange-600 transition" title="Cetak Resi">
+                                                <i data-lucide="printer" class="w-4 h-4"></i>
+                                            </button>
+                                            <button class="text-slate-600 hover:text-red-600 transition" title="Hapus">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr class="hover:bg-slate-50">
-                                    <td class="py-4 px-6 font-bold text-slate-900">1</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold">Setiawan Ade</td>
-                                    <td class="py-4 px-6 text-blue-600 underline font-medium">ade123@gmail.com</td>
-                                    <td class="py-4 px-6 text-slate-800 font-semibold">0867276565</td>
-                                    <td class="py-4 px-6 text-slate-700">Jl. Bunga</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold text-center">12</td>
-                                    <td class="py-4 px-6 text-slate-600 font-medium">24/7/2026</td>
+                                    <td class="py-4 px-6 font-bold text-slate-900">#PAY-2026-001</td>
+                                    <td class="py-4 px-6 text-slate-900 font-bold">Budi Santoso</td>
+                                    <td class="py-4 px-6 text-slate-800 font-semibold">Tunai (COD)</td>
+                                    <td class="py-4 px-6 text-slate-900 font-bold">Rp.90.000</td>
+                                    <td class="py-4 px-6"><span class="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500 text-white">Lunas</span></td>
+                                    <td class="py-4 px-6 text-slate-600 font-medium">16/09/2026 12:00</td>
+                                    <td class="py-4 px-6 text-center">
+                                        <div class="flex items-center justify-center gap-3">
+                                            <button class="text-slate-600 hover:text-orange-600"><i data-lucide="printer" class="w-4 h-4"></i></button>
+                                            <button class="text-slate-600 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -316,6 +343,23 @@
                 if(e.key === 'Enter') {
                     e.preventDefault();
                     alert('Pencarian untuk: "' + input.value + '" dijalankan.');
+                }
+            });
+        });
+
+        // Printer action
+        document.querySelectorAll('button[title="Cetak Resi"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                alert('Resi transaksi pembayaran sedang dicetak...');
+            });
+        });
+
+        // Delete action
+        document.querySelectorAll('button[title="Hapus"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if(confirm('Apakah Anda yakin ingin menghapus data pembayaran ini?')) {
+                    alert('Data pembayaran berhasil dihapus.');
+                    btn.closest('tr').remove();
                 }
             });
         });

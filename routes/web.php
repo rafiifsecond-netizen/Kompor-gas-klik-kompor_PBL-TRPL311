@@ -2,6 +2,7 @@
 
 use App\Models\ActivityLog;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\ServiceCategory;
 use App\Models\ServiceItem;
 use App\Models\TechnicianProfile;
@@ -159,9 +160,27 @@ Route::get('/admin/services', function () {
     return view('admin.services', compact('stats', 'services'));
 })->name('admin.services');
 
+Route::get('/admin/payments', function () {
+    $user = Auth::user();
+    if (!$user || $user->role !== 'admin') {
+        return redirect()->route('admin.login');
+    }
+
+    $stats = [
+        'total_users' => User::where('role', 'customer')->count(),
+        'total_technicians' => TechnicianProfile::count(),
+        'today_orders' => Order::whereDate('created_at', today())->count(),
+        'completed_orders' => Order::where('status', 'completed')->count(),
+    ];
+
+    $payments = Payment::with(['order.customer', 'customer'])->latest()->get();
+
+    return view('admin.payments', compact('stats', 'payments'));
+})->name('admin.payments');
+
 Route::post('/admin/logout', function (Request $request) {
     Auth::logout();
     $request->session()->invalidate();
     $request->session()->regenerateToken();
-    return redirect()->route('admin.login');
+    return redirect()->route('admin.logout');
 })->name('admin.logout');
