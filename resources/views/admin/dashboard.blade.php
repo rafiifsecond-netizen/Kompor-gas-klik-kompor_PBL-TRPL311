@@ -61,13 +61,13 @@
                 <a href="{{ route('admin.payments') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="credit-card" class="w-5 h-5"></i> Pembayaran
                 </a>
-                <a href="#" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
+                <a href="{{ route('admin.reviews') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="message-square" class="w-5 h-5"></i> Ulasan
                 </a>
-                <a href="#" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
+                <a href="{{ route('admin.reports') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="bar-chart-2" class="w-5 h-5"></i> Laporan
                 </a>
-                <a href="#" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
+                <a href="{{ route('admin.settings') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="settings" class="w-5 h-5"></i> Pengaturan
                 </a>
             </nav>
@@ -267,25 +267,25 @@
                         <p class="text-xs text-slate-500 mb-4">Akses cepat operasional admin</p>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="p-4 rounded-2xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center text-center group">
+                        <div onclick="location.href='{{ route('admin.customers') }}'" class="p-4 rounded-2xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center text-center group">
                             <div class="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center mb-2 shadow-md shadow-orange-500/30 group-hover:scale-110 transition-transform">
                                 <i data-lucide="user-plus" class="w-6 h-6"></i>
                             </div>
                             <span class="text-xs font-bold text-slate-800 group-hover:text-orange-600">Tambah Pelanggan</span>
                         </div>
-                        <div class="p-4 rounded-2xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center text-center group">
+                        <div onclick="location.href='{{ route('admin.technicians') }}'" class="p-4 rounded-2xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center text-center group">
                             <div class="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center mb-2 shadow-md shadow-orange-500/30 group-hover:scale-110 transition-transform">
                                 <i data-lucide="wrench" class="w-6 h-6"></i>
                             </div>
                             <span class="text-xs font-bold text-slate-800 group-hover:text-orange-600">Tambah Teknisi</span>
                         </div>
-                        <div class="p-4 rounded-2xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center text-center group">
+                        <div onclick="location.href='{{ route('admin.services') }}'" class="p-4 rounded-2xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center text-center group">
                             <div class="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center mb-2 shadow-md shadow-orange-500/30 group-hover:scale-110 transition-transform">
                                 <i data-lucide="clipboard-plus" class="w-6 h-6"></i>
                             </div>
-                            <span class="text-xs font-bold text-slate-800 group-hover:text-orange-600">Tambah Pesanan</span>
+                            <span class="text-xs font-bold text-slate-800 group-hover:text-orange-600">Tambah Layanan</span>
                         </div>
-                        <div class="p-4 rounded-2xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center text-center group">
+                        <div onclick="location.href='{{ route('admin.settings') }}'" class="p-4 rounded-2xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center text-center group">
                             <div class="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center mb-2 shadow-md shadow-orange-500/30 group-hover:scale-110 transition-transform">
                                 <i data-lucide="tag" class="w-6 h-6"></i>
                             </div>

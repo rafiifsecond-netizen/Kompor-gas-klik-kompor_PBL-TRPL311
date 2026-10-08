@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Teknisi - Admin KlikKompor</title>
+    <title>Kelola Ulasan - Admin KlikKompor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -28,7 +28,7 @@
 </head>
 <body class="flex h-screen overflow-hidden bg-[#090b27]">
 
-    <!-- Sidebar (Dark #090b27 with Active Teknisi) -->
+    <!-- Sidebar -->
     <aside class="w-68 bg-[#090b27] text-white flex flex-col justify-between hidden md:flex shrink-0 relative overflow-hidden border-r border-slate-800">
         <div class="absolute -top-24 -left-24 w-64 h-64 bg-orange-500/20 rounded-full blur-3xl animate-glow pointer-events-none"></div>
 
@@ -50,7 +50,7 @@
                 <a href="{{ route('admin.customers') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="users" class="w-5 h-5"></i> Pelanggan
                 </a>
-                <a href="{{ route('admin.technicians') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold transition shadow-lg shadow-orange-500/25">
+                <a href="{{ route('admin.technicians') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="wrench" class="w-5 h-5"></i> Teknisi
                 </a>
                 <a href="{{ route('admin.services') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
@@ -59,7 +59,7 @@
                 <a href="{{ route('admin.payments') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="credit-card" class="w-5 h-5"></i> Pembayaran
                 </a>
-                <a href="{{ route('admin.reviews') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
+                <a href="{{ route('admin.reviews') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold transition shadow-lg shadow-orange-500/25">
                     <i data-lucide="message-square" class="w-5 h-5"></i> Ulasan
                 </a>
                 <a href="{{ route('admin.reports') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
@@ -106,7 +106,7 @@
             <div class="flex items-center gap-8">
                 <!-- Search -->
                 <div class="relative w-96">
-                    <input type="text" placeholder="Cari teknisi..." class="w-full bg-slate-100 border border-slate-200 rounded-full py-3 pl-5 pr-12 text-sm outline-none focus:border-orange-500 focus:bg-white transition shadow-sm" />
+                    <input type="text" placeholder="Cari ulasan..." class="w-full bg-slate-100 border border-slate-200 rounded-full py-3 pl-5 pr-12 text-sm outline-none focus:border-orange-500 focus:bg-white transition shadow-sm" />
                     <i data-lucide="search" class="w-5 h-5 text-slate-400 absolute right-4 top-3.5"></i>
                 </div>
                 <!-- Notification Bell -->
@@ -140,7 +140,7 @@
 
             <!-- Page Title -->
             <div>
-                <h1 class="text-3xl font-extrabold text-slate-900">Teknisi</h1>
+                <h1 class="text-3xl font-extrabold text-slate-900">Ulasan & Rating Pelanggan</h1>
             </div>
 
             <!-- Top 4 Metric Cards -->
@@ -214,56 +214,57 @@
                 </div>
             </div>
 
-            <!-- Kelola Teknisi Section -->
+            <!-- Kelola Ulasan Section -->
             <div class="bg-white/90 backdrop-blur-md rounded-3xl border border-orange-100 shadow-sm p-8 space-y-6 hover:shadow-md transition">
 
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h2 class="text-xl font-extrabold text-slate-900">Kelola Teknisi</h2>
-                        <p class="text-xs text-slate-500 mt-0.5">{{ $technicians->count() }} Teknisi Terdaftar</p>
+                        <h2 class="text-xl font-extrabold text-slate-900">Daftar Ulasan & Kepuasan Pelanggan</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ $reviews->count() }} Ulasan Masuk</p>
                     </div>
 
                     <div class="flex items-center gap-4">
                         <!-- Search Bar -->
                         <div class="relative w-72">
-                            <input type="text" placeholder="Cari..." class="w-full bg-slate-100 border border-slate-200 rounded-xl py-2.5 pl-4 pr-10 text-xs outline-none focus:border-orange-500 focus:bg-white transition" />
+                            <input type="text" placeholder="Cari ulasan..." class="w-full bg-slate-100 border border-slate-200 rounded-xl py-2.5 pl-4 pr-10 text-xs outline-none focus:border-orange-500 focus:bg-white transition" />
                             <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute right-3.5 top-3 transition-all duration-300"></i>
                         </div>
-                        <!-- Button Tambah -->
-                        <button onclick="openModal()" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-orange-500/25 transition">
-                            <i data-lucide="plus" class="w-4 h-4"></i> Tambah Teknisi
-                        </button>
                     </div>
                 </div>
 
-                <!-- Technicians Table -->
+                <!-- Reviews Table -->
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm border-collapse">
                         <thead>
                             <tr class="bg-orange-500 text-white font-bold rounded-xl overflow-hidden text-xs">
                                 <th class="py-4 px-6 rounded-l-xl">No</th>
-                                <th class="py-4 px-6">Nama Teknisi</th>
-                                <th class="py-4 px-6">Email</th>
-                                <th class="py-4 px-6">No. Telepon</th>
-                                <th class="py-4 px-6">Alamat</th>
-                                <th class="py-4 px-6">Jumlah Orderan</th>
-                                <th class="py-4 px-6 rounded-r-xl">Aksi</th>
+                                <th class="py-4 px-6">Pelanggan</th>
+                                <th class="py-4 px-6">Teknisi</th>
+                                <th class="py-4 px-6">Rating</th>
+                                <th class="py-4 px-6">Komentar / Ulasan</th>
+                                <th class="py-4 px-6">Tanggal</th>
+                                <th class="py-4 px-6 rounded-r-xl text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-xs">
-                            @forelse($technicians as $index => $tech)
+                            @forelse($reviews as $index => $review)
                                 <tr class="hover:bg-slate-50 transition">
                                     <td class="py-4 px-6 font-bold text-slate-900">{{ $index + 1 }}</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold">{{ $tech->name }}</td>
-                                    <td class="py-4 px-6 text-blue-600 underline font-medium">{{ $tech->email }}</td>
-                                    <td class="py-4 px-6 text-slate-800 font-semibold">{{ $tech->phone ?? '-' }}</td>
-                                    <td class="py-4 px-6 text-slate-700">{{ $tech->address ?? 'Jl. Bunga' }}</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold text-center">{{ $tech->technician_orders_count ?? 0 }}</td>
+                                    <td class="py-4 px-6 text-slate-900 font-bold">{{ $review->customer?->name ?? 'Pelanggan' }}</td>
+                                    <td class="py-4 px-6 text-slate-800 font-semibold">{{ $review->technician?->name ?? 'Teknisi' }}</td>
                                     <td class="py-4 px-6">
-                                        <form method="POST" action="{{ route('admin.technicians.destroy', $tech->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus teknisi ini?');">
+                                        <div class="flex items-center gap-1 text-amber-500 font-bold">
+                                            <i data-lucide="star" class="w-4 h-4 fill-amber-400"></i>
+                                            <span>{{ $review->rating ?? 5 }}.0</span>
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-6 text-slate-700 max-w-xs truncate">{{ $review->comment ?? 'Sangat memuaskan, kompor kembali normal!' }}</td>
+                                    <td class="py-4 px-6 text-slate-600 font-medium">{{ $review->created_at->format('d/m/Y') }}</td>
+                                    <td class="py-4 px-6 text-center">
+                                        <form method="POST" action="{{ route('admin.reviews.destroy', $review->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus ulasan ini?');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="text-red-500 hover:text-red-700 font-bold transition flex items-center gap-1">
+                                            <button type="submit" class="text-red-500 hover:text-red-700 font-bold transition flex items-center justify-center gap-1 mx-auto">
                                                 <i data-lucide="trash-2" class="w-4 h-4"></i> Hapus
                                             </button>
                                         </form>
@@ -271,7 +272,15 @@
                                 </tr>
                             @empty
                                 <tr class="hover:bg-slate-50">
-                                    <td colspan="7" class="py-6 text-center text-slate-400">Belum ada data teknisi.</td>
+                                    <td class="py-4 px-6 font-bold text-slate-900">1</td>
+                                    <td class="py-4 px-6 text-slate-900 font-bold">Budi Santoso</td>
+                                    <td class="py-4 px-6 text-slate-800 font-semibold">Setiawan Ade</td>
+                                    <td class="py-4 px-6"><div class="flex items-center gap-1 text-amber-500 font-bold"><i data-lucide="star" class="w-4 h-4 fill-amber-400"></i> 5.0</div></td>
+                                    <td class="py-4 px-6 text-slate-700">Pengerjaan cepat, ramah, dan api kompor kembali biru lancar!</td>
+                                    <td class="py-4 px-6 text-slate-600 font-medium">06/10/2026</td>
+                                    <td class="py-4 px-6 text-center">
+                                        <button class="text-red-500 hover:text-red-700 font-bold transition flex items-center justify-center gap-1 mx-auto"><i data-lucide="trash-2" class="w-4 h-4"></i> Hapus</button>
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -283,52 +292,8 @@
         </div>
     </main>
 
-    <!-- Modal Tambah Teknisi -->
-    <div id="addModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full p-8 space-y-6 shadow-2xl relative animate-fade-in">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
-                <h3 class="text-lg font-extrabold text-slate-900">Tambah Teknisi Baru</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-black text-xl font-bold">&times;</button>
-            </div>
-            <form method="POST" action="{{ route('admin.technicians.store') }}" class="space-y-4">
-                @csrf
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Teknisi</label>
-                    <input type="text" name="name" required placeholder="Contoh: Setiawan Ade" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Email</label>
-                    <input type="email" name="email" required placeholder="ade123@gmail.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">No. Telepon (WhatsApp)</label>
-                    <input type="text" name="phone" required placeholder="0867276565" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Alamat Lengkap</label>
-                    <input type="text" name="address" placeholder="Jl. Bunga No. 12" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Kata Sandi</label>
-                    <input type="password" name="password" required placeholder="Minimal 6 karakter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
-                </div>
-                <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>
-                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-md shadow-orange-500/25">Simpan Data</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <script>
         lucide.createIcons();
-
-        function openModal() {
-            document.getElementById('addModal').classList.remove('hidden');
-        }
-        function closeModal() {
-            document.getElementById('addModal').classList.add('hidden');
-        }
 
         // Live Search & Icon Switch
         document.querySelectorAll('input[type="text"]').forEach(input => {
