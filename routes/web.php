@@ -3,6 +3,7 @@
 use App\Models\ActivityLog;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\Review;
 use App\Models\ServiceCategory;
 use App\Models\ServiceItem;
 use App\Models\TechnicianProfile;
@@ -281,6 +282,70 @@ Route::delete('/admin/payments/{id}', function ($id) {
     Payment::findOrFail($id)->delete();
     return back()->with('success', 'Transaksi pembayaran berhasil dihapus.');
 })->name('admin.payments.destroy');
+
+// ── Reviews ─────────────────────────────────────────────────────────────────
+Route::get('/admin/reviews', function () {
+    $user = Auth::user();
+    if (!$user || $user->role !== 'admin') {
+        return redirect()->route('admin.login');
+    }
+
+    $stats = [
+        'total_users' => User::where('role', 'customer')->count(),
+        'total_technicians' => TechnicianProfile::count(),
+        'today_orders' => Order::whereDate('created_at', today())->count(),
+        'completed_orders' => Order::where('status', 'completed')->count(),
+    ];
+
+    $reviews = Review::with(['customer', 'technician'])->latest()->get();
+
+    return view('admin.reviews', compact('stats', 'reviews'));
+})->name('admin.reviews');
+
+Route::delete('/admin/reviews/{id}', function ($id) {
+    Review::findOrFail($id)->delete();
+    return back()->with('success', 'Ulasan berhasil dihapus.');
+})->name('admin.reviews.destroy');
+
+// ── Reports ─────────────────────────────────────────────────────────────────
+Route::get('/admin/reports', function () {
+    $user = Auth::user();
+    if (!$user || $user->role !== 'admin') {
+        return redirect()->route('admin.login');
+    }
+
+    $stats = [
+        'total_users' => User::where('role', 'customer')->count(),
+        'total_technicians' => TechnicianProfile::count(),
+        'today_orders' => Order::whereDate('created_at', today())->count(),
+        'completed_orders' => Order::where('status', 'completed')->count(),
+    ];
+
+    $revenue = Order::where('payment_status', 'paid')->sum('total_amount');
+
+    return view('admin.reports', compact('stats', 'revenue'));
+})->name('admin.reports');
+
+// ── Settings ────────────────────────────────────────────────────────────────
+Route::get('/admin/settings', function () {
+    $user = Auth::user();
+    if (!$user || $user->role !== 'admin') {
+        return redirect()->route('admin.login');
+    }
+
+    $stats = [
+        'total_users' => User::where('role', 'customer')->count(),
+        'total_technicians' => TechnicianProfile::count(),
+        'today_orders' => Order::whereDate('created_at', today())->count(),
+        'completed_orders' => Order::where('status', 'completed')->count(),
+    ];
+
+    return view('admin.settings', compact('stats'));
+})->name('admin.settings');
+
+Route::post('/admin/settings', function (Request $request) {
+    return back()->with('success', 'Pengaturan sistem & tarif berhasil diperbarui.');
+})->name('admin.settings.update');
 
 Route::post('/admin/logout', function (Request $request) {
     Auth::logout();
