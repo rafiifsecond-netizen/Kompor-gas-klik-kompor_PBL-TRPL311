@@ -3,114 +3,170 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MODEL DATA LAYANAN
+// ─────────────────────────────────────────────────────────────────────────────
+class ServiceDetailArgs {
+  final String name;
+  final String description;
+  final double rating;
+  final int reviewCount;
+  final String estimasi;
+  final String hargaMulai;
+  final String? bannerAsset;
+
+  const ServiceDetailArgs({
+    required this.name,
+    required this.description,
+    required this.rating,
+    required this.reviewCount,
+    required this.estimasi,
+    required this.hargaMulai,
+    this.bannerAsset,
+  });
+}
+
+const _grey = Color(0xFF5D5555);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
 class CustomerServiceDetailScreen extends StatelessWidget {
   const CustomerServiceDetailScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final service = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
-    final name = service['name'] as String? ?? 'Layanan';
-    final price = service['price'] as int? ?? 0;
-    final duration = service['duration'] as int? ?? 60;
-    final description = service['description'] as String? ?? '';
-    final icon = service['icon'] as IconData? ?? Icons.handyman_rounded;
-    final category = service['category'] as String? ?? '';
+    final raw = ModalRoute.of(context)?.settings.arguments;
+    final ServiceDetailArgs args;
+
+    if (raw is ServiceDetailArgs) {
+      args = raw;
+    } else {
+      final m = raw as Map<String, dynamic>? ?? {};
+      args = ServiceDetailArgs(
+        name: m['name'] as String? ?? 'Service Kompor Gas',
+        description: m['description'] as String? ?? '',
+        rating: (m['rating'] as num?)?.toDouble() ?? 4.8,
+        reviewCount: m['reviewCount'] as int? ?? 9999,
+        estimasi: m['estimasi'] as String? ?? '30 - 60 menit',
+        hargaMulai: m['hargaMulai'] as String? ?? 'Rp.75.000',
+        bannerAsset: m['bannerAsset'] as String?,
+      );
+    }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Detail Layanan'), backgroundColor: Colors.white),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHero(icon, name, category),
-            Padding(
-              padding: const EdgeInsets.all(20),
+      backgroundColor: Colors.white,
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildInfoRow(Icons.attach_money_rounded, 'Harga',
-                      'Rp ${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}'),
-                  const SizedBox(height: 12),
-                  _buildInfoRow(Icons.access_time_rounded, 'Estimasi Waktu', '$duration menit'),
-                  const SizedBox(height: 12),
-                  _buildInfoRow(Icons.category_rounded, 'Kategori', category),
-                  const Divider(height: 32),
-                  Text('Deskripsi Layanan', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 8),
-                  Text(
-                    description.isNotEmpty
-                        ? description
-                        : 'Teknisi berpengalaman kami akan datang ke lokasi Anda untuk menangani masalah kompor gas dengan cepat dan profesional.',
-                    style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary, height: 1.5),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
+                  const _TopBar(),
+                  _Banner(assetPath: args.bannerAsset),
+
+                  // ── Konten ─────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 28, 22, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.verified_rounded, color: AppColors.primary, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Teknisi terverifikasi & berpengalaman',
-                            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary),
+                        Text(
+                          args.name,
+                          style: GoogleFonts.inter(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
                           ),
                         ),
+                        const SizedBox(height: 14),
+
+                        // Rating
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: Color(0xFFFFA500),
+                              size: 28,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              args.rating.toStringAsFixed(1),
+                              style: GoogleFonts.inter(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: _grey,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              '(${_formatNumber(args.reviewCount)} ulasan)',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: _grey,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        // Deskripsi
+                        Text(
+                          args.description.isNotEmpty
+                              ? args.description
+                              : 'Teknisi berpengalaman kami akan datang ke lokasi Anda untuk menangani masalah kompor gas dengan cepat, aman, dan profesional.',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: _grey,
+                            height: 1.5,
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+                        const Divider(color: Color(0xFFEEEEEE), height: 1),
+                        const SizedBox(height: 20),
+
+                        // Estimasi Pengerjaan
+                        _InfoRow(
+                          icon: Icons.access_time_rounded,
+                          label: 'Estimasi Pengerjaan',
+                          value: args.estimasi,
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Harga Mulai
+                        _InfoRow(
+                          icon: Icons.shopping_cart_outlined,
+                          label: 'Harga Mulai',
+                          value: args.hargaMulai,
+                        ),
+
+                        const SizedBox(height: 32),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: ElevatedButton(
-            onPressed: () => Navigator.pushNamed(
-              context,
-              AppRoutes.customerSelectAddress,
-              arguments: service,
-            ),
-            child: const Text('Pesan Layanan Ini'),
           ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildHero(IconData icon, String name, String category) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 36),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(colors: [AppColors.primary, AppColors.primaryAccent]),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: Colors.white, size: 40),
-          ),
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              name,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
+          // ── Tombol Pesan Teknisi ─────────────────────────────
+          _PesanButton(
+            onTap: () => Navigator.pushNamed(
+              context,
+              AppRoutes.customerBookingSummary,
+              arguments: {
+                'name': args.name,
+                'hargaMulai': args.hargaMulai,
+                'estimasi': args.estimasi,
+              },
             ),
           ),
         ],
@@ -118,24 +174,172 @@ class CustomerServiceDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, color: AppColors.primary, size: 18),
-        ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  String _formatNumber(int n) {
+    return n.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOP BAR
+// ─────────────────────────────────────────────────────────────────────────────
+class _TopBar extends StatelessWidget {
+  const _TopBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+        child: Row(
           children: [
-            Text(label, style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
-            Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
+            IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(
+                Icons.arrow_back_rounded,
+                size: 28,
+                color: Colors.black,
+              ),
+            ),
+            Text(
+              'Detail Layanan',
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BANNER
+// ─────────────────────────────────────────────────────────────────────────────
+class _Banner extends StatelessWidget {
+  final String? assetPath;
+  const _Banner({required this.assetPath});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          width: double.infinity,
+          height: 200,
+          child: assetPath != null
+              ? Image.asset(assetPath!, fit: BoxFit.cover)
+              : Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF090B27), Color(0xFF1E293B)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.build_circle_rounded,
+                      size: 64,
+                      color: Color(0xFFFF7A00),
+                    ),
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INFO ROW
+// ─────────────────────────────────────────────────────────────────────────────
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 26, color: _grey),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: _grey,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: _grey,
+          ),
+        ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOMBOL PESAN TEKNISI
+// ─────────────────────────────────────────────────────────────────────────────
+class _PesanButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _PesanButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+        child: SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton(
+            onPressed: onTap,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(27),
+              ),
+            ),
+            child: Text(
+              'Pesan Teknisi',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

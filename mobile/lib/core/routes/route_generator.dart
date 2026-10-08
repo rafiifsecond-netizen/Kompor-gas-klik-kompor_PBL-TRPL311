@@ -19,76 +19,115 @@ import '../../screens/customer/customer_profile_screen.dart';
 import '../../screens/customer/customer_notification_screen.dart';
 import '../../screens/customer/customer_help_center_screen.dart';
 import '../../screens/technician/technician_dashboard_screen.dart';
+import '../../screens/technician/technician_incoming_orders_screen.dart';
+import '../../screens/technician/technician_update_status_screen.dart';
+import '../../screens/technician/technician_additional_cost_screen.dart';
+import '../../screens/technician/technician_service_history_screen.dart';
 import 'app_routes.dart';
 
 class RouteGenerator {
+  static Route<dynamic> _fadeRoute(Widget page, RouteSettings settings) {
+    return PageRouteBuilder(
+      settings: settings,
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        const begin = Offset(0.0, 0.04);
+        const end = Offset.zero;
+        const curve = Curves.easeOutCubic;
+        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        var offsetAnimation = animation.drive(tween);
+
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: offsetAnimation,
+            child: child,
+          ),
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 300),
+    );
+  }
+
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case AppRoutes.splash:
-        return MaterialPageRoute(builder: (_) => const SplashScreen());
+        return _fadeRoute(const SplashScreen(), settings);
 
       case AppRoutes.landing:
-        return MaterialPageRoute(builder: (_) => const LandingScreen());
+        return _fadeRoute(const LandingScreen(), settings);
 
       case AppRoutes.login:
-        return MaterialPageRoute(builder: (_) => const LoginScreen());
+        return _fadeRoute(const LoginScreen(), settings);
 
       case AppRoutes.register:
-        return MaterialPageRoute(builder: (_) => const RegisterScreen());
+        return _fadeRoute(const RegisterScreen(), settings);
 
       // Customer
       case AppRoutes.customerHome:
-        return MaterialPageRoute(builder: (_) => const CustomerHomeScreen());
+        return _fadeRoute(const CustomerHomeScreen(), settings);
 
       case AppRoutes.customerCatalog:
-        return MaterialPageRoute(builder: (_) => const CustomerCatalogScreen());
+        return _fadeRoute(const CustomerCatalogScreen(), settings);
 
       case AppRoutes.customerServiceDetail:
-        return MaterialPageRoute(builder: (_) => const CustomerServiceDetailScreen(), settings: settings);
+        return _fadeRoute(const CustomerServiceDetailScreen(), settings);
 
       case AppRoutes.customerSelectAddress:
-        return MaterialPageRoute(builder: (_) => const CustomerSelectAddressScreen(), settings: settings);
+        return _fadeRoute(const CustomerSelectAddressScreen(), settings);
 
       case AppRoutes.customerSelectSchedule:
-        return MaterialPageRoute(builder: (_) => const CustomerSelectScheduleScreen(), settings: settings);
+        return _fadeRoute(const CustomerSelectScheduleScreen(), settings);
 
       case AppRoutes.customerSelectTechnician:
-        return MaterialPageRoute(builder: (_) => const CustomerSelectTechnicianScreen(), settings: settings);
+        return _fadeRoute(const CustomerSelectTechnicianScreen(), settings);
 
       case AppRoutes.customerBookingSummary:
-        return MaterialPageRoute(builder: (_) => const CustomerBookingSummaryScreen(), settings: settings);
+        return _fadeRoute(const CustomerBookingSummaryScreen(), settings);
 
       case AppRoutes.customerPayment:
-        return MaterialPageRoute(builder: (_) => const CustomerPaymentScreen(), settings: settings);
+        return _fadeRoute(const CustomerPaymentScreen(), settings);
 
       case AppRoutes.customerOrderTracking:
-        return MaterialPageRoute(builder: (_) => const CustomerOrderTrackingScreen(), settings: settings);
+        return _fadeRoute(const CustomerOrderTrackingScreen(), settings);
 
       case AppRoutes.customerOrderHistory:
-        return MaterialPageRoute(builder: (_) => const CustomerOrderHistoryScreen());
+        return _fadeRoute(const CustomerOrderHistoryScreen(), settings);
 
       case AppRoutes.customerChat:
-        return MaterialPageRoute(builder: (_) => const CustomerChatScreen());
+        return _fadeRoute(const CustomerChatScreen(), settings);
 
       case AppRoutes.customerReview:
-        return MaterialPageRoute(builder: (_) => const CustomerReviewScreen());
+        return _fadeRoute(const CustomerReviewScreen(), settings);
 
       case AppRoutes.customerProfile:
-        return MaterialPageRoute(builder: (_) => const CustomerProfileScreen());
+        return _fadeRoute(const CustomerProfileScreen(), settings);
 
       case AppRoutes.customerNotification:
-        return MaterialPageRoute(builder: (_) => const CustomerNotificationScreen());
+        return _fadeRoute(const CustomerNotificationScreen(), settings);
 
       case AppRoutes.customerHelpCenter:
-        return MaterialPageRoute(builder: (_) => const CustomerHelpCenterScreen());
+        return _fadeRoute(const CustomerHelpCenterScreen(), settings);
 
       // Technician
       case AppRoutes.technicianDashboard:
-        return MaterialPageRoute(builder: (_) => const TechnicianDashboardScreen());
+        return _fadeRoute(const TechnicianDashboardScreen(), settings);
+
+      case AppRoutes.technicianIncomingOrders:
+        return _fadeRoute(const TechnicianIncomingOrdersScreen(), settings);
+
+      case AppRoutes.technicianUpdateStatus:
+        return _fadeRoute(const TechnicianUpdateStatusScreen(), settings);
+
+      case AppRoutes.technicianAdditionalCost:
+        return _fadeRoute(const TechnicianAdditionalCostScreen(), settings);
+
+      case AppRoutes.technicianServiceHistory:
+        return _fadeRoute(const TechnicianServiceHistoryScreen(), settings);
 
       default:
-        return MaterialPageRoute(
-          builder: (_) => Scaffold(
+        return _fadeRoute(
+          Scaffold(
             appBar: AppBar(title: const Text('Halaman Sedang Disiapkan')),
             body: Center(
               child: Padding(
@@ -96,18 +135,21 @@ class RouteGenerator {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.construction_rounded, size: 54, color: Colors.orange),
+                    const Icon(Icons.construction_rounded,
+                        size: 54, color: Colors.orange),
                     const SizedBox(height: 16),
                     Text(
                       'Halaman ${settings.name} sedang dikembangkan',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
               ),
             ),
           ),
+          settings,
         );
     }
   }

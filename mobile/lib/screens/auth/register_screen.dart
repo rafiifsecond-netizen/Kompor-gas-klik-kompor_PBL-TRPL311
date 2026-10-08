@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/custom_text_field.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -15,41 +14,36 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-  String _selectedRole = 'customer';
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+  bool _obscurePass = true;
+  bool _obscureConfirm = true;
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    _addressController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
+    _passCtrl.dispose();
+    _confirmCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
-
     final auth = context.read<AuthProvider>();
     final ok = await auth.register(
-      name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
-      phone: _phoneController.text.trim(),
-      password: _passwordController.text,
-      passwordConfirmation: _confirmPasswordController.text,
-      address: _addressController.text.trim(),
-      role: _selectedRole,
+      name: _nameCtrl.text.trim(),
+      email: _emailCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim(),
+      password: _passCtrl.text,
+      passwordConfirmation: _confirmCtrl.text,
+      role: 'customer',
     );
-
     if (!mounted || !ok) return;
-
     final route = auth.isTechnician
         ? AppRoutes.technicianDashboard
         : AppRoutes.customerHome;
@@ -58,174 +52,341 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Buat Akun Baru')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: Form(key: _formKey, child: _buildFormContent()),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFormContent() {
     final auth = context.watch<AuthProvider>();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildRoleSelector(),
-        const SizedBox(height: 12),
-        if (auth.errorMessage != null)
-          Container(
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: AppColors.dangerLight,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              auth.errorMessage!,
-              style: const TextStyle(fontSize: 12, color: AppColors.danger),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 36),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 24),
+
+                  // ── Logo ──────────────────────────────────────
+                  const _KlikKomporLogo(),
+
+                  const SizedBox(height: 28),
+
+                  // ── Error banner ───────────────────────────────
+                  if (auth.errorMessage != null) ...[
+                    _ErrorBanner(message: auth.errorMessage!),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // ── Field Nama Lengkap ─────────────────────────
+                  _AuthField(
+                    controller: _nameCtrl,
+                    hint: 'Nama Lengkap',
+                    icon: Icons.person_outline_rounded,
+                    errorText: auth.getFieldError('name'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Nama wajib diisi' : null,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ── Field Email ────────────────────────────────
+                  _AuthField(
+                    controller: _emailCtrl,
+                    hint: 'Alamat Email',
+                    icon: Icons.mail_outline_rounded,
+                    keyboardType: TextInputType.emailAddress,
+                    errorText: auth.getFieldError('email'),
+                    validator: (v) =>
+                        (v == null || !v.contains('@')) ? 'Email tidak valid' : null,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ── Field Nomor Telepon ────────────────────────
+                  _AuthField(
+                    controller: _phoneCtrl,
+                    hint: 'Nomor Telepon (WhatsApp)',
+                    icon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                    errorText: auth.getFieldError('phone'),
+                    validator: (v) =>
+                        (v == null || v.trim().length < 10) ? 'Nomor telepon minimal 10 digit' : null,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ── Field Kata Sandi + eye ─────────────────────
+                  _AuthField(
+                    controller: _passCtrl,
+                    hint: 'Kata Sandi',
+                    icon: Icons.lock_outline_rounded,
+                    obscureText: _obscurePass,
+                    errorText: auth.getFieldError('password'),
+                    suffixIcon: GestureDetector(
+                      onTap: () => setState(() => _obscurePass = !_obscurePass),
+                      child: Icon(
+                        _obscurePass
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        size: 20,
+                        color: Colors.black54,
+                      ),
+                    ),
+                    validator: (v) => (v == null || v.length < 6)
+                        ? 'Minimal 6 karakter'
+                        : null,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ── Field Konfirmasi + eye-off ─────────────────
+                  _AuthField(
+                    controller: _confirmCtrl,
+                    hint: 'Konfirmasi Kata Sandi',
+                    icon: Icons.lock_outline_rounded,
+                    obscureText: _obscureConfirm,
+                    suffixIcon: GestureDetector(
+                      onTap: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
+                      child: Icon(
+                        _obscureConfirm
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 20,
+                        color: Colors.black54,
+                      ),
+                    ),
+                    validator: (v) =>
+                        (v != _passCtrl.text) ? 'Kata sandi tidak cocok' : null,
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // ── Tombol Daftar ──────────────────────────────
+                  _AuthButton(
+                    label: 'Daftar Akun Baru',
+                    isLoading: auth.isLoading,
+                    onTap: _handleRegister,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // ── Link ke Login ──────────────────────────────
+                  GestureDetector(
+                    onTap: () {
+                      auth.clearErrors();
+                      Navigator.pop(context);
+                    },
+                    child: Text(
+                      'Sudah punya akun? Masuk',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
           ),
-        CustomTextField(
-          label: 'Nama Lengkap',
-          hint: 'contoh: Budi Santoso',
-          controller: _nameController,
-          prefixIcon: Icons.person_outline_rounded,
-          errorText: auth.getFieldError('name'),
-          validator: (v) => (v == null || v.trim().isEmpty) ? 'Nama wajib diisi' : null,
         ),
-        const SizedBox(height: 12),
-        CustomTextField(
-          label: 'Nomor WhatsApp / HP',
-          hint: 'contoh: 081234567890',
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          prefixIcon: Icons.phone_android_rounded,
-          errorText: auth.getFieldError('phone'),
-          validator: (v) => (v == null || v.trim().length < 9) ? 'Nomor HP tidak valid' : null,
-        ),
-        const SizedBox(height: 12),
-        CustomTextField(
-          label: 'Alamat Email',
-          hint: 'contoh: budi@gmail.com',
-          controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          prefixIcon: Icons.email_outlined,
-          errorText: auth.getFieldError('email'),
-          validator: (v) => (v == null || !v.contains('@')) ? 'Email tidak valid' : null,
-        ),
-        const SizedBox(height: 12),
-        CustomTextField(
-          label: 'Alamat Tempat Tinggal',
-          hint: 'Alamat lengkap tempat tinggal',
-          controller: _addressController,
-          prefixIcon: Icons.location_on_outlined,
-          errorText: auth.getFieldError('address'),
-          validator: (v) => (v == null || v.trim().isEmpty) ? 'Alamat wajib diisi' : null,
-        ),
-        const SizedBox(height: 12),
-        CustomTextField(
-          label: 'Kata Sandi',
-          hint: 'Minimal 8 karakter',
-          controller: _passwordController,
-          isPassword: true,
-          prefixIcon: Icons.lock_outline_rounded,
-          errorText: auth.getFieldError('password'),
-          validator: (v) => (v == null || v.length < 8) ? 'Minimal 8 karakter' : null,
-        ),
-        const SizedBox(height: 12),
-        CustomTextField(
-          label: 'Konfirmasi Kata Sandi',
-          hint: 'Ulangi kata sandi',
-          controller: _confirmPasswordController,
-          isPassword: true,
-          textInputAction: TextInputAction.done,
-          prefixIcon: Icons.lock_reset_rounded,
-          validator: (v) => (v != _passwordController.text) ? 'Kata sandi tidak cocok' : null,
-        ),
-        const SizedBox(height: 20),
-        CustomButton(
-          text: _selectedRole == 'technician' ? 'Daftar Sebagai Teknisi' : 'Daftar Sekarang',
-          isLoading: auth.isLoading,
-          backgroundColor: _selectedRole == 'technician' ? AppColors.secondary : AppColors.primary,
-          onPressed: _handleRegister,
-        ),
-        const SizedBox(height: 16),
-        _buildLoginLink(),
-      ],
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SHARED AUTH WIDGETS
+// ═════════════════════════════════════════════════════════════════════════════
+
+class _KlikKomporLogo extends StatefulWidget {
+  const _KlikKomporLogo();
+
+  @override
+  State<_KlikKomporLogo> createState() => _KlikKomporLogoState();
+}
+
+class _KlikKomporLogoState extends State<_KlikKomporLogo>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
 
-  Widget _buildRoleSelector() {
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _animation,
+      child: Image.asset(
+        'assets/images/logo.png',
+        width: 150,
+        height: 130,
+        fit: BoxFit.contain,
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  const _ErrorBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(4),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        color: AppColors.dangerLight,
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedRole = 'customer'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 9),
-                decoration: BoxDecoration(
-                  color: _selectedRole == 'customer' ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.person_rounded, size: 18, color: _selectedRole == 'customer' ? AppColors.primary : AppColors.textSecondary),
-                    const SizedBox(width: 6),
-                    Text('Pelanggan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _selectedRole == 'customer' ? AppColors.primary : AppColors.textSecondary)),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedRole = 'technician'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 9),
-                decoration: BoxDecoration(
-                  color: _selectedRole == 'technician' ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.handyman_rounded, size: 18, color: _selectedRole == 'technician' ? AppColors.secondary : AppColors.textSecondary),
-                    const SizedBox(width: 6),
-                    Text('Teknisi', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _selectedRole == 'technician' ? AppColors.secondary : AppColors.textSecondary)),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+      child: Text(
+        message,
+        style: GoogleFonts.inter(fontSize: 13, color: AppColors.danger),
+        textAlign: TextAlign.center,
       ),
     );
   }
+}
 
-  Widget _buildLoginLink() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text('Sudah punya akun? ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-        GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: const Text('Masuk di sini', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
+class _AuthField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final bool obscureText;
+  final Widget? suffixIcon;
+  final TextInputType? keyboardType;
+  final String? errorText;
+  final String? Function(String?)? validator;
+
+  const _AuthField({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.obscureText = false,
+    this.suffixIcon,
+    this.keyboardType,
+    this.errorText,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      style: GoogleFonts.inter(fontSize: 14, color: Colors.black87),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: const Color(0xFFE8E8E8),
+        hintText: hint,
+        hintStyle: GoogleFonts.inter(
+          fontSize: 14,
+          color: Colors.black54,
+          fontWeight: FontWeight.w400,
         ),
-      ],
+        prefixIcon: Icon(icon, size: 20, color: Colors.black54),
+        suffixIcon: suffixIcon != null
+            ? Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: suffixIcon,
+              )
+            : null,
+        suffixIconConstraints:
+            const BoxConstraints(minWidth: 40, minHeight: 40),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        errorText: errorText,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFCCCCCC), width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFCCCCCC), width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: AppColors.danger, width: 1),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
+        ),
+        errorStyle: GoogleFonts.inter(fontSize: 11, color: AppColors.danger),
+      ),
+      validator: validator,
+    );
+  }
+}
+
+class _AuthButton extends StatelessWidget {
+  final String label;
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  const _AuthButton({
+    required this.label,
+    required this.isLoading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 46,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2.5),
+              )
+            : Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+      ),
     );
   }
 }
