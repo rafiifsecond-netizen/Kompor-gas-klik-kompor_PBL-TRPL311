@@ -11,7 +11,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
 
@@ -62,12 +63,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Logo KlikKompor sesuai Figma
+              // Logo KlikKompor
               Image.asset(
                 'assets/images/logo.png',
                 width: 160,
-                height: 124,
-                errorBuilder: (_, __, ___) => _buildLogoFallback(),
+                height: 140,
+                fit: BoxFit.contain,
               ),
               const SizedBox(height: 48),
               const SizedBox(
@@ -84,32 +85,4 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
     );
   }
-
-  Widget _buildLogoFallback() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 48),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'KlikKompor',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-            color: AppColors.primary,
-            letterSpacing: -0.5,
-          ),
-        ),
-      ],
-    );
-  }
 }
-

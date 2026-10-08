@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/routes/app_routes.dart';
 import '../../widgets/chat_list_item_widget.dart';
+import '../../widgets/custom_bottom_nav_bar.dart';
 
 class CustomerChatScreen extends StatelessWidget {
   const CustomerChatScreen({super.key});
+
+  void _onNavTap(BuildContext context, int index) {
+    final route = switch (index) {
+      0 => AppRoutes.customerHome,
+      1 => AppRoutes.customerOrderHistory,
+      2 => AppRoutes.customerChat,
+      3 => AppRoutes.customerProfile,
+      _ => null,
+    };
+    if (route != null && index != 2) {
+      Navigator.pushReplacementNamed(context, route);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +44,10 @@ class CustomerChatScreen extends StatelessWidget {
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _ChatDetailScreen(technicianName: 'Budi Wirawan'))),
           ),
         ],
+      ),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: 2,
+        onTap: (index) => _onNavTap(context, index),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
+import '../../widgets/custom_bottom_nav_bar.dart';
 import '../../widgets/order_history_card_widget.dart';
 
 class CustomerOrderHistoryScreen extends StatelessWidget {
@@ -12,6 +13,19 @@ class CustomerOrderHistoryScreen extends StatelessWidget {
     {'title': 'Ganti Selang Gas', 'orderNumber': '#KK-2026-002', 'date': '15 Sep 2026', 'price': 'Rp 55.000', 'status': 'Selesai'},
     {'title': 'Service Kompor Gas 1 Tungku', 'orderNumber': '#KK-2026-003', 'date': '5 Sep 2026', 'price': 'Rp 80.000', 'status': 'Dibatalkan'},
   ];
+
+  void _onNavTap(BuildContext context, int index) {
+    final route = switch (index) {
+      0 => AppRoutes.customerHome,
+      1 => AppRoutes.customerOrderHistory,
+      2 => AppRoutes.customerChat,
+      3 => AppRoutes.customerProfile,
+      _ => null,
+    };
+    if (route != null && index != 1) {
+      Navigator.pushReplacementNamed(context, route);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +59,10 @@ class CustomerOrderHistoryScreen extends StatelessWidget {
               );
             },
           ),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: 1,
+        onTap: (index) => _onNavTap(context, index),
+      ),
     );
   }
 }

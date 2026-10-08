@@ -4,9 +4,23 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/custom_bottom_nav_bar.dart';
 
 class CustomerProfileScreen extends StatelessWidget {
   const CustomerProfileScreen({super.key});
+
+  void _onNavTap(BuildContext context, int index) {
+    final route = switch (index) {
+      0 => AppRoutes.customerHome,
+      1 => AppRoutes.customerOrderHistory,
+      2 => AppRoutes.customerChat,
+      3 => AppRoutes.customerProfile,
+      _ => null,
+    };
+    if (route != null && index != 3) {
+      Navigator.pushReplacementNamed(context, route);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +67,10 @@ class CustomerProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
         ]),
+      ),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: 3,
+        onTap: (index) => _onNavTap(context, index),
       ),
     );
   }

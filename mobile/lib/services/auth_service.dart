@@ -31,7 +31,7 @@ class AuthService {
     final response = await _apiClient.post(
       ApiEndpoints.login,
       data: {
-        'email': email,
+        'identifier': email, // API expects 'identifier' (email or phone)
         'password': password,
         'device_name': deviceName,
       },
@@ -39,7 +39,8 @@ class AuthService {
 
     return ApiResponse<AuthResponseData>.fromJson(
       Map<String, dynamic>.from(response as Map),
-      (data) => AuthResponseData.fromJson(Map<String, dynamic>.from(data as Map)),
+      (data) =>
+          AuthResponseData.fromJson(Map<String, dynamic>.from(data as Map)),
     );
   }
 
@@ -68,7 +69,8 @@ class AuthService {
 
     return ApiResponse<AuthResponseData>.fromJson(
       Map<String, dynamic>.from(response as Map),
-      (data) => AuthResponseData.fromJson(Map<String, dynamic>.from(data as Map)),
+      (data) =>
+          AuthResponseData.fromJson(Map<String, dynamic>.from(data as Map)),
     );
   }
 
@@ -117,12 +119,14 @@ class AuthService {
       },
     );
 
-    return ApiResponse<void>.fromJson(Map<String, dynamic>.from(response as Map), null);
+    return ApiResponse<void>.fromJson(
+        Map<String, dynamic>.from(response as Map), null);
   }
 
   /// Invalidate token and logout
   Future<ApiResponse<void>> logout() async {
     final response = await _apiClient.post(ApiEndpoints.logout);
-    return ApiResponse<void>.fromJson(Map<String, dynamic>.from(response as Map), null);
+    return ApiResponse<void>.fromJson(
+        Map<String, dynamic>.from(response as Map), null);
   }
 }
