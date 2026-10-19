@@ -553,21 +553,27 @@ class _ServiceGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final d in _defs)
-          _ServiceTile(
-            label: d.label,
-            icon: d.icon,
-            onTap: () => Navigator.pushNamed(
-              context,
-              AppRoutes.customerServiceDetail,
-              arguments: d.args,
-            ),
-          ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final d in _defs)
+              Expanded(
+                child: _ServiceTile(
+                  label: d.label,
+                  icon: d.icon,
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    AppRoutes.customerServiceDetail,
+                    arguments: d.args,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -593,16 +599,16 @@ class _ServiceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 76,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Column(
           children: [
             Container(
-              width: 68,
-              height: 68,
+              width: 64,
+              height: 64,
               alignment: Alignment.center,
               decoration: const BoxDecoration(
                 color: AppColors.primary,
@@ -614,11 +620,13 @@ class _ServiceTile extends StatelessWidget {
             Text(
               label,
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: _kLabelGrey,
-                height: 1.35,
+                height: 1.2,
               ),
             ),
           ],
