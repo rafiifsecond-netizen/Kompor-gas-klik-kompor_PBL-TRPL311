@@ -60,7 +60,6 @@ class OrderModel {
   bool get isCompleted => status == 'completed';
   bool get isCancelled => status == 'cancelled';
   bool get isPaid => paymentStatus == 'paid';
-  bool get isDemo => orderNumber.startsWith('KP-DEMO-');
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     final addressJson = json['address'];

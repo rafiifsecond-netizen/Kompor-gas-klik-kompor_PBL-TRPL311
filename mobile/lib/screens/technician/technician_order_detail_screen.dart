@@ -28,7 +28,6 @@ class _TechnicianOrderDetailScreenState
   List<Map<String, dynamic>> _costs = [];
   List<Map<String, dynamic>> _services = [];
   int? _orderId;
-  bool _isDemo = false;
   int _stage = 0;
   double _sliderPreview = 0;
   bool _initialized = false;
@@ -47,8 +46,6 @@ class _TechnicianOrderDetailScreenState
             const {};
     _order = Map<String, dynamic>.from(args);
     _orderId = _asInt(args['orderId']);
-    _isDemo = args['isDemo'] == true ||
-        (args['orderNumber'] as String? ?? '').startsWith('KP-DEMO-');
     _stage = _stageFor(args['status'] as String?);
     _sliderPreview = _stage.toDouble();
     final initialItems = args['items'];
@@ -90,10 +87,8 @@ class _TechnicianOrderDetailScreenState
           _order = {..._order, ...detail};
           final rows = detail['items'];
           if (rows is List) _items = rows.whereType<Map>().map(_map).toList();
-          if (!_isDemo) {
-            _stage = _stageFor(detail['status'] as String?);
-            _sliderPreview = _stage.toDouble();
-          }
+          _stage = _stageFor(detail['status'] as String?);
+          _sliderPreview = _stage.toDouble();
         }
         final costRows = costsResponse is Map ? costsResponse['data'] : null;
         if (costRows is List) {
@@ -497,8 +492,8 @@ class _TechnicianOrderDetailScreenState
             Text(
               _updatingStatus
                   ? 'Memperbarui status pesanan...'
-                  : _isDemo || _orderId == null
-                      ? 'Mode demo · progres hanya simulasi'
+                  : _orderId == null
+                      ? 'Detail demo · status tidak disimpan'
                       : 'Geser untuk memperbarui progres pesanan',
               style:
                   GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
@@ -517,19 +512,6 @@ class _TechnicianOrderDetailScreenState
       2 => 'in_progress',
       _ => 'completed',
     };
-    if (_isDemo) {
-      setState(() {
-        _stage = nextStage;
-        _sliderPreview = nextStage.toDouble();
-        _order['status'] = status;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Simulasi: ${_stages[_stage]}. Data order tetap.'),
-        ),
-      );
-      return;
-    }
     setState(() => _updatingStatus = true);
     try {
       await ApiClient().patch(
@@ -644,27 +626,6 @@ class _TechnicianOrderDetailScreenState
   Future<void> _replaceServices(List<int> serviceIds) async {
     final id = _orderId;
     if (id == null) return;
-    if (_isDemo) {
-      final selectedServices = _services
-          .where((service) => serviceIds.contains(_asInt(service['id'])))
-          .map((service) {
-        final price = _number(service['base_price']);
-        return <String, dynamic>{
-          'service_item_id': service['id'],
-          'service_name': service['name'],
-          'unit_price': price,
-          'quantity': 1,
-          'total_price': price,
-        };
-      }).toList();
-      setState(() => _items = selectedServices);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Simulasi layanan berubah. Data order tetap.'),
-        ),
-      );
-      return;
-    }
     setState(() => _updatingService = true);
     try {
       final response = await ApiClient().patch(
@@ -703,25 +664,7 @@ class _TechnicianOrderDetailScreenState
       context: context,
       builder: (_) => const _AddCostDialog(),
     );
-    if (!mounted || submitted == null) return;
-    if (_isDemo) {
-      final amount = _number(submitted['unit_price']);
-      setState(() {
-        _costs.insert(0, {
-          'item_name': submitted['item_name'],
-          'quantity': 1,
-          'unit_price': amount,
-          'subtotal': amount,
-          'status': 'approved',
-        });
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Simulasi biaya ditambahkan. Data order tetap.'),
-        ),
-      );
-      return;
-    }
+    if (submitted == null) return;
     try {
       await ApiClient().post(
         ApiEndpoints.additionalCosts(_orderId!),

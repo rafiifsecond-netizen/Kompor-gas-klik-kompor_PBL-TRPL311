@@ -6,8 +6,6 @@ import '../../core/constants/api_endpoints.dart';
 import '../../core/network/api_client.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/order_model.dart';
-import '../../models/order_item_model.dart';
-import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 
 class TechnicianDashboardScreen extends StatefulWidget {
@@ -32,102 +30,15 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
   }
 
   Future<List<OrderModel>> _loadOrders() async {
-    try {
-      final response = await ApiClient().get(ApiEndpoints.orders);
-      if (response is! Map) return _demoOrders();
-      final page = response['data'];
-      final rows = page is Map ? page['data'] : page;
-      if (rows is! List || (rows as List).isEmpty) return _demoOrders();
-      final orders = rows
-          .whereType<Map>()
-          .map((row) => OrderModel.fromJson(Map<String, dynamic>.from(row)))
-          .toList();
-      return orders.isEmpty ? _demoOrders() : orders;
-    } catch (_) {
-      return _demoOrders();
-    }
-  }
-
-  /// Data dummy sesuai alur customer — pelanggan, layanan, dan alamat sama
-  /// persis dengan data di sisi customer. Bisa diklik & dilihat alurnya,
-  /// tapi tidak mengubah database (isDemo = true → slider hanya simulasi).
-  static List<OrderModel> _demoOrders() {
-    final customerBudi = UserModel.fromJson({
-      'id': 1,
-      'name': 'Budi Santoso',
-      'email': 'budi@demo.com',
-      'phone': '08123456789',
-      'role': 'customer',
-    });
-    final customerAnisa = UserModel.fromJson({
-      'id': 2,
-      'name': 'Anisa Wijaya',
-      'email': 'anisa@demo.com',
-      'phone': '08987654321',
-      'role': 'customer',
-    });
-
-    return [
-      // ── Order aktif (accepted) → muncul di panel "Pesanan Berlangsung" ──
-      OrderModel(
-        id: 9901,
-        orderNumber: 'KP-DEMO-9901',
-        customerId: 1,
-        technicianId: 1,
-        status: 'accepted',
-        bookingDate: '2026-10-22',
-        bookingTime: '09:00',
-        // Alamat sama dengan data dummy customer (Jl. Merdeka, Jakarta Selatan)
-        addressText: 'Jl. Merdeka No. 12, RT 03/RW 05, Jakarta Selatan',
-        latitude: -6.2614,
-        longitude: 106.8106,
-        subtotal: 90000,
-        totalAmount: 90000,
-        paymentStatus: 'unpaid',
-        paymentMethod: 'cash',
-        customer: customerBudi,
-        items: [
-          OrderItemModel.fromJson({
-            'id': 1,
-            'order_id': 9901,
-            'service_item_id': 1,
-            'service_name': 'Service Kompor Gas',
-            'quantity': 1,
-            'unit_price': 90000,
-            'total_price': 90000,
-          }),
-        ],
-      ),
-      // ── Order pending → muncul di "Pesanan Masuk" ──
-      OrderModel(
-        id: 9902,
-        orderNumber: 'KP-DEMO-9902',
-        customerId: 2,
-        status: 'pending',
-        bookingDate: '2026-10-22',
-        bookingTime: '11:00',
-        // Alamat sama dengan data dummy customer (Jl. Sudirman, Jakarta Pusat)
-        addressText: 'Jl. Sudirman Kav. 52, Lantai 8, Jakarta Pusat',
-        latitude: -6.2088,
-        longitude: 106.8210,
-        subtotal: 75000,
-        totalAmount: 75000,
-        paymentStatus: 'unpaid',
-        paymentMethod: 'cash',
-        customer: customerAnisa,
-        items: [
-          OrderItemModel.fromJson({
-            'id': 2,
-            'order_id': 9902,
-            'service_item_id': 2,
-            'service_name': 'Instalasi Regulator',
-            'quantity': 1,
-            'unit_price': 75000,
-            'total_price': 75000,
-          }),
-        ],
-      ),
-    ];
+    final response = await ApiClient().get(ApiEndpoints.orders);
+    if (response is! Map) return [];
+    final page = response['data'];
+    final rows = page is Map ? page['data'] : page;
+    if (rows is! List) return [];
+    return rows
+        .whereType<Map>()
+        .map((row) => OrderModel.fromJson(Map<String, dynamic>.from(row)))
+        .toList();
   }
 
   @override
@@ -361,7 +272,6 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
                         arguments: {
                           'orderId': selectedOrder.id,
                           'orderNumber': selectedOrder.orderNumber,
-                          'isDemo': selectedOrder.isDemo,
                           'customerName':
                               selectedOrder.customer?.name ?? 'Pelanggan',
                           'serviceName': selectedOrder.items.isNotEmpty
@@ -454,9 +364,6 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
       for (final order in orders) {
         if (order.status == status) return order;
       }
-    }
-    for (final order in orders) {
-      if (order.isDemo && order.isPending) return order;
     }
     return null;
   }

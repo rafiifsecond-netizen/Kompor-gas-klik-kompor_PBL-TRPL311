@@ -5,8 +5,6 @@ import '../../core/network/api_client.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/order_model.dart';
-import '../../models/order_item_model.dart';
-import '../../models/user_model.dart';
 
 class TechnicianIncomingOrdersScreen extends StatefulWidget {
   const TechnicianIncomingOrdersScreen({super.key});
@@ -28,109 +26,22 @@ class _TechnicianIncomingOrdersScreenState
   }
 
   Future<List<OrderModel>> _loadIncomingOrders() async {
-    try {
-      final response = await ApiClient().get(
-        ApiEndpoints.orders,
-        queryParameters: const {'status': 'pending'},
-      );
-      if (response is! Map) return _demoPendingOrders();
-      final payload = response['data'];
-      final rows = payload is Map ? payload['data'] : payload;
-      if (rows is! List || (rows as List).isEmpty) return _demoPendingOrders();
-      final orders = rows
-          .whereType<Map>()
-          .map((row) => OrderModel.fromJson(Map<String, dynamic>.from(row)))
-          .where((order) => order.isPending)
-          .toList();
-      return orders.isEmpty ? _demoPendingOrders() : orders;
-    } catch (_) {
-      return _demoPendingOrders();
-    }
+    final response = await ApiClient().get(
+      ApiEndpoints.orders,
+      queryParameters: const {'status': 'pending'},
+    );
+    if (response is! Map) return [];
+    final payload = response['data'];
+    final rows = payload is Map ? payload['data'] : payload;
+    if (rows is! List) return [];
+    return rows
+        .whereType<Map>()
+        .map((row) => OrderModel.fromJson(Map<String, dynamic>.from(row)))
+        .where((order) => order.isPending)
+        .toList();
   }
 
-  /// Data dummy pending — sesuai alur customer (nama, alamat, layanan sama).
-  /// Tombol Terima/Batalkan di mode demo tidak mengubah database.
-  static List<OrderModel> _demoPendingOrders() => [
-        OrderModel(
-          id: 9902,
-          orderNumber: 'KP-DEMO-9902',
-          customerId: 2,
-          status: 'pending',
-          bookingDate: '2026-10-22',
-          bookingTime: '11:00',
-          addressText: 'Jl. Sudirman Kav. 52, Lantai 8, Jakarta Pusat',
-          latitude: -6.2088,
-          longitude: 106.8210,
-          subtotal: 75000,
-          totalAmount: 75000,
-          paymentStatus: 'unpaid',
-          paymentMethod: 'cash',
-          customer: UserModel.fromJson({
-            'id': 2,
-            'name': 'Anisa Wijaya',
-            'email': 'anisa@demo.com',
-            'phone': '08987654321',
-            'role': 'customer',
-          }),
-          items: [
-            OrderItemModel.fromJson({
-              'id': 2,
-              'order_id': 9902,
-              'service_item_id': 2,
-              'service_name': 'Instalasi Regulator',
-              'quantity': 1,
-              'unit_price': 75000,
-              'total_price': 75000,
-            }),
-          ],
-        ),
-        OrderModel(
-          id: 9903,
-          orderNumber: 'KP-DEMO-9903',
-          customerId: 1,
-          status: 'pending',
-          bookingDate: '2026-10-22',
-          bookingTime: '13:00',
-          addressText: 'Jl. Merdeka No. 12, RT 03/RW 05, Jakarta Selatan',
-          latitude: -6.2614,
-          longitude: 106.8106,
-          subtotal: 55000,
-          totalAmount: 55000,
-          paymentStatus: 'unpaid',
-          paymentMethod: 'cash',
-          customer: UserModel.fromJson({
-            'id': 1,
-            'name': 'Budi Santoso',
-            'email': 'budi@demo.com',
-            'phone': '08123456789',
-            'role': 'customer',
-          }),
-          items: [
-            OrderItemModel.fromJson({
-              'id': 3,
-              'order_id': 9903,
-              'service_item_id': 3,
-              'service_name': 'Ganti Selang Gas',
-              'quantity': 1,
-              'unit_price': 55000,
-              'total_price': 55000,
-            }),
-          ],
-        ),
-      ];
-
   Future<bool> _respondToOrder(OrderModel order, String status) async {
-    if (order.isDemo) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(status == 'accepted'
-              ? 'Mode demo: pesanan dibuka tanpa mengubah database.'
-              : 'Mode demo: data pesanan tetap disimpan.'),
-        ),
-      );
-      return true;
-    }
-
     setState(() => _updatingOrders.add(order.id));
     try {
       await ApiClient().patch(
@@ -355,7 +266,6 @@ class _TechnicianIncomingOrdersScreenState
                                         'paymentMethod': order.paymentMethod,
                                         'amount': order.totalAmount,
                                         'status': 'accepted',
-                                        'isDemo': order.isDemo,
                                       },
                                     );
                                   },
