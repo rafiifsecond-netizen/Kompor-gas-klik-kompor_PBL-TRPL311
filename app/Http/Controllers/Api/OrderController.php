@@ -25,12 +25,18 @@ class OrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = Order::with(['items', 'technician:id,name,phone,avatar_url', 'customer:id,name,phone,avatar_url', 'payment']);
+        $query = Order::with(['items.serviceItem', 'technician:id,name,phone,avatar_url', 'customer:id,name,phone,avatar_url', 'payment']);
 
         if ($user->isCustomer()) {
             $query->where('customer_id', $user->id);
         } elseif ($user->isTechnician()) {
-            $query->where('technician_id', $user->id);
+            $query->where(function ($query) use ($user) {
+                $query->where('technician_id', $user->id)
+                    ->orWhere(function ($query) {
+                        $query->whereNull('technician_id')
+                            ->where('status', Order::STATUS_PENDING);
+                    });
+            });
         }
         // Admin sees all orders
 
@@ -176,12 +182,13 @@ class OrderController extends Controller
     {
         $user = $request->user();
         $order = Order::with([
-            'items',
+            'items.serviceItem',
             'technician.technicianProfile',
             'customer',
             'statusLogs.actor:id,name,role',
             'payment',
             'review',
+            'additionalCosts',
         ])->findOrFail($id);
 
         // Authorization check
@@ -207,6 +214,81 @@ class OrderController extends Controller
             'success' => true,
             'data' => $order,
         ]);
+    }
+
+    /** Replace the service items on an active technician order. */
+    public function updateServices(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $order = Order::with('items')->findOrFail($id);
+
+        if ($user->isTechnician() && $order->technician_id !== $user->id) {
+            return response()->json(['success' => false, 'message' => 'Anda bukan teknisi yang menangani pesanan ini.'], 403);
+        }
+
+        if (! in_array($order->status, [Order::STATUS_ACCEPTED, Order::STATUS_ON_THE_WAY, Order::STATUS_IN_PROGRESS], true)) {
+            return response()->json(['success' => false, 'message' => 'Layanan hanya dapat diubah saat pesanan sedang berjalan.'], 422);
+        }
+
+        $validated = $request->validate([
+            'services' => ['required', 'array', 'min:1'],
+            'services.*.service_item_id' => [
+                'required',
+                Rule::exists('service_items', 'id')->where('is_active', true),
+            ],
+            'services.*.quantity' => ['required', 'integer', 'min:1'],
+        ]);
+
+        return DB::transaction(function () use ($order, $validated, $request, $user) {
+            $oldItems = $order->items->map(fn ($item) => [
+                'service_item_id' => $item->service_item_id,
+                'quantity' => $item->quantity,
+            ])->all();
+            $serviceSubtotal = 0;
+            $replacementItems = [];
+
+            foreach ($validated['services'] as $serviceData) {
+                $serviceItem = ServiceItem::where('is_active', true)
+                    ->findOrFail($serviceData['service_item_id']);
+                $quantity = $serviceData['quantity'];
+                $lineTotal = (float) $serviceItem->base_price * $quantity;
+                $serviceSubtotal += $lineTotal;
+                $replacementItems[] = [
+                    'service_item_id' => $serviceItem->id,
+                    'service_name' => $serviceItem->name,
+                    'unit_price' => $serviceItem->base_price,
+                    'quantity' => $quantity,
+                    'total_price' => $lineTotal,
+                ];
+            }
+
+            $approvedAdditionalCosts = (float) $order->additionalCosts()
+                ->where('status', 'approved')
+                ->sum('subtotal');
+
+            $order->items()->delete();
+            $order->items()->createMany($replacementItems);
+            $order->subtotal = $serviceSubtotal + $approvedAdditionalCosts;
+            $order->discount = round($serviceSubtotal * 0.10, 2);
+            $order->total_amount = $order->subtotal + (float) $order->transport_fee - $order->discount;
+            $order->save();
+
+            ActivityLog::logEvent(
+                eventName: 'order.services.updated',
+                description: "Teknisi mengubah layanan pesanan {$order->order_number}",
+                entity: $order,
+                oldValues: ['items' => $oldItems],
+                newValues: ['items' => $replacementItems],
+                request: $request,
+                actor: $user
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Layanan pesanan berhasil diperbarui.',
+                'data' => $order->fresh()->load(['items', 'additionalCosts']),
+            ]);
+        });
     }
 
     /**
@@ -244,7 +326,7 @@ class OrderController extends Controller
         $statusTo = $validated['status'];
         $oldStatus = $order->status;
 
-        if (! $order->technician_id && $statusTo !== 'accepted' && ! $user->isAdmin()) {
+        if (! $order->technician_id && ! in_array($statusTo, ['accepted', 'rejected'], true) && ! $user->isAdmin()) {
             return response()->json(['success' => false, 'message' => 'Pesanan harus diterima (accepted) terlebih dahulu oleh teknisi.'], 422);
         }
 

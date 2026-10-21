@@ -116,7 +116,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 // Search bar
                 Padding(
                   padding: _kPad,
-                  child: _SearchBar(),
+                  child: const _SearchBar(),
                 ),
 
                 const SizedBox(height: 16),
@@ -124,7 +124,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 // ── Carousel banner (auto-scroll) ──────────────
                 Padding(
                   padding: _kPad,
-                  child: _BannerCarousel(items: _carouselItems),
+                  child: const _BannerCarousel(items: _carouselItems),
                 ),
 
                 const SizedBox(height: 24),
@@ -510,10 +510,10 @@ class _ServiceGrid extends StatelessWidget {
         hargaMulai: 'Rp.75.000',
       ),
     ),
-    _ServiceDef(
+    const _ServiceDef(
       label: 'Instalasi\nRegulator',
-      icon: const _RegulatorIcon(),
-      args: const ServiceDetailArgs(
+      icon: _RegulatorIcon(),
+      args: ServiceDetailArgs(
         name: 'Instalasi Regulator',
         description:
             'Layanan pemasangan regulator gas yang cepat, aman, dan dikerjakan oleh teknisi profesional. Memastikan sambungan terpasang dengan benar sehingga meminimalkan risiko kebocoran.',

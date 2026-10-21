@@ -56,6 +56,7 @@ Route::prefix('v1')->group(function () {
         // Order Management (Role-aware filtering inside controller)
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{id}', [OrderController::class, 'show']);
+        Route::patch('/orders/{id}/services', [OrderController::class, 'updateServices'])->middleware('role:technician,admin');
         Route::patch('/orders/{id}/status', [OrderController::class, 'updateStatus'])->middleware('role:technician,admin');
         Route::patch('/orders/{id}/reschedule', [OrderController::class, 'reschedule']);
         Route::post('/orders/{id}/pay', [OrderController::class, 'pay']);

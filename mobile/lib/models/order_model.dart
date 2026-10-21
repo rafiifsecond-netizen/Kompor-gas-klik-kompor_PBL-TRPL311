@@ -13,6 +13,9 @@ class OrderModel {
   final String status;
   final String bookingDate;
   final String bookingTime;
+  final String? addressText;
+  final double? latitude;
+  final double? longitude;
   final double subtotal;
   final double totalAmount;
   final String paymentStatus;
@@ -34,6 +37,9 @@ class OrderModel {
     required this.status,
     required this.bookingDate,
     required this.bookingTime,
+    this.addressText,
+    this.latitude,
+    this.longitude,
     required this.subtotal,
     required this.totalAmount,
     required this.paymentStatus,
@@ -54,10 +60,19 @@ class OrderModel {
   bool get isCompleted => status == 'completed';
   bool get isCancelled => status == 'cancelled';
   bool get isPaid => paymentStatus == 'paid';
+  bool get isDemo => orderNumber.startsWith('KP-DEMO-');
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
+    final addressJson = json['address'];
+    final scheduledAt =
+        DateTime.tryParse(json['scheduled_at']?.toString() ?? '');
+    final address = addressJson is Map
+        ? AddressModel.fromJson(Map<String, dynamic>.from(addressJson))
+        : null;
     return OrderModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       orderNumber: json['order_number'] as String? ?? '',
       customerId: json['customer_id'] is int
           ? json['customer_id']
@@ -69,8 +84,17 @@ class OrderModel {
           ? int.tryParse(json['address_id'].toString())
           : null,
       status: json['status'] as String? ?? 'pending',
-      bookingDate: json['booking_date'] as String? ?? '',
-      bookingTime: json['booking_time'] as String? ?? '',
+      bookingDate: json['booking_date'] as String? ??
+          (scheduledAt == null
+              ? ''
+              : '${scheduledAt.year}-${scheduledAt.month.toString().padLeft(2, '0')}-${scheduledAt.day.toString().padLeft(2, '0')}'),
+      bookingTime: json['booking_time'] as String? ??
+          (scheduledAt == null
+              ? ''
+              : '${scheduledAt.hour.toString().padLeft(2, '0')}:${scheduledAt.minute.toString().padLeft(2, '0')}'),
+      addressText: addressJson is String ? addressJson : null,
+      latitude: _toDouble(json['latitude']) ?? address?.latitude,
+      longitude: _toDouble(json['longitude']) ?? address?.longitude,
       subtotal: json['subtotal'] != null
           ? (double.tryParse(json['subtotal'].toString()) ?? 0.0)
           : 0.0,
@@ -81,29 +105,36 @@ class OrderModel {
       paymentMethod: json['payment_method'] as String?,
       cancellationReason: json['cancellation_reason'] as String?,
       customer: json['customer'] != null && json['customer'] is Map
-          ? UserModel.fromJson(Map<String, dynamic>.from(json['customer'] as Map))
+          ? UserModel.fromJson(
+              Map<String, dynamic>.from(json['customer'] as Map))
           : null,
       technician: json['technician'] != null && json['technician'] is Map
-          ? UserModel.fromJson(Map<String, dynamic>.from(json['technician'] as Map))
+          ? UserModel.fromJson(
+              Map<String, dynamic>.from(json['technician'] as Map))
           : null,
-      address: json['address'] != null && json['address'] is Map
-          ? AddressModel.fromJson(Map<String, dynamic>.from(json['address'] as Map))
-          : null,
+      address: address,
       items: (json['items'] is List)
           ? (json['items'] as List)
-              .map((i) => OrderItemModel.fromJson(Map<String, dynamic>.from(i as Map)))
+              .map((i) =>
+                  OrderItemModel.fromJson(Map<String, dynamic>.from(i as Map)))
               .toList()
           : [],
       additionalCosts: (json['additional_costs'] is List)
           ? (json['additional_costs'] as List)
-              .map((c) =>
-                  AdditionalCostModel.fromJson(Map<String, dynamic>.from(c as Map)))
+              .map((c) => AdditionalCostModel.fromJson(
+                  Map<String, dynamic>.from(c as Map)))
               .toList()
           : [],
       review: json['review'] != null && json['review'] is Map
-          ? OrderReviewModel.fromJson(Map<String, dynamic>.from(json['review'] as Map))
+          ? OrderReviewModel.fromJson(
+              Map<String, dynamic>.from(json['review'] as Map))
           : null,
     );
+  }
+
+  static double? _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
   }
 
   Map<String, dynamic> toJson() {

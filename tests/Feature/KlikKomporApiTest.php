@@ -118,6 +118,55 @@ class KlikKomporApiTest extends TestCase
         ]);
     }
 
+    public function test_technician_order_list_includes_unassigned_pending_orders_only(): void
+    {
+        $technician = User::where('email', 'agus.teknisi@klikkompor.com')->first();
+        $otherTechnician = User::where('email', 'bambang.teknisi@klikkompor.com')->first();
+        $customer = User::where('email', 'dewi@example.com')->first();
+
+        $availableOrder = Order::create([
+            'order_number' => 'KP-AVAILABLE-001',
+            'customer_id' => $customer->id,
+            'status' => Order::STATUS_PENDING,
+            'scheduled_at' => now()->addDay(),
+            'customer_name' => $customer->name,
+            'customer_phone' => $customer->phone,
+            'address' => 'Jl. Contoh No. 1',
+            'problem_description' => 'Kompor tidak menyala',
+            'subtotal' => 75000,
+            'transport_fee' => 15000,
+            'discount' => 0,
+            'total_amount' => 90000,
+            'payment_method' => 'cash',
+            'payment_status' => 'unpaid',
+        ]);
+
+        $otherOrder = Order::create([
+            'order_number' => 'KP-OTHER-001',
+            'customer_id' => $customer->id,
+            'technician_id' => $otherTechnician->id,
+            'status' => Order::STATUS_PENDING,
+            'scheduled_at' => now()->addDay(),
+            'customer_name' => $customer->name,
+            'customer_phone' => $customer->phone,
+            'address' => 'Jl. Contoh No. 2',
+            'problem_description' => 'Api kompor merah',
+            'subtotal' => 95000,
+            'transport_fee' => 15000,
+            'discount' => 0,
+            'total_amount' => 110000,
+            'payment_method' => 'cash',
+            'payment_status' => 'unpaid',
+        ]);
+
+        $response = $this->actingAs($technician)
+            ->getJson('/api/v1/orders?status=pending');
+
+        $response->assertOk()
+            ->assertJsonFragment(['id' => $availableOrder->id])
+            ->assertJsonMissing(['id' => $otherOrder->id]);
+    }
+
     public function test_admin_can_access_dashboard_metrics_and_logs(): void
     {
         $admin = User::where('email', 'admin@klikkompor.com')->first();

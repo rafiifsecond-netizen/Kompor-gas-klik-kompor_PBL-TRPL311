@@ -43,6 +43,7 @@ class ApiEndpoints {
   // Orders
   static String get orders => '$baseUrl/orders';
   static String orderDetail(int id) => '$baseUrl/orders/$id';
+  static String updateOrderServices(int id) => '$baseUrl/orders/$id/services';
   static String updateOrderStatus(int id) => '$baseUrl/orders/$id/status';
   static String payOrder(int id) => '$baseUrl/orders/$id/pay';
   static String rescheduleOrder(int id) => '$baseUrl/orders/$id/reschedule';
@@ -50,11 +51,14 @@ class ApiEndpoints {
 
   // Order Chat
   static String orderChat(int orderId) => '$baseUrl/orders/$orderId/chat';
-  static String sendChatMessage(int orderId) => '$baseUrl/orders/$orderId/chat/messages';
-  static String markChatRead(int orderId) => '$baseUrl/orders/$orderId/chat/read';
+  static String sendChatMessage(int orderId) =>
+      '$baseUrl/orders/$orderId/chat/messages';
+  static String markChatRead(int orderId) =>
+      '$baseUrl/orders/$orderId/chat/read';
 
   // Additional Costs
-  static String additionalCosts(int orderId) => '$baseUrl/orders/$orderId/additional-costs';
+  static String additionalCosts(int orderId) =>
+      '$baseUrl/orders/$orderId/additional-costs';
   static String approveAdditionalCost(int orderId, int costId) =>
       '$baseUrl/orders/$orderId/additional-costs/$costId/approve';
   static String rejectAdditionalCost(int orderId, int costId) =>
@@ -62,7 +66,10 @@ class ApiEndpoints {
 
   // Notifications
   static String get notifications => '$baseUrl/notifications';
-  static String get unreadNotificationsCount => '$baseUrl/notifications/unread-count';
-  static String markNotificationRead(int id) => '$baseUrl/notifications/$id/read';
-  static String get markAllNotificationsRead => '$baseUrl/notifications/read-all';
+  static String get unreadNotificationsCount =>
+      '$baseUrl/notifications/unread-count';
+  static String markNotificationRead(int id) =>
+      '$baseUrl/notifications/$id/read';
+  static String get markAllNotificationsRead =>
+      '$baseUrl/notifications/read-all';
 }

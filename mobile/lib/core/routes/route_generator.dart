@@ -20,6 +20,7 @@ import '../../screens/customer/customer_notification_screen.dart';
 import '../../screens/customer/customer_help_center_screen.dart';
 import '../../screens/technician/technician_dashboard_screen.dart';
 import '../../screens/technician/technician_incoming_orders_screen.dart';
+import '../../screens/technician/technician_order_detail_screen.dart';
 import '../../screens/technician/technician_update_status_screen.dart';
 import '../../screens/technician/technician_additional_cost_screen.dart';
 import '../../screens/technician/technician_service_history_screen.dart';
@@ -34,7 +35,8 @@ class RouteGenerator {
         const begin = Offset(0.0, 0.04);
         const end = Offset.zero;
         const curve = Curves.easeOutCubic;
-        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        var tween =
+            Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
         var offsetAnimation = animation.drive(tween);
 
         return FadeTransition(
@@ -115,6 +117,9 @@ class RouteGenerator {
 
       case AppRoutes.technicianIncomingOrders:
         return _fadeRoute(const TechnicianIncomingOrdersScreen(), settings);
+
+      case AppRoutes.technicianOrderDetail:
+        return _fadeRoute(const TechnicianOrderDetailScreen(), settings);
 
       case AppRoutes.technicianUpdateStatus:
         return _fadeRoute(const TechnicianUpdateStatusScreen(), settings);

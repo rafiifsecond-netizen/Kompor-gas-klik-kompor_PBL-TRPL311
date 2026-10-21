@@ -1,38 +1,168 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/constants/api_endpoints.dart';
+import '../../core/network/api_client.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
+import '../../models/order_model.dart';
+import '../../models/order_item_model.dart';
+import '../../models/user_model.dart';
 
 class TechnicianIncomingOrdersScreen extends StatefulWidget {
   const TechnicianIncomingOrdersScreen({super.key});
 
   @override
-  State<TechnicianIncomingOrdersScreen> createState() => _TechnicianIncomingOrdersScreenState();
+  State<TechnicianIncomingOrdersScreen> createState() =>
+      _TechnicianIncomingOrdersScreenState();
 }
 
-class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrdersScreen> {
-  final List<Map<String, dynamic>> _incomingOrders = [
-    {
-      'id': 101,
-      'orderNumber': '#SRV-2026-089',
-      'customerName': 'Budi Santoso',
-      'serviceName': 'Service Kompor Gas 2 Tungku',
-      'address': 'Jl. Raplesia No. 10, Kel. Patriot Kec. Lubuk Baja',
-      'distance': '2.4 km',
-      'scheduledTime': 'Hari ini, 09:00 - 12:00',
-      'amount': 'Rp 90.000',
-    },
-    {
-      'id': 102,
-      'orderNumber': '#SRV-2026-090',
-      'customerName': 'Siti Rahma',
-      'serviceName': 'Cek Kebocoran Gas & Ganti Selang',
-      'address': 'Jl. Geriya KPN No. 77, Batam Kota',
-      'distance': '4.1 km',
-      'scheduledTime': 'Hari ini, 13:00 - 15:00',
-      'amount': 'Rp 120.000',
-    },
-  ];
+class _TechnicianIncomingOrdersScreenState
+    extends State<TechnicianIncomingOrdersScreen> {
+  late Future<List<OrderModel>> _ordersFuture;
+  final Set<int> _updatingOrders = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _ordersFuture = _loadIncomingOrders();
+  }
+
+  Future<List<OrderModel>> _loadIncomingOrders() async {
+    try {
+      final response = await ApiClient().get(
+        ApiEndpoints.orders,
+        queryParameters: const {'status': 'pending'},
+      );
+      if (response is! Map) return _demoPendingOrders();
+      final payload = response['data'];
+      final rows = payload is Map ? payload['data'] : payload;
+      if (rows is! List || (rows as List).isEmpty) return _demoPendingOrders();
+      final orders = rows
+          .whereType<Map>()
+          .map((row) => OrderModel.fromJson(Map<String, dynamic>.from(row)))
+          .where((order) => order.isPending)
+          .toList();
+      return orders.isEmpty ? _demoPendingOrders() : orders;
+    } catch (_) {
+      return _demoPendingOrders();
+    }
+  }
+
+  /// Data dummy pending — sesuai alur customer (nama, alamat, layanan sama).
+  /// Tombol Terima/Batalkan di mode demo tidak mengubah database.
+  static List<OrderModel> _demoPendingOrders() => [
+        OrderModel(
+          id: 9902,
+          orderNumber: 'KP-DEMO-9902',
+          customerId: 2,
+          status: 'pending',
+          bookingDate: '2026-10-22',
+          bookingTime: '11:00',
+          addressText: 'Jl. Sudirman Kav. 52, Lantai 8, Jakarta Pusat',
+          latitude: -6.2088,
+          longitude: 106.8210,
+          subtotal: 75000,
+          totalAmount: 75000,
+          paymentStatus: 'unpaid',
+          paymentMethod: 'cash',
+          customer: UserModel.fromJson({
+            'id': 2,
+            'name': 'Anisa Wijaya',
+            'email': 'anisa@demo.com',
+            'phone': '08987654321',
+            'role': 'customer',
+          }),
+          items: [
+            OrderItemModel.fromJson({
+              'id': 2,
+              'order_id': 9902,
+              'service_item_id': 2,
+              'service_name': 'Instalasi Regulator',
+              'quantity': 1,
+              'unit_price': 75000,
+              'total_price': 75000,
+            }),
+          ],
+        ),
+        OrderModel(
+          id: 9903,
+          orderNumber: 'KP-DEMO-9903',
+          customerId: 1,
+          status: 'pending',
+          bookingDate: '2026-10-22',
+          bookingTime: '13:00',
+          addressText: 'Jl. Merdeka No. 12, RT 03/RW 05, Jakarta Selatan',
+          latitude: -6.2614,
+          longitude: 106.8106,
+          subtotal: 55000,
+          totalAmount: 55000,
+          paymentStatus: 'unpaid',
+          paymentMethod: 'cash',
+          customer: UserModel.fromJson({
+            'id': 1,
+            'name': 'Budi Santoso',
+            'email': 'budi@demo.com',
+            'phone': '08123456789',
+            'role': 'customer',
+          }),
+          items: [
+            OrderItemModel.fromJson({
+              'id': 3,
+              'order_id': 9903,
+              'service_item_id': 3,
+              'service_name': 'Ganti Selang Gas',
+              'quantity': 1,
+              'unit_price': 55000,
+              'total_price': 55000,
+            }),
+          ],
+        ),
+      ];
+
+  Future<bool> _respondToOrder(OrderModel order, String status) async {
+    if (order.isDemo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(status == 'accepted'
+              ? 'Mode demo: pesanan dibuka tanpa mengubah database.'
+              : 'Mode demo: data pesanan tetap disimpan.'),
+        ),
+      );
+      return true;
+    }
+
+    setState(() => _updatingOrders.add(order.id));
+    try {
+      await ApiClient().patch(
+        ApiEndpoints.updateOrderStatus(order.id),
+        data: {'status': status},
+      );
+      if (!mounted) return false;
+      setState(() {
+        _updatingOrders.remove(order.id);
+        _ordersFuture = _loadIncomingOrders();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(status == 'accepted'
+              ? 'Pesanan diterima.'
+              : 'Pesanan dibatalkan.'),
+        ),
+      );
+      return true;
+    } catch (error) {
+      if (!mounted) return false;
+      setState(() => _updatingOrders.remove(order.id));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memperbarui pesanan: $error')),
+      );
+      return false;
+    }
+  }
+
+  void _reload() {
+    setState(() => _ordersFuture = _loadIncomingOrders());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,197 +170,289 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 0.5,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
         leading: IconButton(
+          tooltip: 'Kembali',
           icon: const Icon(Icons.arrow_back_rounded, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Order Masuk',
+          'Pesanan Masuk',
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: Colors.black,
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Muat ulang',
+            onPressed: _reload,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
       ),
-      body: _incomingOrders.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.check_circle_outline_rounded, size: 56, color: AppColors.textMuted),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Tidak ada order masuk saat ini',
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+      body: FutureBuilder<List<OrderModel>>(
+        future: _ordersFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return _emptyState(
+              icon: Icons.cloud_off_rounded,
+              message: 'Pesanan gagal dimuat dari server.',
+              actionLabel: 'Coba lagi',
+              onAction: _reload,
+            );
+          }
+
+          final orders = snapshot.data ?? const <OrderModel>[];
+          if (orders.isEmpty) {
+            return _emptyState(
+              icon: Icons.inbox_outlined,
+              message: 'Belum ada pesanan masuk.',
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+            itemCount: orders.length,
+            itemBuilder: (context, index) {
+              final order = orders[index];
+              final customer = order.customer?.name ?? 'Pelanggan';
+              final serviceName = order.items
+                  .map((item) => item.serviceName ?? item.service?.name)
+                  .whereType<String>()
+                  .where((name) => name.isNotEmpty)
+                  .join(', ');
+              final address = order.addressText ??
+                  order.address?.addressLine ??
+                  'Alamat belum tersedia';
+              final busy = _updatingOrders.contains(order.id);
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFE9E9E9)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
                     ),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _incomingOrders.length,
-              itemBuilder: (context, index) {
-                final order = _incomingOrders[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.cardBorder),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF7ED),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              order['orderNumber'] as String,
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFFFF7A00),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Column(
+                          children: [
+                            CircleAvatar(
+                              radius: 39,
+                              backgroundColor: const Color(0xFFEADDFF),
+                              child: Text(
+                                customer.isEmpty
+                                    ? '?'
+                                    : customer[0].toUpperCase(),
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF4F378A),
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                          ),
-                          Row(
-                            children: [
-                              const Icon(Icons.near_me_rounded, size: 14, color: AppColors.textSecondary),
-                              const SizedBox(width: 4),
-                              Text(
-                                order['distance'] as String,
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: 92,
+                              child: Text(
+                                customer,
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700,
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary,
                                 ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              _orderDetailRow(
+                                'Jenis Layanan',
+                                serviceName.isEmpty
+                                    ? 'Servis Kompor'
+                                    : serviceName,
+                              ),
+                              _orderDetailRow(
+                                'Pesanan Masuk',
+                                '${order.bookingDate} ${order.bookingTime}'
+                                    .trim(),
+                              ),
+                              _orderDetailRow('Lokasi', address),
+                              _orderDetailRow(
+                                'Biaya Layanan',
+                                _rupiah(order.totalAmount),
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        order['serviceName'] as String,
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(Icons.person_outline_rounded, size: 16, color: AppColors.textSecondary),
-                          const SizedBox(width: 6),
-                          Text(
-                            order['customerName'] as String,
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              order['address'] as String,
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.textSecondary,
+                      ],
+                    ),
+                    const Divider(height: 28),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: busy
+                                ? null
+                                : () => _respondToOrder(order, 'rejected'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                             ),
+                            child: const Text('Batalkan'),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.access_time_rounded, size: 16, color: AppColors.textSecondary),
-                          const SizedBox(width: 6),
-                          Text(
-                            order['scheduledTime'] as String,
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFFFF7A00),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () {
-                                setState(() {
-                                  _incomingOrders.removeAt(index);
-                                });
-                              },
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: busy
+                                ? null
+                                : () async {
+                                    final accepted = await _respondToOrder(
+                                      order,
+                                      'accepted',
+                                    );
+                                    if (!accepted || !context.mounted) return;
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.technicianOrderDetail,
+                                      arguments: {
+                                        'orderId': order.id,
+                                        'orderNumber': order.orderNumber,
+                                        'customerName': customer,
+                                        'serviceName': serviceName.isEmpty
+                                            ? 'Servis Kompor'
+                                            : serviceName,
+                                        'address': address,
+                                        'latitude': order.latitude,
+                                        'longitude': order.longitude,
+                                        'paymentMethod': order.paymentMethod,
+                                        'amount': order.totalAmount,
+                                        'status': 'accepted',
+                                        'isDemo': order.isDemo,
+                                      },
+                                    );
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
                               ),
-                              child: const Text('Tolak'),
                             ),
+                            child: busy
+                                ? const SizedBox.square(
+                                    dimension: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text('Terima'),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.technicianUpdateStatus,
-                                  arguments: order,
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFF7A00),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: const Text('Terima Order'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
+  }
+
+  Widget _emptyState({
+    required IconData icon,
+    required String message,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 52, color: AppColors.textMuted),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            if (actionLabel != null) ...[
+              const SizedBox(height: 12),
+              TextButton(onPressed: onAction, child: Text(actionLabel)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _orderDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(label,
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.black87)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value.isEmpty ? '-' : value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(fontSize: 12, color: Colors.black87),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _rupiah(double value) {
+    final amount = value.round().toString();
+    final formatted = amount.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => '.',
+    );
+    return 'Rp $formatted';
   }
 }
