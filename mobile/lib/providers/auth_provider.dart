@@ -164,13 +164,43 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } on ApiException catch (e) {
-      _status = AuthStatus.authenticated; // Keep authenticated, show error banner
+      _status = AuthStatus.authenticated;
       _errorMessage = e.message;
       _validationErrors = e.errors;
       notifyListeners();
       return false;
     } catch (e) {
       _status = AuthStatus.authenticated;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Change Password
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    _errorMessage = null;
+    _validationErrors = null;
+    notifyListeners();
+
+    try {
+      await _authRepository.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+        newPasswordConfirmation: newPasswordConfirmation,
+      );
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
+      _validationErrors = e.errors;
+      notifyListeners();
+      return false;
+    } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       notifyListeners();
       return false;
