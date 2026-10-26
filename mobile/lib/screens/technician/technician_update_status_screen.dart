@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
+import '../../models/order_model.dart';
 
 class TechnicianUpdateStatusScreen extends StatefulWidget {
   const TechnicianUpdateStatusScreen({super.key});
@@ -10,7 +11,7 @@ class TechnicianUpdateStatusScreen extends StatefulWidget {
 }
 
 class _TechnicianUpdateStatusScreenState extends State<TechnicianUpdateStatusScreen> {
-  int _currentStep = 1; // 1: Dalam Perjalanan, 2: Mulai Pengerjaan, 3: Selesai
+  int _selectedStatusIndex = 1;
 
   final List<String> _statuses = [
     'Order Diterima',
@@ -21,11 +22,15 @@ class _TechnicianUpdateStatusScreenState extends State<TechnicianUpdateStatusScr
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
-    final String orderNumber = args['orderNumber'] as String? ?? '#SRV-2026-089';
-    final String customerName = args['customerName'] as String? ?? 'Budi Santoso';
+    final rawArgs = ModalRoute.of(context)?.settings.arguments;
+    final Map<String, dynamic> args = rawArgs is OrderModel
+        ? rawArgs.toJson()
+        : (rawArgs is Map<String, dynamic> ? rawArgs : {});
+
+    final String orderNumber = args['orderNumber'] as String? ?? args['order_number'] as String? ?? '#SRV-2026-089';
+    final String customerName = args['customerName'] as String? ?? (args['customer'] is Map ? args['customer']['name'] : null) ?? 'Budi Santoso';
     final String serviceName = args['serviceName'] as String? ?? 'Service Kompor Gas 2 Tungku';
-    final String address = args['address'] as String? ?? 'Jl. Raplesia No. 10, Kel. Patriot Kec. Lubuk Baja';
+    final String address = args['address'] as String? ?? args['address_text'] as String? ?? 'Jl. Raplesia No. 10, Kel. Patriot Kec. Lubuk Baja';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -50,7 +55,7 @@ class _TechnicianUpdateStatusScreenState extends State<TechnicianUpdateStatusScr
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Card Order Info
+            // Order Summary Box
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -61,114 +66,95 @@ class _TechnicianUpdateStatusScreenState extends State<TechnicianUpdateStatusScr
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        orderNumber,
-                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFFFF7A00)),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _statuses[_currentStep],
-                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade700),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    orderNumber,
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFFFF7A00)),
                   ),
-                  const SizedBox(height: 10),
-                  Text(serviceName, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text('Pelanggan: $customerName', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+                  Text(
+                    serviceName,
+                    style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Pelanggan: $customerName',
+                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+                  ),
                   const SizedBox(height: 2),
-                  Text('Alamat: $address', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+                  Text(
+                    'Alamat: $address',
+                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+                  ),
                 ],
               ),
             ),
 
             const SizedBox(height: 24),
-            Text('Progres Status', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
+            Text(
+              'Pilih Status Terbaru:',
+              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black),
+            ),
+            const SizedBox(height: 12),
 
-            // Timeline Steps
+            // Stepper Radio List
             ...List.generate(_statuses.length, (index) {
-              final isCompleted = index <= _currentStep;
-              final isCurrent = index == _currentStep;
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Column(
-                    children: [
-                      Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isCompleted ? const Color(0xFFFF7A00) : Colors.grey.shade300,
-                        ),
-                        child: Icon(
-                          isCompleted ? Icons.check_rounded : Icons.circle_outlined,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                      if (index < _statuses.length - 1)
-                        Container(
-                          width: 2,
-                          height: 36,
-                          color: index < _currentStep ? const Color(0xFFFF7A00) : Colors.grey.shade300,
-                        ),
-                    ],
+              final isSelected = index == _selectedStatusIndex;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedStatusIndex = index),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFFFFF7ED) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected ? const Color(0xFFFF7A00) : AppColors.cardBorder,
+                      width: isSelected ? 1.8 : 1.0,
+                    ),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
+                  child: Row(
+                    children: [
+                      Icon(
+                        isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                        color: isSelected ? const Color(0xFFFF7A00) : Colors.grey,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
                         _statuses[index],
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
-                          color: isCompleted ? Colors.black : Colors.grey,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: Colors.black,
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               );
             }),
 
-            const SizedBox(height: 36),
-
-            // Action Button
+            const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 50,
               child: ElevatedButton(
                 onPressed: () {
-                  if (_currentStep < _statuses.length - 1) {
-                    setState(() => _currentStep++);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Pekerjaan telah selesai!')),
-                    );
-                    Navigator.pop(context);
-                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Status berhasil diperbarui menjadi "${_statuses[_selectedStatusIndex]}"!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF7A00),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: Text(
-                  _currentStep < _statuses.length - 1
-                      ? 'Lanjut Ke Status Berikutnya'
-                      : 'Selesaikan Pekerjaan',
+                  'Simpan Status Pekerjaan',
                   style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ),

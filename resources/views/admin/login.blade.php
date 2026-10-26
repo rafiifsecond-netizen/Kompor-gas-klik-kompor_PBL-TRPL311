@@ -90,7 +90,7 @@
 
                     <!-- Forgot Password Link -->
                     <div class="text-center pt-2">
-                        <a href="#" onclick="alert('Silakan hubungi Super Admin untuk reset sandi.'); return false;" class="text-xs font-bold text-slate-500 hover:text-[#ff8000] transition">
+                        <a href="{{ route('admin.forgot_password') }}" class="text-xs font-bold text-slate-500 hover:text-[#ff8000] transition">
                             Lupa Sandi?
                         </a>
                     </div>

@@ -110,13 +110,18 @@
                     <i data-lucide="search" class="w-5 h-5 text-slate-400 absolute right-4 top-3.5"></i>
                 </div>
                 <!-- Notification Bell -->
-                <button class="relative w-12 h-12 mx-2 rounded-2xl bg-slate-100/90 flex items-center justify-center text-slate-700 hover:bg-slate-200 transition shadow-sm hover:scale-105">
+                @php
+                    $unreadCount = \App\Models\Notification::where('user_id', auth()->id())->whereNull('read_at')->count();
+                @endphp
+                <a href="{{ route('admin.notifications') }}" class="relative w-12 h-12 mx-2 rounded-2xl bg-slate-100/90 flex items-center justify-center text-slate-700 hover:bg-slate-200 transition shadow-sm hover:scale-105">
                     <i data-lucide="bell" class="w-6 h-6"></i>
-                    <span class="absolute top-2.5 right-2.5 w-3 h-3 rounded-full bg-orange-500 animate-ping"></span>
-                    <span class="absolute top-2.5 right-2.5 w-3 h-3 rounded-full bg-orange-500 border-2 border-white"></span>
-                </button>
+                    @if($unreadCount > 0)
+                        <span class="absolute top-2.5 right-2.5 w-3 h-3 rounded-full bg-orange-500 animate-ping"></span>
+                        <span class="absolute top-2.5 right-2.5 w-3 h-3 rounded-full bg-orange-500 border-2 border-white"></span>
+                    @endif
+                </a>
                 <!-- Admin Profile Card -->
-                <div class="flex items-center gap-3.5 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 shadow-sm">
+                <a href="{{ route('admin.profile') }}" class="flex items-center gap-3.5 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 shadow-sm hover:border-orange-300 hover:bg-orange-50/50 transition">
                     <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 overflow-hidden flex items-center justify-center font-bold text-white shadow">
                         {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
                     </div>
@@ -124,12 +129,19 @@
                         <h4 class="text-xs font-bold text-slate-900">{{ auth()->user()->name }}</h4>
                         <span class="text-[10px] text-slate-500 font-medium">Administrator</span>
                     </div>
-                </div>
+                </a>
             </div>
         </header>
 
         <!-- Body Content -->
         <div class="p-8 space-y-8 animate-fade-in relative z-10">
+
+            @if(session('success'))
+                <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold flex items-center gap-3 shadow-sm">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-emerald-600"></i>
+                    <span>{{ session('success') }}</span>
+                </div>
+            @endif
 
             <!-- Page Title -->
             <div>
@@ -237,7 +249,8 @@
                                 <th class="py-4 px-6">Layanan</th>
                                 <th class="py-4 px-6">Teknisi</th>
                                 <th class="py-4 px-6">Status</th>
-                                <th class="py-4 px-6 rounded-r-xl">Waktu</th>
+                                <th class="py-4 px-6">Waktu</th>
+                                <th class="py-4 px-6 rounded-r-xl text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-xs">
@@ -269,6 +282,15 @@
                                         </span>
                                     </td>
                                     <td class="py-4 px-6 text-slate-600 font-medium">{{ $order->created_at->format('H:i') }}</td>
+                                    <td class="py-4 px-6 text-center">
+                                        <form method="POST" action="{{ route('admin.orders.destroy', $order->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus pesanan ini?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-500 hover:text-red-700 font-bold transition flex items-center justify-center gap-1 mx-auto">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i> Hapus
+                                            </button>
+                                        </form>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr class="hover:bg-slate-50">
@@ -278,6 +300,9 @@
                                     <td class="py-4 px-6 text-slate-800 font-semibold">Budi Santono</td>
                                     <td class="py-4 px-6"><span class="px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500 text-white">Sedang Proses</span></td>
                                     <td class="py-4 px-6 text-slate-600 font-medium">12:45</td>
+                                    <td class="py-4 px-6 text-center">
+                                        <button class="text-red-500 hover:text-red-700 font-bold transition flex items-center justify-center gap-1 mx-auto"><i data-lucide="trash-2" class="w-4 h-4"></i> Hapus</button>
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>

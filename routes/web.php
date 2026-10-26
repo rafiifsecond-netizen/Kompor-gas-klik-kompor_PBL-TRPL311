@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ActivityLog;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Review;
@@ -53,6 +54,50 @@ Route::post('/admin/login', function (Request $request) {
     return back()->withErrors(['email' => 'Email atau kata sandi salah.']);
 })->name('admin.login.submit');
 
+// ── Admin Forgot & Reset Password Routes ────────────────────────────────────
+Route::get('/admin/forgot-password', function () {
+    return view('admin.forgot_password');
+})->name('admin.forgot_password');
+
+Route::post('/admin/forgot-password', function (Request $request) {
+    $request->validate(['email' => 'required|email|exists:users,email']);
+    $user = User::where('email', $request->email)->first();
+
+    if ($user->role !== 'admin') {
+        return back()->withErrors(['email' => 'Email ini bukan akun administrator.']);
+    }
+
+    $token = \Illuminate\Support\Str::random(60);
+    $resetLink = route('admin.reset_password', ['token' => $token, 'email' => $user->email]);
+
+    return back()
+        ->with('success', 'Tautan pemulihan kata sandi telah dikirim ke email Anda!')
+        ->with('resetLink', $resetLink);
+})->name('admin.forgot_password.submit');
+
+Route::get('/admin/reset-password/{token}', function ($token, Request $request) {
+    return view('admin.reset_password', ['token' => $token, 'email' => $request->email]);
+})->name('admin.reset_password');
+
+Route::post('/admin/reset-password', function (Request $request) {
+    $request->validate([
+        'email' => 'required|email|exists:users,email',
+        'password' => 'required|min:6|confirmed',
+        'token' => 'required',
+    ]);
+
+    $user = User::where('email', $request->email)->first();
+    if (!$user || $user->role !== 'admin') {
+        return back()->withErrors(['email' => 'Akun admin tidak ditemukan.']);
+    }
+
+    $user->update([
+        'password' => Hash::make($request->password),
+    ]);
+
+    return redirect()->route('admin.login')->with('success', 'Kata sandi berhasil diatur ulang! Silakan login.');
+})->name('admin.reset_password.submit');
+
 Route::get('/admin/dashboard', function () {
     $user = Auth::user();
     if (!$user || $user->role !== 'admin') {
@@ -88,6 +133,74 @@ Route::get('/admin/dashboard', function () {
 
     return view('admin.dashboard', compact('stats', 'statusCounts', 'recentOrders', 'activeTechnicians', 'chartDays', 'chartCounts'));
 })->name('admin.dashboard');
+
+// ── Profile Admin ────────────────────────────────────────────────────────────
+Route::get('/admin/profile', function () {
+    $user = Auth::user();
+    if (!$user || $user->role !== 'admin') {
+        return redirect()->route('admin.login');
+    }
+    return view('admin.profile');
+})->name('admin.profile');
+
+Route::post('/admin/profile', function (Request $request) {
+    $user = Auth::user();
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|unique:users,email,'.$user->id,
+        'phone' => 'required|string',
+    ]);
+
+    $user->update($validated);
+    return back()->with('success', 'Profil administrator berhasil diperbarui.');
+})->name('admin.profile.update');
+
+Route::post('/admin/profile/password', function (Request $request) {
+    $user = Auth::user();
+    $validated = $request->validate([
+        'current_password' => 'required',
+        'password' => 'required|min:6|confirmed',
+    ]);
+
+    if (!Hash::check($validated['current_password'], $user->password)) {
+        return back()->withErrors(['current_password' => 'Kata sandi saat ini salah.']);
+    }
+
+    $user->update(['password' => Hash::make($validated['password'])]);
+    return back()->with('success', 'Kata sandi administrator berhasil diperbarui.');
+})->name('admin.profile.password');
+
+// ── Notifications Admin ──────────────────────────────────────────────────────
+Route::get('/admin/notifications', function () {
+    $user = Auth::user();
+    if (!$user || $user->role !== 'admin') {
+        return redirect()->route('admin.login');
+    }
+
+    $notifications = Notification::where('user_id', $user->id)
+        ->whereNull('read_at')
+        ->latest()
+        ->get();
+
+    return view('admin.notifications', compact('notifications'));
+})->name('admin.notifications');
+
+Route::post('/admin/notifications/read-all', function () {
+    $user = Auth::user();
+    Notification::where('user_id', $user->id)
+        ->whereNull('read_at')
+        ->update(['read_at' => now()]);
+
+    return back()->with('success', 'Semua pemberitahuan telah dibaca.');
+})->name('admin.notifications.readAll');
+
+Route::post('/admin/notifications/{id}/read', function ($id) {
+    $user = Auth::user();
+    $notif = Notification::where('user_id', $user->id)->findOrFail($id);
+    $notif->markAsRead();
+
+    return back()->with('success', 'Pemberitahuan telah dibaca.');
+})->name('admin.notifications.readSingle');
 
 // ── Orders CRUD ─────────────────────────────────────────────────────────────
 Route::get('/admin/orders', function () {
