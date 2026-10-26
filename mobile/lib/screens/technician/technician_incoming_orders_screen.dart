@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/api_endpoints.dart';
-import '../../core/network/api_client.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/network/api_client.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/order_model.dart';
 
@@ -10,69 +10,72 @@ class TechnicianIncomingOrdersScreen extends StatefulWidget {
   const TechnicianIncomingOrdersScreen({super.key});
 
   @override
-  State<TechnicianIncomingOrdersScreen> createState() =>
-      _TechnicianIncomingOrdersScreenState();
+  State<TechnicianIncomingOrdersScreen> createState() => _TechnicianIncomingOrdersScreenState();
 }
 
-class _TechnicianIncomingOrdersScreenState
-    extends State<TechnicianIncomingOrdersScreen> {
-  late Future<List<OrderModel>> _ordersFuture;
-  final Set<int> _updatingOrders = {};
+class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrdersScreen> {
+  bool _isLoading = true;
+  List<OrderModel> _orders = [];
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _ordersFuture = _loadIncomingOrders();
+    _fetchTechnicianOrders();
   }
 
-  Future<List<OrderModel>> _loadIncomingOrders() async {
-    final response = await ApiClient().get(
-      ApiEndpoints.orders,
-      queryParameters: const {'status': 'pending'},
-    );
-    if (response is! Map) return [];
-    final payload = response['data'];
-    final rows = payload is Map ? payload['data'] : payload;
-    if (rows is! List) return [];
-    return rows
-        .whereType<Map>()
-        .map((row) => OrderModel.fromJson(Map<String, dynamic>.from(row)))
-        .where((order) => order.isPending)
-        .toList();
-  }
+  Future<void> _fetchTechnicianOrders() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-  Future<bool> _respondToOrder(OrderModel order, String status) async {
-    setState(() => _updatingOrders.add(order.id));
     try {
-      await ApiClient().patch(
-        ApiEndpoints.updateOrderStatus(order.id),
-        data: {'status': status},
-      );
-      if (!mounted) return false;
+      final response = await ApiClient().get(ApiEndpoints.orders);
+      if (response is Map && response['success'] == true) {
+        final data = response['data'];
+        final list = (data is Map && data['data'] is List)
+            ? data['data'] as List
+            : (data is List ? data : []);
+
+        setState(() {
+          _orders = list
+              .map((o) => OrderModel.fromJson(Map<String, dynamic>.from(o as Map)))
+              .where((o) => !o.isCompleted && !o.isCancelled)
+              .toList();
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+          _orders = [];
+        });
+      }
+    } catch (e) {
       setState(() {
-        _updatingOrders.remove(order.id);
-        _ordersFuture = _loadIncomingOrders();
+        _isLoading = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(status == 'accepted'
-              ? 'Pesanan diterima.'
-              : 'Pesanan dibatalkan.'),
-        ),
-      );
-      return true;
-    } catch (error) {
-      if (!mounted) return false;
-      setState(() => _updatingOrders.remove(order.id));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memperbarui pesanan: $error')),
-      );
-      return false;
     }
   }
 
-  void _reload() {
-    setState(() => _ordersFuture = _loadIncomingOrders());
+  Future<void> _updateOrderStatus(int orderId, String newStatus) async {
+    try {
+      await ApiClient().patch(
+        ApiEndpoints.updateOrderStatus(orderId),
+        data: {'status': newStatus},
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Status pesanan berhasil diperbarui!'), backgroundColor: Colors.green),
+      );
+      _fetchTechnicianOrders();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memperbarui status: $e'), backgroundColor: AppColors.danger),
+      );
+    }
   }
 
   @override
@@ -81,15 +84,13 @@ class _TechnicianIncomingOrdersScreenState
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        elevation: 0,
+        elevation: 0.5,
         leading: IconButton(
-          tooltip: 'Kembali',
           icon: const Icon(Icons.arrow_back_rounded, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Pesanan Masuk',
+          'Order Masuk (Real Database)',
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -98,271 +99,209 @@ class _TechnicianIncomingOrdersScreenState
         ),
         actions: [
           IconButton(
-            tooltip: 'Muat ulang',
-            onPressed: _reload,
             icon: const Icon(Icons.refresh_rounded),
+            onPressed: _fetchTechnicianOrders,
+            tooltip: 'Muat Ulang',
           ),
         ],
       ),
-      body: FutureBuilder<List<OrderModel>>(
-        future: _ordersFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return _emptyState(
-              icon: Icons.cloud_off_rounded,
-              message: 'Pesanan gagal dimuat dari server.',
-              actionLabel: 'Coba lagi',
-              onAction: _reload,
-            );
-          }
-
-          final orders = snapshot.data ?? const <OrderModel>[];
-          if (orders.isEmpty) {
-            return _emptyState(
-              icon: Icons.inbox_outlined,
-              message: 'Belum ada pesanan masuk.',
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
-            itemCount: orders.length,
-            itemBuilder: (context, index) {
-              final order = orders[index];
-              final customer = order.customer?.name ?? 'Pelanggan';
-              final serviceName = order.items
-                  .map((item) => item.serviceName ?? item.service?.name)
-                  .whereType<String>()
-                  .where((name) => name.isNotEmpty)
-                  .join(', ');
-              final address = order.addressText ??
-                  order.address?.addressLine ??
-                  'Alamat belum tersedia';
-              final busy = _updatingOrders.contains(order.id);
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 14),
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFE9E9E9)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Column(
-                          children: [
-                            CircleAvatar(
-                              radius: 39,
-                              backgroundColor: const Color(0xFFEADDFF),
-                              child: Text(
-                                customer.isEmpty
-                                    ? '?'
-                                    : customer[0].toUpperCase(),
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF4F378A),
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: 92,
-                              child: Text(
-                                customer,
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              _orderDetailRow(
-                                'Jenis Layanan',
-                                serviceName.isEmpty
-                                    ? 'Servis Kompor'
-                                    : serviceName,
-                              ),
-                              _orderDetailRow(
-                                'Pesanan Masuk',
-                                '${order.bookingDate} ${order.bookingTime}'
-                                    .trim(),
-                              ),
-                              _orderDetailRow('Lokasi', address),
-                              _orderDetailRow(
-                                'Biaya Layanan',
-                                _rupiah(order.totalAmount),
-                              ),
-                            ],
-                          ),
-                        ),
+                        const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+                        const SizedBox(height: 12),
+                        Text(_errorMessage!, textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+                        const SizedBox(height: 16),
+                        ElevatedButton(onPressed: _fetchTechnicianOrders, child: const Text('Coba Lagi')),
                       ],
                     ),
-                    const Divider(height: 28),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: busy
-                                ? null
-                                : () => _respondToOrder(order, 'rejected'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              side: const BorderSide(color: Colors.red),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                  ),
+                )
+              : _orders.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.assignment_turned_in_outlined, size: 56, color: AppColors.textMuted),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Tidak ada order aktif di database saat ini',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
                             ),
-                            child: const Text('Batalkan'),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: busy
-                                ? null
-                                : () async {
-                                    final accepted = await _respondToOrder(
-                                      order,
-                                      'accepted',
-                                    );
-                                    if (!accepted || !context.mounted) return;
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRoutes.technicianOrderDetail,
-                                      arguments: {
-                                        'orderId': order.id,
-                                        'orderNumber': order.orderNumber,
-                                        'customerName': customer,
-                                        'serviceName': serviceName.isEmpty
-                                            ? 'Servis Kompor'
-                                            : serviceName,
-                                        'address': address,
-                                        'latitude': order.latitude,
-                                        'longitude': order.longitude,
-                                        'paymentMethod': order.paymentMethod,
-                                        'amount': order.totalAmount,
-                                        'status': 'accepted',
-                                      },
-                                    );
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _fetchTechnicianOrders,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _orders.length,
+                        itemBuilder: (context, index) {
+                          final order = _orders[index];
+                          final String serviceTitle = (order.items.isNotEmpty && order.items.first.serviceName != null)
+                              ? order.items.first.serviceName!
+                              : 'Service Kompor Gas';
+                          final customerName = order.customer?.name ?? 'Pelanggan';
+                          final address = order.addressText ?? order.address?.addressLine ?? 'Alamat Pelanggan';
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.cardBorder),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.03),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                            child: busy
-                                ? const SizedBox.square(
-                                    dimension: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFF7ED),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        order.orderNumber,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFFFF7A00),
+                                        ),
+                                      ),
                                     ),
-                                  )
-                                : const Text('Terima'),
-                          ),
-                        ),
-                      ],
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.shade50,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        order.status.toUpperCase(),
+                                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  serviceTitle,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.person_outline_rounded, size: 16, color: AppColors.textSecondary),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      customerName,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        address,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.access_time_rounded, size: 16, color: AppColors.textSecondary),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '${order.bookingDate} | ${order.bookingTime}',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFFFF7A00),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const Divider(height: 24),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () => _updateOrderStatus(order.id, 'cancelled'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.red,
+                                          side: const BorderSide(color: Colors.red),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        ),
+                                        child: const Text('Tolak'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: () {
+                                          Navigator.pushNamed(
+                                            context,
+                                            AppRoutes.technicianUpdateStatus,
+                                            arguments: order,
+                                          );
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFFFF7A00),
+                                          foregroundColor: Colors.white,
+                                          elevation: 0,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        ),
+                                        child: const Text('Kelola Order'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
     );
-  }
-
-  Widget _emptyState({
-    required IconData icon,
-    required String message,
-    String? actionLabel,
-    VoidCallback? onAction,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 52, color: AppColors.textMuted),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            if (actionLabel != null) ...[
-              const SizedBox(height: 12),
-              TextButton(onPressed: onAction, child: Text(actionLabel)),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _orderDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 7),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(label,
-                style: GoogleFonts.inter(fontSize: 12, color: Colors.black87)),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value.isEmpty ? '-' : value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(fontSize: 12, color: Colors.black87),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _rupiah(double value) {
-    final amount = value.round().toString();
-    final formatted = amount.replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-      (_) => '.',
-    );
-    return 'Rp $formatted';
   }
 }

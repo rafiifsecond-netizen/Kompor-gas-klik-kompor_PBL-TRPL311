@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/network/api_client.dart';
+import '../../models/order_model.dart';
 
 class TechnicianOrderDetailScreen extends StatefulWidget {
   const TechnicianOrderDetailScreen({super.key});
@@ -41,11 +42,12 @@ class _TechnicianOrderDetailScreenState
     super.didChangeDependencies();
     if (_initialized) return;
     _initialized = true;
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
-            const {};
+    final raw = ModalRoute.of(context)?.settings.arguments;
+    final Map<String, dynamic> args = raw is OrderModel
+        ? raw.toJson()
+        : (raw is Map<String, dynamic> ? raw : const {});
     _order = Map<String, dynamic>.from(args);
-    _orderId = _asInt(args['orderId']);
+    _orderId = _asInt(args['orderId'] ?? args['id']);
     _stage = _stageFor(args['status'] as String?);
     _sliderPreview = _stage.toDouble();
     final initialItems = args['items'];

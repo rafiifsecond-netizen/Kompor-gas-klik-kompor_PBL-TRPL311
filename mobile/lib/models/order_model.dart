@@ -83,11 +83,11 @@ class OrderModel {
           ? int.tryParse(json['address_id'].toString())
           : null,
       status: json['status'] as String? ?? 'pending',
-      bookingDate: json['booking_date'] as String? ??
+      bookingDate: (json['booking_date'] as String?) ??
           (scheduledAt == null
               ? ''
               : '${scheduledAt.year}-${scheduledAt.month.toString().padLeft(2, '0')}-${scheduledAt.day.toString().padLeft(2, '0')}'),
-      bookingTime: json['booking_time'] as String? ??
+      bookingTime: (json['booking_time'] as String?) ??
           (scheduledAt == null
               ? ''
               : '${scheduledAt.hour.toString().padLeft(2, '0')}:${scheduledAt.minute.toString().padLeft(2, '0')}'),

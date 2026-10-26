@@ -1,7 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
+import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/network/api_client.dart';
 import '../../core/routes/app_routes.dart';
+import '../../models/order_model.dart';
 
 class CustomerOrderTrackingScreen extends StatefulWidget {
   const CustomerOrderTrackingScreen({super.key});
@@ -10,150 +16,262 @@ class CustomerOrderTrackingScreen extends StatefulWidget {
   State<CustomerOrderTrackingScreen> createState() => _CustomerOrderTrackingScreenState();
 }
 
-class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScreen>
-    with SingleTickerProviderStateMixin {
-  int _currentStep = 2; // 0: Dibuat, 1: Bayar, 2: Berangkat, 3: Tiba, 4: Selesai
-  late final AnimationController _pulseController;
+class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScreen> {
+  final MapController _mapController = MapController();
+  Timer? _pollingTimer;
+
+  bool _isLoading = true;
+  OrderModel? _realOrder;
+  String? _errorMessage;
+
+  final LatLng _customerPoint = const LatLng(1.1292, 104.0417);
+  final LatLng _technicianPoint = const LatLng(1.1350, 104.0500);
 
   @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _initRealTracking();
+  }
+
+  void _initRealTracking() {
+    final rawArgs = ModalRoute.of(context)?.settings.arguments;
+    if (rawArgs is OrderModel) {
+      _realOrder = rawArgs;
+      _isLoading = false;
+      _fetchRealOrderDetails(rawArgs.id);
+    } else if (rawArgs is Map<String, dynamic> && rawArgs['id'] != null) {
+      final id = int.tryParse(rawArgs['id'].toString()) ?? 1;
+      _fetchRealOrderDetails(id);
+    } else {
+      setState(() => _isLoading = false);
+    }
+
+    // Auto-polling status update from database every 8 seconds
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (_realOrder != null && mounted) {
+        _fetchRealOrderDetails(_realOrder!.id, isBackground: true);
+      }
+    });
+  }
+
+  Future<void> _fetchRealOrderDetails(int orderId, {bool isBackground = false}) async {
+    if (!isBackground) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+
+    try {
+      final res = await ApiClient().get(ApiEndpoints.orderDetail(orderId));
+      if (res is Map && res['success'] == true && res['data'] != null) {
+        if (!mounted) return;
+        setState(() {
+          _realOrder = OrderModel.fromJson(Map<String, dynamic>.from(res['data'] as Map));
+          _isLoading = false;
+        });
+      } else {
+        if (!isBackground && mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    } catch (e) {
+      if (!isBackground && mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
-    _pulseController.dispose();
+    _pollingTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
-    final technician = args['technician'] as Map<String, dynamic>? ?? {'name': 'Ahmad Subagyo', 'phone': '081234567890'};
+    final order = _realOrder;
+    final String statusStr = order?.status ?? 'pending';
+    final technician = order?.technician;
+    final bool hasTechnician = technician != null && (technician.name.isNotEmpty);
+
+    final int activeStep = switch (statusStr) {
+      'pending' => 0,
+      'accepted' => 1,
+      'on_the_way' => 2,
+      'in_progress' => 3,
+      'completed' => 4,
+      _ => 0,
+    };
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Lacak Pesanan (Live Tracking)'),
+        title: Text(order != null ? 'Lacak Pesanan ${order.orderNumber}' : 'Lacak Pesanan'),
         backgroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          if (order != null)
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              onPressed: () => _fetchRealOrderDetails(order.id),
+              tooltip: 'Perbarui Status',
+            ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : _errorMessage != null && order == null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+                        const SizedBox(height: 12),
+                        Text(_errorMessage!, textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+                        const SizedBox(height: 16),
+                        ElevatedButton(onPressed: () => _initRealTracking(), child: const Text('Coba Lagi')),
+                      ],
+                    ),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    if (order != null) await _fetchRealOrderDetails(order.id);
+                  },
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── OpenStreetMap Live Map ──────────────────────────────────
+                        _buildOpenStreetMapCard(hasTechnician: hasTechnician),
+                        const SizedBox(height: 16),
+
+                        // ── Status Banner (Real Database Data) ──────────────────────
+                        _buildStatusBanner(activeStep: activeStep, hasTechnician: hasTechnician),
+                        const SizedBox(height: 16),
+
+                        // ── Interactive Timeline (Real Database Data) ───────────────
+                        _buildTimeline(activeStep: activeStep),
+                        const SizedBox(height: 16),
+
+                        // ── Technician Card (Real Database Data) ────────────────────
+                        _buildTechnicianCard(technicianName: technician?.name, technicianPhone: technician?.phone, hasTechnician: hasTechnician, context: context),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
+    );
+  }
+
+  Widget _buildOpenStreetMapCard({required bool hasTechnician}) {
+    return Container(
+      width: double.infinity,
+      height: 220,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
           children: [
-            // ── Simulated Gojek-style Live Map / Radar View ──
-            _buildLiveMapCard(),
-            const SizedBox(height: 16),
-
-            // ── Status Banner ──
-            _buildStatusBanner(),
-            const SizedBox(height: 16),
-
-            // ── Interactive Timeline ──
-            _buildTimeline(),
-            const SizedBox(height: 16),
-
-            // ── Technician Card ──
-            _buildTechnicianCard(technician, context),
-            const SizedBox(height: 24),
+            FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _customerPoint,
+                initialZoom: 14,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.klikkompor.mobile',
+                ),
+                if (hasTechnician)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: [_technicianPoint, _customerPoint],
+                        strokeWidth: 4,
+                        color: const Color(0xFFFF7A00),
+                      ),
+                    ],
+                  ),
+                MarkerLayer(
+                  markers: [
+                    if (hasTechnician)
+                      Marker(
+                        point: _technicianPoint,
+                        width: 48,
+                        height: 48,
+                        child: const DecoratedBox(
+                          decoration: BoxDecoration(color: Color(0xFFFF7A00), shape: BoxShape.circle),
+                          child: Icon(Icons.handyman_rounded, color: Colors.white, size: 24),
+                        ),
+                      ),
+                    Marker(
+                      point: _customerPoint,
+                      width: 48,
+                      height: 48,
+                      child: const DecoratedBox(
+                        decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                        child: Icon(Icons.person_rounded, color: Colors.white, size: 24),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            Positioned(
+              top: 12,
+              left: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      hasTechnician ? Icons.radar_rounded : Icons.search_rounded,
+                      color: hasTechnician ? Colors.greenAccent : Colors.orangeAccent,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      hasTechnician ? 'GPS Live Tracking' : 'Mencari Teknisi Terdekat...',
+                      style: GoogleFonts.inter(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLiveMapCard() {
-    return Container(
-      width: double.infinity,
-      height: 200,
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E2229),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Simulated Grid / Map Lines
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _MapGridPainter(),
-            ),
-          ),
-          // Pulsing Radar Effect (Gojek style)
-          AnimatedBuilder(
-            animation: _pulseController,
-            builder: (context, child) {
-              return Container(
-                width: 100 + (_pulseController.value * 80),
-                height: 100 + (_pulseController.value * 80),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: 0.3 * (1 - _pulseController.value)),
-                ),
-              );
-            },
-          ),
-          // Technician Pin
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 6),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.directions_bike_rounded, size: 14, color: AppColors.primary),
-                    const SizedBox(width: 4),
-                    Text('Teknisi (1.2 km)', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Icon(Icons.location_on_rounded, color: AppColors.primary, size: 36),
-            ],
-          ),
-          // Floating Badge
-          Positioned(
-            top: 12,
-            left: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.radar_rounded, color: Colors.greenAccent, size: 14),
-                  const SizedBox(width: 6),
-                  Text('GPS Live Tracking', style: GoogleFonts.inter(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusBanner() {
-    final titles = ['Pesanan Dibuat', 'Pembayaran Diterima', 'Teknisi Sedang Berangkat', 'Teknisi Tiba di Lokasi', 'Servis Selesai'];
+  Widget _buildStatusBanner({required int activeStep, required bool hasTechnician}) {
+    final titles = [
+      hasTechnician ? 'Pesanan Diterima Teknisi' : 'Mencari Teknisi Terdekat...',
+      'Pembayaran Diterima',
+      'Teknisi Sedang Berangkat',
+      'Teknisi Tiba di Lokasi',
+      'Servis Selesai'
+    ];
     final subtitles = [
-      'Menunggu konfirmasi teknisi terdekat.',
+      hasTechnician ? 'Teknisi telah mengonfirmasi pesanan Anda.' : 'Sistem sedang mencari teknisi terdekat yang tersedia.',
       'Pembayaran Anda telah terverifikasi.',
       'Teknisi meluncur ke alamat Anda (Est: 15-20 min).',
       'Teknisi siap melakukan pemeriksaan kompor.',
@@ -162,42 +280,32 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryAccent]),
+        gradient: LinearGradient(
+          colors: hasTechnician
+              ? [AppColors.primary, AppColors.primaryAccent]
+              : [const Color(0xFFEA580C), const Color(0xFFF97316)],
+        ),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(titles[_currentStep], style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
-              ),
-              const SizedBox(width: 8),
-              // Simulation stepper button for testing
-              GestureDetector(
-                onTap: () => setState(() => _currentStep = (_currentStep + 1) % 5),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
-                  child: Text('Next Step 🔄', style: GoogleFonts.inter(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
+          Text(
+            titles[activeStep],
+            style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
           ),
           const SizedBox(height: 6),
-          Text(subtitles[_currentStep], style: GoogleFonts.inter(fontSize: 13, color: Colors.white70)),
+          Text(subtitles[activeStep], style: GoogleFonts.inter(fontSize: 12.5, color: Colors.white70)),
         ],
       ),
     );
   }
 
-  Widget _buildTimeline() {
+  Widget _buildTimeline({required int activeStep}) {
     final steps = [
-      'Pesanan Dibuat',
+      'Mencari / Diterima',
       'Pembayaran Diterima',
       'Teknisi Berangkat',
       'Teknisi Tiba',
@@ -214,12 +322,12 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Status Pesanan', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
+          Text('Status Pesanan Riil', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
           const SizedBox(height: 14),
           ...steps.asMap().entries.map((e) {
             final idx = e.key;
             final label = e.value;
-            final isDone = idx <= _currentStep;
+            final isDone = idx <= activeStep;
             final isLast = idx == steps.length - 1;
 
             return Row(
@@ -244,7 +352,7 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                       Container(
                         width: 2,
                         height: 28,
-                        color: idx < _currentStep ? AppColors.primary : AppColors.chipInactive,
+                        color: idx < activeStep ? AppColors.primary : AppColors.chipInactive,
                       ),
                   ],
                 ),
@@ -268,7 +376,53 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
     );
   }
 
-  Widget _buildTechnicianCard(Map<String, dynamic> technician, BuildContext context) {
+  Widget _buildTechnicianCard({
+    required String? technicianName,
+    required String? technicianPhone,
+    required bool hasTechnician,
+    required BuildContext context,
+  }) {
+    if (!hasTechnician) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF7ED),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFFFD8A8)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFFFEAD5),
+              ),
+              child: const Icon(Icons.search_rounded, size: 28, color: Color(0xFFFF7A00)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mencari Teknisi Terdekat...',
+                    style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFFFF7A00)),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Pesanan Anda sedang dihubungkan ke teknisi KlikKompor.',
+                    style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -293,26 +447,24 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  technician['name'] as String? ?? 'Ahmad Subagyo',
+                  technicianName ?? 'Teknisi Resmi',
                   style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
-                Text('Teknisi Profesional KlikKompor', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+                Text('Teknisi Resmi KlikKompor', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
               ],
             ),
           ),
-          // Chat Button
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary),
             onPressed: () => Navigator.pushNamed(context, AppRoutes.customerChat),
             tooltip: 'Chat Teknisi',
           ),
-          // Call Button
           IconButton(
             icon: const Icon(Icons.phone_outlined, color: Colors.green),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Menghubungi teknisi...')),
+                SnackBar(content: Text('Menghubungi ${technicianPhone ?? "teknisi"}...')),
               );
             },
             tooltip: 'Telepon Teknisi',
@@ -321,24 +473,4 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
       ),
     );
   }
-}
-
-// Background Grid Painter for simulated map
-class _MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.05)
-      ..strokeWidth = 1;
-
-    for (double i = 0; i < size.width; i += 30) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-    for (double j = 0; j < size.height; j += 30) {
-      canvas.drawLine(Offset(0, j), Offset(size.width, j), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

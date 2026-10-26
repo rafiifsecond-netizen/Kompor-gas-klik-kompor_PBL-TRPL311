@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/api_endpoints.dart';
 import '../../core/network/api_client.dart';
 import '../../core/routes/app_routes.dart';
-import '../../services/storage_service.dart';
 
 class CustomerPaymentScreen extends StatefulWidget {
   const CustomerPaymentScreen({super.key});
@@ -125,7 +124,6 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Ellipse Avatar (69x69)
                         Container(
                           width: 69,
                           height: 69,
@@ -143,7 +141,6 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
                         ),
                         const SizedBox(width: 14),
 
-                        // Service Name & Info
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,7 +164,7 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Alamar: ${address.contains(',') ? address.split(',').first : address}',
+                                'Alamat: ${address.contains(',') ? address.split(',').first : address}',
                                 style: GoogleFonts.inter(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
@@ -217,34 +214,45 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
                             : () async {
                                 setState(() => _isProcessing = true);
                                 final nav = Navigator.of(context);
+                                Map<String, dynamic>? createdOrder;
 
                                 try {
-                                  final token = StorageService.getToken();
-                                  if (token != null && token.isNotEmpty) {
-                                    // Submit real order to Laravel API database
-                                    await ApiClient().post(
-                                      ApiEndpoints.orders,
-                                      data: {
-                                        'scheduled_at': DateTime.now().add(const Duration(days: 1)).toIso8601String(),
-                                        'address': address,
-                                        'problem_description': args['damageType'] ?? 'Service Kompor Gas',
-                                        'payment_method': _selectedMethod == 'bank' ? 'transfer' : _selectedMethod,
-                                        'services': [
-                                          {'service_item_id': 1, 'quantity': 1}
-                                        ],
-                                      },
-                                    );
+                                  // Submit real order to Laravel API database
+                                  final res = await ApiClient().post(
+                                    ApiEndpoints.orders,
+                                    data: {
+                                      'scheduled_at': DateTime.now().add(const Duration(days: 1)).toIso8601String(),
+                                      'address': address,
+                                      'problem_description': args['damageType'] ?? 'Service Kompor Gas',
+                                      'payment_method': _selectedMethod == 'bank' ? 'transfer' : _selectedMethod,
+                                      'services': [
+                                        {'service_item_id': 1, 'quantity': 1}
+                                      ],
+                                    },
+                                  );
+
+                                  if (res is Map && res['data'] != null) {
+                                    createdOrder = Map<String, dynamic>.from(res['data'] as Map);
                                   }
-                                } catch (_) {
-                                  // Fallback gracefully for demo/guest mode
+                                } catch (e) {
+                                  debugPrint('Order creation result: $e');
                                 }
 
                                 if (!mounted) return;
                                 setState(() => _isProcessing = false);
+
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Pesanan berhasil dibuat dan tersimpan di database!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+
                                 nav.pushNamedAndRemoveUntil(
                                   AppRoutes.customerOrderTracking,
                                   (r) => r.settings.name == AppRoutes.customerHome,
-                                  arguments: args,
+                                  arguments: createdOrder ?? args,
                                 );
                               },
                         style: ElevatedButton.styleFrom(
