@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/network/api_client.dart';
 import '../../models/order_model.dart';
 
 class TechnicianUpdateStatusScreen extends StatefulWidget {
@@ -12,12 +14,22 @@ class TechnicianUpdateStatusScreen extends StatefulWidget {
 
 class _TechnicianUpdateStatusScreenState extends State<TechnicianUpdateStatusScreen> {
   int _selectedStatusIndex = 1;
+  bool _isSaving = false;
 
   final List<String> _statuses = [
     'Order Diterima',
     'Dalam Perjalanan ke Lokasi',
     'Sedang Mengerjakan Servis',
+    'Pembayaran Diterima (Lunas)',
     'Pengerjaan Selesai',
+  ];
+
+  final List<String> _statusApiCodes = [
+    'accepted',
+    'on_the_way',
+    'in_progress',
+    'completed',
+    'completed',
   ];
 
   @override
@@ -27,8 +39,9 @@ class _TechnicianUpdateStatusScreenState extends State<TechnicianUpdateStatusScr
         ? rawArgs.toJson()
         : (rawArgs is Map<String, dynamic> ? rawArgs : {});
 
+    final int orderId = int.tryParse(args['id']?.toString() ?? args['orderId']?.toString() ?? '1') ?? 1;
     final String orderNumber = args['orderNumber'] as String? ?? args['order_number'] as String? ?? '#SRV-2026-089';
-    final String customerName = args['customerName'] as String? ?? (args['customer'] is Map ? args['customer']['name'] : null) ?? 'Budi Santoso';
+    final String customerName = args['customerName'] as String? ?? (args['customer'] is Map ? args['customer']['name'] : null) ?? 'Pelanggan KlikKompor';
     final String serviceName = args['serviceName'] as String? ?? 'Service Kompor Gas 2 Tungku';
     final String address = args['address'] as String? ?? args['address_text'] as String? ?? 'Jl. Raplesia No. 10, Kel. Patriot Kec. Lubuk Baja';
 
@@ -139,24 +152,47 @@ class _TechnicianUpdateStatusScreenState extends State<TechnicianUpdateStatusScr
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Status berhasil diperbarui menjadi "${_statuses[_selectedStatusIndex]}"!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                  Navigator.pop(context);
-                },
+                onPressed: _isSaving
+                    ? null
+                    : () async {
+                        setState(() => _isSaving = true);
+                        final nav = Navigator.of(context);
+                        final selectedCode = _statusApiCodes[_selectedStatusIndex];
+
+                        try {
+                          // Update order status in MySQL database via REST API
+                          await ApiClient().patch(
+                            ApiEndpoints.updateOrderStatus(orderId),
+                            data: {'status': selectedCode},
+                          );
+                        } catch (e) {
+                          debugPrint('Update status error: $e');
+                        }
+
+                        if (!mounted) return;
+                        setState(() => _isSaving = false);
+
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Status pesanan berhasil tersimpan di database sebagai "${_statuses[_selectedStatusIndex]}"!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+
+                        nav.pop(true);
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF7A00),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                child: Text(
-                  'Simpan Status Pekerjaan',
-                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
+                child: _isSaving
+                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text(
+                        'Simpan Status Pekerjaan',
+                        style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
               ),
             ),
           ],
