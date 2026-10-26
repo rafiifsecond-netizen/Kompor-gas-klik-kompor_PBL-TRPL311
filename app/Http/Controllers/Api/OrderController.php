@@ -326,8 +326,16 @@ class OrderController extends Controller
         $statusTo = $validated['status'];
         $oldStatus = $order->status;
 
-        if (! $order->technician_id && ! in_array($statusTo, ['accepted', 'rejected'], true) && ! $user->isAdmin()) {
-            return response()->json(['success' => false, 'message' => 'Pesanan harus diterima (accepted) terlebih dahulu oleh teknisi.'], 422);
+        // Auto-assign technician if order has no technician_id assigned yet
+        if (! $order->technician_id && $user->isTechnician()) {
+            $order->technician_id = $user->id;
+            Chat::firstOrCreate(
+                ['order_id' => $order->id],
+                [
+                    'customer_id' => $order->customer_id,
+                    'technician_id' => $user->id,
+                ]
+            );
         }
 
         if ($statusTo === 'rejected') {

@@ -46,7 +46,6 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
       setState(() => _isLoading = false);
     }
 
-    // Auto-polling status update from database every 8 seconds
     _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(const Duration(seconds: 8), (_) {
       if (_realOrder != null && mounted) {
@@ -99,8 +98,14 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
     final technician = order?.technician;
     final bool hasTechnician = technician != null && (technician.name.isNotEmpty);
 
+    // Sequence:
+    // 0: Mencari Teknisi
+    // 1: Pesanan Diterima
+    // 2: Teknisi Berangkat (on_the_way)
+    // 3: Teknisi Mengerjakan Servis (in_progress)
+    // 4: Pembayaran Diterima / Selesai (completed)
     final int activeStep = switch (statusStr) {
-      'pending' => 0,
+      'pending' => hasTechnician ? 1 : 0,
       'accepted' => 1,
       'on_the_way' => 2,
       'in_progress' => 3,
@@ -151,20 +156,81 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── OpenStreetMap Live Map ──────────────────────────────────
+                        // ── Zoomable OpenStreetMap Live Map ────────────────────────
                         _buildOpenStreetMapCard(hasTechnician: hasTechnician),
                         const SizedBox(height: 16),
 
-                        // ── Status Banner (Real Database Data) ──────────────────────
+                        // ── Status Banner ──────────────────────────────────────────
                         _buildStatusBanner(activeStep: activeStep, hasTechnician: hasTechnician),
                         const SizedBox(height: 16),
 
-                        // ── Interactive Timeline (Real Database Data) ───────────────
-                        _buildTimeline(activeStep: activeStep),
+                        // ── Active Servicing Indicator Card (In Progress) ──────────
+                        if (statusStr == 'in_progress') ...[
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF7ED),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFFF7A00), width: 1.5),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: const BoxDecoration(color: Color(0xFFFF7A00), shape: BoxShape.circle),
+                                  child: const Icon(Icons.handyman_rounded, color: Colors.white, size: 24),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Teknisi Sedang Mengerjakan Servis', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFFFF7A00))),
+                                      const SizedBox(height: 2),
+                                      Text('Kompor gas Anda sedang dalam proses perbaikan di lokasi.', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // ── Timeline ───────────────────────────────────────────────
+                        _buildTimeline(activeStep: activeStep, hasTechnician: hasTechnician),
                         const SizedBox(height: 16),
 
-                        // ── Technician Card (Real Database Data) ────────────────────
+                        // ── Technician Card ────────────────────────────────────────
                         _buildTechnicianCard(technicianName: technician?.name, technicianPhone: technician?.phone, hasTechnician: hasTechnician, context: context),
+
+                        // ── Button Konfirmasi Selesai & Ulasan ────────────────────
+                        if (activeStep >= 3 || statusStr == 'completed') ...[
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.customerReview,
+                                  arguments: order,
+                                );
+                              },
+                              icon: const Icon(Icons.star_rounded, color: Colors.amber),
+                              label: Text(
+                                'Konfirmasi Selesai & Beri Ulasan Teknisi',
+                                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFF7A00),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              ),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 24),
                       ],
                     ),
@@ -176,7 +242,7 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
   Widget _buildOpenStreetMapCard({required bool hasTechnician}) {
     return Container(
       width: double.infinity,
-      height: 220,
+      height: 240,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.cardBorder),
@@ -190,6 +256,9 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
               options: MapOptions(
                 initialCenter: _customerPoint,
                 initialZoom: 14,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all,
+                ),
               ),
               children: [
                 TileLayer(
@@ -249,11 +318,38 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      hasTechnician ? 'GPS Live Tracking' : 'Mencari Teknisi Terdekat...',
+                      hasTechnician ? 'GPS Live Tracking (Zoom Enabled)' : 'Mencari Teknisi Terdekat...',
                       style: GoogleFonts.inter(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
+              ),
+            ),
+            Positioned(
+              bottom: 12,
+              right: 12,
+              child: Column(
+                children: [
+                  FloatingActionButton.small(
+                    heroTag: 'zoomIn',
+                    backgroundColor: Colors.white,
+                    child: const Icon(Icons.add, color: Colors.black),
+                    onPressed: () {
+                      final zoom = _mapController.camera.zoom;
+                      _mapController.move(_mapController.camera.center, zoom + 1);
+                    },
+                  ),
+                  const SizedBox(height: 4),
+                  FloatingActionButton.small(
+                    heroTag: 'zoomOut',
+                    backgroundColor: Colors.white,
+                    child: const Icon(Icons.remove, color: Colors.black),
+                    onPressed: () {
+                      final zoom = _mapController.camera.zoom;
+                      _mapController.move(_mapController.camera.center, zoom - 1);
+                    },
+                  ),
+                ],
               ),
             ),
           ],
@@ -264,18 +360,20 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
 
   Widget _buildStatusBanner({required int activeStep, required bool hasTechnician}) {
     final titles = [
-      hasTechnician ? 'Pesanan Diterima Teknisi' : 'Mencari Teknisi Terdekat...',
-      'Pembayaran Diterima',
+      'Mencari Teknisi Terdekat...',
+      'Pesanan Diterima Teknisi',
       'Teknisi Sedang Berangkat',
-      'Teknisi Tiba di Lokasi',
+      'Teknisi Sedang Mengerjakan Servis',
+      'Pembayaran Diterima (Lunas)',
       'Servis Selesai'
     ];
     final subtitles = [
-      hasTechnician ? 'Teknisi telah mengonfirmasi pesanan Anda.' : 'Sistem sedang mencari teknisi terdekat yang tersedia.',
-      'Pembayaran Anda telah terverifikasi.',
+      'Sistem sedang menghubungkan pesanan Anda ke teknisi terdekat.',
+      'Teknisi telah menerima dan mengonfirmasi pesanan Anda.',
       'Teknisi meluncur ke alamat Anda (Est: 15-20 min).',
-      'Teknisi siap melakukan pemeriksaan kompor.',
-      'Terima kasih telah menggunakan layanan KlikKompor!'
+      'Teknisi sedang melakukan perbaikan / servis kompor gas di lokasi Anda.',
+      'Pembayaran Anda telah diterima dan dikonfirmasi lunas oleh teknisi.',
+      'Terima kasih telah menggunakan layanan KlikKompor!',
     ];
 
     return Container(
@@ -293,22 +391,23 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            titles[activeStep],
+            titles[activeStep.clamp(0, titles.length - 1)],
             style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
           ),
           const SizedBox(height: 6),
-          Text(subtitles[activeStep], style: GoogleFonts.inter(fontSize: 12.5, color: Colors.white70)),
+          Text(subtitles[activeStep.clamp(0, subtitles.length - 1)], style: GoogleFonts.inter(fontSize: 12.5, color: Colors.white70)),
         ],
       ),
     );
   }
 
-  Widget _buildTimeline({required int activeStep}) {
+  Widget _buildTimeline({required int activeStep, required bool hasTechnician}) {
     final steps = [
-      'Mencari / Diterima',
-      'Pembayaran Diterima',
+      'Mencari Teknisi',
+      'Pesanan Diterima',
       'Teknisi Berangkat',
-      'Teknisi Tiba',
+      'Sedang Mengerjakan Servis',
+      'Pembayaran Diterima',
       'Servis Selesai',
     ];
 
