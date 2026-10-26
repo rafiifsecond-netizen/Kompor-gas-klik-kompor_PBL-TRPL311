@@ -122,7 +122,7 @@ class _TechnicianChatInboxScreenState extends State<TechnicianChatInboxScreen> {
     if (orderId == 0) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => _TechnicianChatDetailScreen(
+        builder: (_) => TechnicianChatDetailScreen(
           orderId: orderId,
           customerName: (customer['name'] ?? 'Pelanggan').toString(),
           orderDate:
@@ -450,8 +450,9 @@ class _ChatInboxTile extends StatelessWidget {
   }
 }
 
-class _TechnicianChatDetailScreen extends StatefulWidget {
-  const _TechnicianChatDetailScreen({
+class TechnicianChatDetailScreen extends StatefulWidget {
+  const TechnicianChatDetailScreen({
+    super.key,
     required this.orderId,
     required this.customerName,
     this.orderDate,
@@ -462,12 +463,12 @@ class _TechnicianChatDetailScreen extends StatefulWidget {
   final String? orderDate;
 
   @override
-  State<_TechnicianChatDetailScreen> createState() =>
-      _TechnicianChatDetailScreenState();
+  State<TechnicianChatDetailScreen> createState() =>
+      TechnicianChatDetailScreenState();
 }
 
-class _TechnicianChatDetailScreenState
-    extends State<_TechnicianChatDetailScreen> {
+class TechnicianChatDetailScreenState
+    extends State<TechnicianChatDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = true;

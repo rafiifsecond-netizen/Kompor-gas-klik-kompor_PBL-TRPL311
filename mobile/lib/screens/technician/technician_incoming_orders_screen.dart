@@ -90,7 +90,7 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Order Masuk (Real Database)',
+          'Order Masuk',
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -278,11 +278,13 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: ElevatedButton(
-                                        onPressed: () {
+                                        onPressed: () async {
+                                          await _updateOrderStatus(order.id, 'accepted');
+                                          if (!context.mounted) return;
                                           Navigator.pushNamed(
                                             context,
-                                            AppRoutes.technicianUpdateStatus,
-                                            arguments: order,
+                                            AppRoutes.technicianOrderDetail,
+                                            arguments: order.toJson(),
                                           );
                                         },
                                         style: ElevatedButton.styleFrom(
@@ -291,7 +293,7 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
                                           elevation: 0,
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                         ),
-                                        child: const Text('Kelola Order'),
+                                        child: const Text('Terima'),
                                       ),
                                     ),
                                   ],

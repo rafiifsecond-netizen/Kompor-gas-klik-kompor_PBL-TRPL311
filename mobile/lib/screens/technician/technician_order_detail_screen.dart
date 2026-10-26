@@ -5,7 +5,9 @@ import 'package:latlong2/latlong.dart';
 import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/network/api_client.dart';
+import '../../core/routes/app_routes.dart';
 import '../../models/order_model.dart';
+import 'technician_chat_screen.dart';
 
 class TechnicianOrderDetailScreen extends StatefulWidget {
   const TechnicianOrderDetailScreen({super.key});
@@ -25,6 +27,7 @@ class _TechnicianOrderDetailScreenState
   ];
 
   Map<String, dynamic> _order = {};
+  final MapController _mapController = MapController();
   List<Map<String, dynamic>> _items = [];
   List<Map<String, dynamic>> _costs = [];
   List<Map<String, dynamic>> _services = [];
@@ -124,19 +127,30 @@ class _TechnicianOrderDetailScreenState
     final orderNumber = _order['order_number'] as String? ??
         _order['orderNumber'] as String? ??
         '-';
-    final customerPoint = _point(_order['latitude'], _order['longitude']);
-    final technicianPoint = _point(
-      _order['technician_latitude'] ?? _order['technicianLatitude'],
-      _order['technician_longitude'] ?? _order['technicianLongitude'],
-    );
+    const defaultTechnicianPoint = LatLng(1.1350, 104.0500); // Same as customer tracking screen
+    var technicianPoint = _point(
+          _order['technician_latitude'] ?? _order['technicianLatitude'],
+          _order['technician_longitude'] ?? _order['technicianLongitude'],
+          defaultPoint: defaultTechnicianPoint,
+        );
+    if (technicianPoint.latitude == 1.1312 && technicianPoint.longitude == 104.0538) {
+      technicianPoint = defaultTechnicianPoint;
+    }
+
+    const defaultCustomerPoint = LatLng(1.1445, 104.0152); // Jl. Raplesia No. 10, Lubuk Baja, Batam
+    var customerPoint = _point(_order['latitude'], _order['longitude'], defaultPoint: defaultCustomerPoint);
+
+    if (technicianPoint == customerPoint) {
+      customerPoint = LatLng(customerPoint.latitude + 0.012, customerPoint.longitude + 0.015);
+    }
     final serviceAmount = _serviceAmount;
     final addedCosts = _costs
         .where((cost) => cost['status'] != 'rejected')
         .fold<double>(0, (sum, cost) => sum + _number(cost['subtotal']));
-    final transportFee = _number(_order['transport_fee']);
+    const transportFee = 0.0;
     final platformDeduction = serviceAmount * 0.10;
     final customerTotal =
-        serviceAmount + transportFee + addedCosts - platformDeduction;
+        serviceAmount + transportFee + addedCosts;
     final netEarnings = serviceAmount - platformDeduction + addedCosts;
     final serviceLabel = _serviceLabel;
 
@@ -170,6 +184,7 @@ class _TechnicianOrderDetailScreenState
                   children: [
                     Positioned.fill(
                       child: FlutterMap(
+                        mapController: _mapController,
                         options: MapOptions(
                           initialCenter:
                               _mapCenter(technicianPoint, customerPoint),
@@ -185,34 +200,31 @@ class _TechnicianOrderDetailScreenState
                                 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName: 'com.klikkompor.mobile',
                           ),
-                          if (technicianPoint != null && customerPoint != null)
-                            PolylineLayer(
-                              polylines: [
-                                Polyline(
-                                  points: [technicianPoint, customerPoint],
-                                  strokeWidth: 4,
-                                  color: AppColors.primary,
-                                ),
-                              ],
-                            ),
+                          PolylineLayer(
+                            polylines: [
+                              Polyline(
+                                points: [technicianPoint, customerPoint],
+                                strokeWidth: 4,
+                                color: AppColors.primary,
+                              ),
+                            ],
+                          ),
                           MarkerLayer(
                             markers: [
-                              if (customerPoint != null)
-                                Marker(
-                                  point: customerPoint,
-                                  width: 44,
-                                  height: 48,
-                                  child: const Icon(Icons.location_pin,
-                                      color: Color(0xFFE53935), size: 42),
-                                ),
-                              if (technicianPoint != null)
-                                Marker(
-                                  point: technicianPoint,
-                                  width: 44,
-                                  height: 48,
-                                  child: const Icon(Icons.handyman_rounded,
-                                      color: AppColors.primary, size: 38),
-                                ),
+                              Marker(
+                                point: customerPoint,
+                                width: 44,
+                                height: 48,
+                                child: const Icon(Icons.location_pin,
+                                    color: Color(0xFFE53935), size: 42),
+                              ),
+                              Marker(
+                                point: technicianPoint,
+                                width: 44,
+                                height: 48,
+                                child: const Icon(Icons.handyman_rounded,
+                                    color: AppColors.primary, size: 38),
+                              ),
                             ],
                           ),
                         ],
@@ -223,7 +235,13 @@ class _TechnicianOrderDetailScreenState
                       right: 14,
                       bottom: 12,
                       child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context, true),
+                        onPressed: () {
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            AppRoutes.technicianDashboard,
+                            (route) => false,
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: Colors.black,
@@ -339,12 +357,7 @@ class _TechnicianOrderDetailScreenState
                       ),
                     ],
                   ),
-                  if (transportFee > 0) ...[
-                    const SizedBox(height: 14),
-                    Text('Biaya transport: ${_rupiah(transportFee)}',
-                        style: GoogleFonts.inter(
-                            fontSize: 12, color: AppColors.textSecondary)),
-                  ],
+
                   if (_loading) ...[
                     const SizedBox(height: 12),
                     const LinearProgressIndicator(minHeight: 2),
@@ -690,10 +703,26 @@ class _TechnicianOrderDetailScreenState
     }
   }
 
-  void _openChat() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Siap disambungkan saat halaman chat tersedia.')),
+  Future<void> _openChat() async {
+    final orderId = _orderId;
+    if (orderId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ID order tidak valid untuk chat.')),
+      );
+      return;
+    }
+    final customer = _relationName(_order['customer']) ??
+        _order['customer_name'] as String? ??
+        _order['customerName'] as String? ??
+        'Pelanggan';
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => TechnicianChatDetailScreen(
+          orderId: orderId,
+          customerName: customer,
+          orderDate: _order['created_at']?.toString() ?? _order['booking_date']?.toString(),
+        ),
+      ),
     );
   }
 
@@ -724,22 +753,22 @@ class _TechnicianOrderDetailScreenState
     return null;
   }
 
-  LatLng? _point(dynamic latValue, dynamic lonValue) {
+  LatLng _point(dynamic latValue, dynamic lonValue, {LatLng? defaultPoint}) {
     final lat = _asDoubleNullable(latValue);
     final lon = _asDoubleNullable(lonValue);
-    if (lat == null || lon == null) return null;
-    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+    const fallback = LatLng(1.1445, 104.0152); // Jl. Raplesia No. 10 Lubuk Baja
+    if (lat == null || lon == null) return defaultPoint ?? fallback;
+    if (lat < 0.8 || lat > 1.5 || lon < 103.8 || lon > 104.5) {
+      return defaultPoint ?? fallback;
+    }
     return LatLng(lat, lon);
   }
 
-  LatLng _mapCenter(LatLng? technician, LatLng? customer) {
-    if (technician != null && customer != null) {
-      return LatLng(
-        (technician.latitude + customer.latitude) / 2,
-        (technician.longitude + customer.longitude) / 2,
-      );
-    }
-    return customer ?? technician ?? const LatLng(1.12, 104.04);
+  LatLng _mapCenter(LatLng technician, LatLng customer) {
+    return LatLng(
+      (technician.latitude + customer.latitude) / 2,
+      (technician.longitude + customer.longitude) / 2,
+    );
   }
 
   double _number(dynamic value) {
