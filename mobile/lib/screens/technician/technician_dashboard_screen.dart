@@ -53,10 +53,12 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final profile = user?.technicianProfile;
-    final technicianPoint = _validPoint(
+    const defaultTechnicianPoint = LatLng(1.1350, 104.0500); // Same as customer tracking screen
+    final rawTech = _validPoint(
       profile?.currentLatitude,
       profile?.currentLongitude,
     );
+    final technicianPoint = (rawTech.latitude == 1.1312 && rawTech.longitude == 104.0538) ? defaultTechnicianPoint : rawTech;
 
     return Scaffold(
       body: _currentIndex == 1
@@ -70,21 +72,27 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
                   builder: (context, snapshot) {
                     final orders = snapshot.data ?? const <OrderModel>[];
                     final selectedOrder = _selectOrder(orders);
-                    final customerPoint = _validPoint(
-                      selectedOrder?.latitude,
-                      selectedOrder?.longitude,
-                    );
+                    const defaultCustomerPoint = LatLng(1.1445, 104.0152); // Lubuk Baja Batam
+                    var customerPoint = selectedOrder != null
+                        ? _validPoint(selectedOrder.latitude, selectedOrder.longitude)
+                        : null;
+                    if (customerPoint == null && selectedOrder != null) {
+                      customerPoint = defaultCustomerPoint;
+                    }
+                    if (customerPoint != null && technicianPoint == customerPoint) {
+                      customerPoint = LatLng(customerPoint.latitude + 0.012, customerPoint.longitude + 0.015);
+                    }
                     final center = _mapCenter(technicianPoint, customerPoint);
                     final mapPoints = [
-                      if (technicianPoint != null) technicianPoint,
+                      technicianPoint,
                       if (customerPoint != null) customerPoint,
                     ];
                     final incomingOrders = orders
                         .where((order) => order.status == 'pending')
                         .length;
                     final mapTarget = [
-                      technicianPoint?.latitude,
-                      technicianPoint?.longitude,
+                      technicianPoint.latitude,
+                      technicianPoint.longitude,
                       customerPoint?.latitude,
                       customerPoint?.longitude,
                     ].join(':');
@@ -122,8 +130,7 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
                                       'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                                   userAgentPackageName: 'com.klikkompor.mobile',
                                 ),
-                                if (technicianPoint != null &&
-                                    customerPoint != null)
+                                if (customerPoint != null)
                                   PolylineLayer(
                                     polylines: [
                                       Polyline(
@@ -138,17 +145,16 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
                                   ),
                                 MarkerLayer(
                                   markers: [
-                                    if (technicianPoint != null)
-                                      Marker(
-                                        point: technicianPoint,
-                                        width: 58,
-                                        height: 72,
-                                        child: const _MapPin(
-                                          icon: Icons.handyman_rounded,
-                                          color: Color(0xFFFA7D10),
-                                          label: 'Teknisi',
-                                        ),
+                                    Marker(
+                                      point: technicianPoint,
+                                      width: 58,
+                                      height: 72,
+                                      child: const _MapPin(
+                                        icon: Icons.handyman_rounded,
+                                        color: Color(0xFFFA7D10),
+                                        label: 'Teknisi',
                                       ),
+                                    ),
                                     if (customerPoint != null)
                                       Marker(
                                         point: customerPoint,
@@ -260,9 +266,7 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
                                 _mapControl(
                                     Icons.my_location_rounded, 'Lokasi teknisi',
                                     () {
-                                  if (technicianPoint != null) {
-                                    _mapController.move(technicianPoint, 15);
-                                  }
+                                  _mapController.move(technicianPoint, 15);
                                 }),
                               ],
                             ),
@@ -311,9 +315,9 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
                                     'latitude': selectedOrder.latitude,
                                     'longitude': selectedOrder.longitude,
                                     'technician_latitude':
-                                        technicianPoint?.latitude,
+                                        technicianPoint.latitude,
                                     'technician_longitude':
-                                        technicianPoint?.longitude,
+                                        technicianPoint.longitude,
                                     'paymentMethod':
                                         selectedOrder.paymentMethod,
                                     'address': selectedOrder.addressText ??
@@ -347,7 +351,7 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
                                       padding: const EdgeInsets.all(90),
                                     ),
                                   );
-                                } else if (technicianPoint != null) {
+                                } else {
                                   _mapController.move(technicianPoint, 15);
                                 }
                               },
@@ -397,25 +401,23 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
     return null;
   }
 
-  LatLng? _validPoint(double? latitude, double? longitude) {
-    if (latitude == null || longitude == null) return null;
-    if (latitude < -90 ||
-        latitude > 90 ||
-        longitude < -180 ||
-        longitude > 180) {
-      return null;
+  LatLng _validPoint(double? latitude, double? longitude) {
+    const defaultPoint = LatLng(1.1312, 104.0538); // Mall Botania 2 Batam
+    if (latitude == null || longitude == null) return defaultPoint;
+    if (latitude < 0.8 || latitude > 1.5 || longitude < 103.8 || longitude > 104.5) {
+      return defaultPoint;
     }
     return LatLng(latitude, longitude);
   }
 
-  LatLng _mapCenter(LatLng? technician, LatLng? customer) {
-    if (technician != null && customer != null) {
+  LatLng _mapCenter(LatLng technician, LatLng? customer) {
+    if (customer != null) {
       return LatLng(
         (technician.latitude + customer.latitude) / 2,
         (technician.longitude + customer.longitude) / 2,
       );
     }
-    return technician ?? customer ?? const LatLng(1.12, 104.04);
+    return technician;
   }
 
   Widget _roundAction({
