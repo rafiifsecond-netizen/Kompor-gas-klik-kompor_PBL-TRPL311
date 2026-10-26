@@ -129,4 +129,40 @@ class AuthService {
     return ApiResponse<void>.fromJson(
         Map<String, dynamic>.from(response as Map), null);
   }
+
+  /// Request forgot password reset token
+  Future<ApiResponse<Map<String, dynamic>>> forgotPassword({
+    required String email,
+  }) async {
+    final response = await _apiClient.post(
+      ApiEndpoints.forgotPassword,
+      data: {'email': email},
+    );
+
+    return ApiResponse<Map<String, dynamic>>.fromJson(
+      Map<String, dynamic>.from(response as Map),
+      (data) => data != null ? Map<String, dynamic>.from(data as Map) : {},
+    );
+  }
+
+  /// Reset password using token
+  Future<ApiResponse<void>> resetPassword({
+    required String email,
+    required String token,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    final response = await _apiClient.post(
+      ApiEndpoints.resetPassword,
+      data: {
+        'email': email,
+        'token': token,
+        'password': newPassword,
+        'password_confirmation': newPasswordConfirmation,
+      },
+    );
+
+    return ApiResponse<void>.fromJson(
+        Map<String, dynamic>.from(response as Map), null);
+  }
 }

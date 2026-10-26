@@ -123,4 +123,33 @@ class AuthRepository {
       await StorageService.clearSession();
     }
   }
+
+  /// Request forgot password reset token
+  Future<Map<String, dynamic>> forgotPassword({
+    required String email,
+  }) async {
+    final response = await _authService.forgotPassword(email: email);
+    if (response.success) {
+      return response.data ?? {};
+    }
+    throw Exception(response.message ?? 'Gagal mengajukan lupa kata sandi.');
+  }
+
+  /// Reset password with token
+  Future<void> resetPassword({
+    required String email,
+    required String token,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    final response = await _authService.resetPassword(
+      email: email,
+      token: token,
+      newPassword: newPassword,
+      newPasswordConfirmation: newPasswordConfirmation,
+    );
+    if (!response.success) {
+      throw Exception(response.message ?? 'Gagal mengatur ulang kata sandi.');
+    }
+  }
 }

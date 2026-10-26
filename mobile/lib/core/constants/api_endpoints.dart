@@ -24,6 +24,8 @@ class ApiEndpoints {
   static String get me => '$baseUrl/auth/me';
   static String get updateProfile => '$baseUrl/auth/profile';
   static String get changePassword => '$baseUrl/auth/password';
+  static String get forgotPassword => '$baseUrl/auth/forgot-password';
+  static String get resetPassword => '$baseUrl/auth/reset-password';
 
   // Catalog & Services
   static String get services => '$baseUrl/services';

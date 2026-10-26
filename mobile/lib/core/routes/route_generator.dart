@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/landing_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
@@ -64,6 +65,9 @@ class RouteGenerator {
 
       case AppRoutes.register:
         return _fadeRoute(const RegisterScreen(), settings);
+
+      case AppRoutes.forgotPassword:
+        return _fadeRoute(const ForgotPasswordScreen(), settings);
 
       // Customer
       case AppRoutes.customerHome:

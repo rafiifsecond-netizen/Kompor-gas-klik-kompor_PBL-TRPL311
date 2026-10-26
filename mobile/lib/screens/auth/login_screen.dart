@@ -140,9 +140,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   _AuthButton(
                     label: 'Lupa Password?',
                     isLoading: false,
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Fitur belum tersedia')),
-                    ),
+                    onTap: () {
+                      auth.clearErrors();
+                      Navigator.pushNamed(context, AppRoutes.forgotPassword);
+                    },
                   ),
 
                   const SizedBox(height: 40),
