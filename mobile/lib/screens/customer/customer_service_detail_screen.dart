@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/routes/route_args.dart';
+import '../../models/service_model.dart';
+import '../../repositories/service_repository.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MODEL DATA LAYANAN
 // ─────────────────────────────────────────────────────────────────────────────
 class ServiceDetailArgs {
+  final int? serviceId;
   final String name;
   final String description;
   final double rating;
@@ -16,6 +20,7 @@ class ServiceDetailArgs {
   final String? bannerAsset;
 
   const ServiceDetailArgs({
+    this.serviceId,
     required this.name,
     required this.description,
     required this.rating,
@@ -36,25 +41,42 @@ class CustomerServiceDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final raw = ModalRoute.of(context)?.settings.arguments;
-    final ServiceDetailArgs args;
-
-    if (raw is ServiceDetailArgs) {
-      args = raw;
-    } else {
-      final m = raw as Map<String, dynamic>? ?? {};
-      args = ServiceDetailArgs(
-        name: m['name'] as String? ?? 'Service Kompor Gas',
-        description: m['description'] as String? ?? '',
-        rating: (m['rating'] as num?)?.toDouble() ?? 4.8,
-        reviewCount: m['reviewCount'] as int? ?? 9999,
-        estimasi: m['estimasi'] as String? ?? '30 - 60 menit',
-        hargaMulai: m['hargaMulai'] as String? ?? 'Rp.75.000',
-        bannerAsset: m['bannerAsset'] as String?,
-      );
+    final raw =
+        RouteArgs.of<ServiceDetailArgs>(context) ?? RouteArgs.map(context);
+    final id = raw is ServiceDetailArgs
+        ? raw.serviceId
+        : raw is Map
+            ? (raw['id'] as num?)?.toInt()
+            : null;
+    if (id == null) {
+      return const MissingArgsScreen(
+          message: 'Detail layanan tidak ditemukan.');
     }
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: ServiceRepository().getService(id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
+        }
+        final data = snapshot.data;
+        if (data == null) {
+          return const MissingArgsScreen(
+              message: 'Detail layanan tidak ditemukan.');
+        }
+        final service = ServiceModel.fromJson(data);
+        final args = ServiceDetailArgs(
+          serviceId: service.id,
+          name: service.name,
+          description: service.description ?? '',
+          rating: (data['rating'] as num?)?.toDouble() ?? 0,
+          reviewCount: (data['review_count'] as num?)?.toInt() ?? 0,
+          estimasi: '${service.estimatedDurationMinutes} menit',
+          hargaMulai: 'Rp ${service.price.toStringAsFixed(0)}',
+          bannerAsset: service.imageUrl,
+        );
 
-    return Scaffold(
+        return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
         children: [
@@ -117,9 +139,9 @@ class CustomerServiceDetailScreen extends StatelessWidget {
 
                         // Deskripsi
                         Text(
-                          args.description.isNotEmpty
-                              ? args.description
-                              : 'Teknisi berpengalaman kami akan datang ke lokasi Anda untuk menangani masalah kompor gas dengan cepat, aman, dan profesional.',
+                          args.description,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
@@ -163,7 +185,11 @@ class CustomerServiceDetailScreen extends StatelessWidget {
               context,
               AppRoutes.customerBookingSummary,
               arguments: {
+                'service_id': args.serviceId,
                 'name': args.name,
+                'description': args.description,
+                'price': args.hargaMulai,
+                'duration_minutes': args.estimasi,
                 'hargaMulai': args.hargaMulai,
                 'estimasi': args.estimasi,
               },
@@ -171,6 +197,8 @@ class CustomerServiceDetailScreen extends StatelessWidget {
           ),
         ],
       ),
+        );
+      },
     );
   }
 

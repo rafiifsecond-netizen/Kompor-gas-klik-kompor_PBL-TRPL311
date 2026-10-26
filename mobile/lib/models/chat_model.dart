@@ -23,7 +23,9 @@ class ChatMessageModel {
 
   factory ChatMessageModel.fromJson(Map<String, dynamic> json) {
     return ChatMessageModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       chatId: json['chat_id'] is int
           ? json['chat_id']
           : int.tryParse(json['chat_id']?.toString() ?? '') ?? 0,
@@ -69,17 +71,21 @@ class ChatModel {
 
   factory ChatModel.fromJson(Map<String, dynamic> json) {
     return ChatModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       orderId: json['order_id'] is int
           ? json['order_id']
           : int.tryParse(json['order_id']?.toString() ?? '') ?? 0,
       messages: (json['messages'] is List)
           ? (json['messages'] as List)
-              .map((m) => ChatMessageModel.fromJson(Map<String, dynamic>.from(m as Map)))
+              .map((m) => ChatMessageModel.fromJson(
+                  Map<String, dynamic>.from(m as Map)))
               .toList()
           : [],
       lastMessage: json['last_message'] != null && json['last_message'] is Map
-          ? ChatMessageModel.fromJson(Map<String, dynamic>.from(json['last_message'] as Map))
+          ? ChatMessageModel.fromJson(
+              Map<String, dynamic>.from(json['last_message'] as Map))
           : null,
     );
   }

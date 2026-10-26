@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/network/api_client.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/order_model.dart';
 import '../../widgets/chat_list_item_widget.dart';
 import '../../widgets/custom_bottom_nav_bar.dart';
+import '../../repositories/chat_repository.dart';
+import '../../repositories/order_repository.dart';
 
 class CustomerChatScreen extends StatefulWidget {
   const CustomerChatScreen({super.key});
@@ -16,6 +16,7 @@ class CustomerChatScreen extends StatefulWidget {
 }
 
 class _CustomerChatScreenState extends State<CustomerChatScreen> {
+  final _orderRepository = OrderRepository();
   bool _isLoading = true;
   List<OrderModel> _chatOrders = [];
   String? _errorMessage;
@@ -33,33 +34,23 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
     });
 
     try {
-      final response = await ApiClient().get(ApiEndpoints.orders);
-      if (response is Map && response['success'] == true) {
-        final data = response['data'];
-        final list = (data is Map && data['data'] is List)
-            ? data['data'] as List
-            : (data is List ? data : []);
-
+      final list = await _orderRepository.getOrders();
+      {
         setState(() {
-          final allOrders = list
-              .map((o) => OrderModel.fromJson(Map<String, dynamic>.from(o as Map)))
-              .toList();
+          final allOrders = list.map(OrderModel.fromJson).toList();
 
           // Deduplicate by technician name or ID so each technician appears only once
           final Map<String, OrderModel> uniqueMap = {};
           for (final o in allOrders) {
-            final techKey = o.technician?.name ?? o.technicianId?.toString() ?? 'tech_${o.id}';
+            final techKey = o.technician?.name ??
+                o.technicianId?.toString() ??
+                'tech_${o.id}';
             if (!uniqueMap.containsKey(techKey)) {
               uniqueMap[techKey] = o;
             }
           }
           _chatOrders = uniqueMap.values.toList();
           _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _isLoading = false;
-          _chatOrders = [];
         });
       }
     } catch (e) {
@@ -100,7 +91,8 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : _errorMessage != null
               ? Center(
                   child: Padding(
@@ -108,11 +100,17 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+                        const Icon(Icons.error_outline_rounded,
+                            size: 48, color: AppColors.danger),
                         const SizedBox(height: 12),
-                        Text(_errorMessage!, textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+                        Text(_errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                                fontSize: 13, color: AppColors.textSecondary)),
                         const SizedBox(height: 16),
-                        ElevatedButton(onPressed: _fetchRealChatList, child: const Text('Coba Lagi')),
+                        ElevatedButton(
+                            onPressed: _fetchRealChatList,
+                            child: const Text('Coba Lagi')),
                       ],
                     ),
                   ),
@@ -122,12 +120,18 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.chat_bubble_outline_rounded, size: 52, color: AppColors.textMuted),
+                          const Icon(Icons.chat_bubble_outline_rounded,
+                              size: 52, color: AppColors.textMuted),
                           const SizedBox(height: 12),
-                          Text('Belum ada obrolan dengan teknisi', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                          Text('Belum ada obrolan dengan teknisi',
+                              style: GoogleFonts.inter(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary)),
                           const SizedBox(height: 8),
                           ElevatedButton(
-                            onPressed: () => Navigator.pushNamed(context, AppRoutes.customerCatalog),
+                            onPressed: () => Navigator.pushNamed(
+                                context, AppRoutes.customerCatalog),
                             child: const Text('Pesan Servis Sekarang'),
                           ),
                         ],
@@ -140,22 +144,23 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                         itemCount: _chatOrders.length,
                         itemBuilder: (context, i) {
                           final order = _chatOrders[i];
-                          final techName = order.technician?.name ?? 'Teknisi KlikKompor';
-                          final statusLabel = order.isCompleted ? 'Selesai' : 'Aktif';
+                          final techName =
+                              order.technician?.name ?? 'Teknisi KlikKompor';
+                          final statusLabel =
+                              order.isCompleted ? 'Selesai' : 'Aktif';
 
                           return ChatListItemWidget(
                             title: techName,
                             lastMessage: 'Obrolan pesanan ${order.orderNumber}',
                             time: order.bookingDate,
                             status: statusLabel,
-                            onTap: () => Navigator.push(
+                            onTap: () => Navigator.pushNamed(
                               context,
-                              MaterialPageRoute(
-                                builder: (_) => _ChatDetailScreen(
-                                  orderId: order.id,
-                                  technicianName: techName,
-                                ),
-                              ),
+                              AppRoutes.customerChat,
+                              arguments: {
+                                'orderId': order.id,
+                                'technicianName': techName
+                              },
                             ),
                           );
                         },
@@ -183,6 +188,7 @@ class _ChatDetailScreen extends StatefulWidget {
 }
 
 class _ChatDetailScreenState extends State<_ChatDetailScreen> {
+  final _chatRepository = ChatRepository();
   final TextEditingController _ctrl = TextEditingController();
   bool _isLoading = true;
   List<Map<String, dynamic>> _messages = [];
@@ -195,7 +201,7 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
 
   Future<void> _fetchRealMessages() async {
     try {
-      final res = await ApiClient().get(ApiEndpoints.orderChat(widget.orderId));
+      final res = await _chatRepository.getOrderChat(widget.orderId);
       if (res is Map && res['success'] == true) {
         final data = res['data'];
         final list = (data is Map && data['messages'] is List)
@@ -209,7 +215,9 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
               'id': map['id'],
               'text': map['message'] ?? map['text'] ?? '',
               'isMe': map['sender_type'] == 'customer' || map['is_me'] == true,
-              'time': map['created_at'] != null ? map['created_at'].toString().split('T').last.substring(0, 5) : '09:30',
+              'time': map['created_at'] != null
+                  ? map['created_at'].toString().split('T').last.substring(0, 5)
+                  : '09:30',
             };
           }).toList();
           _isLoading = false;
@@ -240,10 +248,7 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
     });
 
     try {
-      await ApiClient().post(
-        ApiEndpoints.sendChatMessage(widget.orderId),
-        data: {'message': text},
-      );
+      await _chatRepository.sendMessage(widget.orderId, text);
     } catch (_) {
       // Message added optimistically
     }
@@ -266,28 +271,39 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
             Container(
               width: 36,
               height: 36,
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFFFEFE2)),
-              child: const Icon(Icons.person_rounded, size: 22, color: AppColors.primary),
+              decoration: const BoxDecoration(
+                  shape: BoxShape.circle, color: Color(0xFFFFEFE2)),
+              child: const Icon(Icons.person_rounded,
+                  size: 22, color: AppColors.primary),
             ),
             const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.technicianName, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
-                Text('Teknisi Resmi', style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary)),
+                Text(widget.technicianName,
+                    style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black)),
+                Text('Teknisi Resmi',
+                    style: GoogleFonts.inter(
+                        fontSize: 11, color: AppColors.textSecondary)),
               ],
             ),
           ],
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : Column(
               children: [
                 Expanded(
                   child: _messages.isEmpty
                       ? Center(
-                          child: Text('Mulai percakapan dengan teknisi...', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted)),
+                          child: Text('Mulai percakapan dengan teknisi...',
+                              style: GoogleFonts.inter(
+                                  fontSize: 13, color: AppColors.textMuted)),
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.all(12),
@@ -296,32 +312,51 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
                             final msg = _messages[i];
                             final isMe = msg['isMe'] as bool;
                             return Align(
-                              alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                              alignment: isMe
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 8),
-                                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                constraints: BoxConstraints(
+                                    maxWidth:
+                                        MediaQuery.of(context).size.width *
+                                            0.72),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: isMe ? AppColors.primary : Colors.white,
+                                  color:
+                                      isMe ? AppColors.primary : Colors.white,
                                   borderRadius: BorderRadius.only(
                                     topLeft: const Radius.circular(16),
                                     topRight: const Radius.circular(16),
                                     bottomLeft: Radius.circular(isMe ? 16 : 4),
                                     bottomRight: Radius.circular(isMe ? 4 : 16),
                                   ),
-                                  border: isMe ? null : Border.all(color: AppColors.cardBorder),
+                                  border: isMe
+                                      ? null
+                                      : Border.all(color: AppColors.cardBorder),
                                 ),
                                 child: Column(
-                                  crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                  crossAxisAlignment: isMe
+                                      ? CrossAxisAlignment.end
+                                      : CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       msg['text'] as String,
-                                      style: GoogleFonts.inter(fontSize: 14, color: isMe ? Colors.white : Colors.black),
+                                      style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          color: isMe
+                                              ? Colors.white
+                                              : Colors.black),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       msg['time'] as String,
-                                      style: GoogleFonts.inter(fontSize: 10, color: isMe ? Colors.white60 : AppColors.textMuted),
+                                      style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          color: isMe
+                                              ? Colors.white60
+                                              : AppColors.textMuted),
                                     ),
                                   ],
                                 ),
@@ -332,7 +367,8 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
                 ),
                 Container(
                   color: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: SafeArea(
                     top: false,
                     child: Row(
@@ -342,12 +378,19 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
                             controller: _ctrl,
                             decoration: InputDecoration(
                               hintText: 'Ketik pesan ke teknisi...',
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
                               filled: true,
                               fillColor: AppColors.inputBg,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide.none),
+                              enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide.none),
+                              focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide.none),
                             ),
                           ),
                         ),
@@ -357,8 +400,11 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
                           child: Container(
                             width: 44,
                             height: 44,
-                            decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.primary),
-                            child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                            decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.primary),
+                            child: const Icon(Icons.send_rounded,
+                                color: Colors.white, size: 20),
                           ),
                         ),
                       ],

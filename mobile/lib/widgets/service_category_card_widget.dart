@@ -30,7 +30,8 @@ class ServiceCategoryCardWidget extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: color ?? AppColors.primaryLight,
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.35), width: 1.5),
+              border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.35), width: 1.5),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.primary.withValues(alpha: 0.12),

@@ -2,6 +2,8 @@ import '../core/constants/api_endpoints.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_response.dart';
 import '../models/user_model.dart';
+import '../core/config/app_config.dart';
+import '../data/dummy/dummy_data.dart';
 
 class AuthResponseData {
   final UserModel user;
@@ -28,6 +30,22 @@ class AuthService {
     required String password,
     String deviceName = 'Flutter Mobile App',
   }) async {
+    if (AppConfig.useDummyData) {
+      final account = email == 'dewi@example.com' && password == 'password123'
+          ? dummyCustomerUser
+          : email == 'agus.teknisi@klikkompor.com' && password == 'password123'
+              ? dummyTechnicianUser
+              : null;
+      if (account == null) {
+        return ApiResponse<AuthResponseData>(
+            success: false, message: 'Email atau password salah.');
+      }
+      return ApiResponse<AuthResponseData>(
+          success: true,
+          data: AuthResponseData(
+              user: UserModel.fromJson(Map<String, dynamic>.from(account)),
+              token: 'dummy-token-${account['id']}'));
+    }
     final response = await _apiClient.post(
       ApiEndpoints.login,
       data: {
@@ -54,6 +72,25 @@ class AuthService {
     String? address,
     String role = 'customer',
   }) async {
+    if (AppConfig.useDummyData) {
+      if (password.length < 8 ||
+          password != passwordConfirmation ||
+          email.trim().isEmpty ||
+          name.trim().isEmpty) {
+        return ApiResponse<AuthResponseData>(
+            success: false, message: 'Data registrasi tidak valid.');
+      }
+      final user = UserModel(
+          id: 999,
+          name: name,
+          email: email,
+          phone: phone,
+          role: role,
+          address: address);
+      return ApiResponse<AuthResponseData>(
+          success: true,
+          data: AuthResponseData(user: user, token: 'dummy-register-token'));
+    }
     final response = await _apiClient.post(
       ApiEndpoints.register,
       data: {
@@ -89,6 +126,17 @@ class AuthService {
     String? phone,
     String? address,
   }) async {
+    if (AppConfig.useDummyData) {
+      final user = UserModel(
+        id: 999,
+        name: name ?? dummyCustomerUser['name'] as String,
+        email: dummyCustomerUser['email'] as String,
+        phone: phone ?? dummyCustomerUser['phone'] as String,
+        role: 'customer',
+        address: address ?? dummyCustomerUser['address'] as String,
+      );
+      return ApiResponse<UserModel>(success: true, data: user);
+    }
     final response = await _apiClient.put(
       ApiEndpoints.updateProfile,
       data: {
@@ -110,6 +158,12 @@ class AuthService {
     required String newPassword,
     required String newPasswordConfirmation,
   }) async {
+    if (AppConfig.useDummyData) {
+      return ApiResponse<void>(
+          success:
+              newPassword.length >= 8 && newPassword == newPasswordConfirmation,
+          message: 'Password berhasil diperbarui.');
+    }
     final response = await _apiClient.put(
       ApiEndpoints.changePassword,
       data: {
@@ -134,6 +188,12 @@ class AuthService {
   Future<ApiResponse<Map<String, dynamic>>> forgotPassword({
     required String email,
   }) async {
+    if (AppConfig.useDummyData) {
+      return ApiResponse<Map<String, dynamic>>(
+          success: email.contains('@'),
+          message: 'Token reset dummy tersedia.',
+          data: {'reset_token': '123456'});
+    }
     final response = await _apiClient.post(
       ApiEndpoints.forgotPassword,
       data: {'email': email},
@@ -152,6 +212,12 @@ class AuthService {
     required String newPassword,
     required String newPasswordConfirmation,
   }) async {
+    if (AppConfig.useDummyData) {
+      return ApiResponse<void>(
+          success:
+              newPassword.length >= 8 && newPassword == newPasswordConfirmation,
+          message: 'Password berhasil diatur ulang.');
+    }
     final response = await _apiClient.post(
       ApiEndpoints.resetPassword,
       data: {

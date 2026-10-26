@@ -17,15 +17,11 @@ class LandingScreen extends StatelessWidget {
           child: Column(
             children: [
               // ── Logo dengan Efek Kebakar / Nyala Api ───────────
-              const Expanded(
-                child: Center(
-                  child: _BurningLogo(),
-                ),
-              ),
+              const Expanded(child: Center(child: _BurningLogo())),
 
               // ── Tombol Mulai — outlined putih ─────────────────
               Padding(
-                padding: const EdgeInsets.fromLTRB(52, 0, 52, 56),
+                padding: const EdgeInsets.fromLTRB(52, 0, 52, 24),
                 child: SizedBox(
                   width: double.infinity,
                   height: 51,
@@ -126,8 +122,8 @@ class _BurningLogoState extends State<_BurningLogo>
       },
       child: Image.asset(
         'assets/images/logo.png',
-        width: 280,
-        height: 280,
+        width: 220,
+        height: 220,
         fit: BoxFit.contain,
       ),
     );

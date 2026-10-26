@@ -19,12 +19,15 @@ import '../../screens/customer/customer_review_screen.dart';
 import '../../screens/customer/customer_profile_screen.dart';
 import '../../screens/customer/customer_notification_screen.dart';
 import '../../screens/customer/customer_help_center_screen.dart';
+import '../../screens/technician/technician_performance_screen.dart';
 import '../../screens/technician/technician_dashboard_screen.dart';
+import '../../screens/technician/technician_profile_screen.dart';
 import '../../screens/technician/technician_incoming_orders_screen.dart';
 import '../../screens/technician/technician_order_detail_screen.dart';
 import '../../screens/technician/technician_update_status_screen.dart';
 import '../../screens/technician/technician_additional_cost_screen.dart';
 import '../../screens/technician/technician_service_history_screen.dart';
+import '../../screens/technician/technician_chat_screen.dart';
 import 'app_routes.dart';
 
 class RouteGenerator {
@@ -115,9 +118,17 @@ class RouteGenerator {
       case AppRoutes.customerHelpCenter:
         return _fadeRoute(const CustomerHelpCenterScreen(), settings);
 
+      case AppRoutes.customerEditAddress:
+        final argument = settings.arguments;
+        final address = argument is Address ? argument : null;
+        return _fadeRoute(AddressFormScreen(address: address), settings);
+
       // Technician
       case AppRoutes.technicianDashboard:
         return _fadeRoute(const TechnicianDashboardScreen(), settings);
+
+      case AppRoutes.technicianProfile:
+        return _fadeRoute(const TechnicianProfileScreen(), settings);
 
       case AppRoutes.technicianIncomingOrders:
         return _fadeRoute(const TechnicianIncomingOrdersScreen(), settings);
@@ -133,6 +144,15 @@ class RouteGenerator {
 
       case AppRoutes.technicianServiceHistory:
         return _fadeRoute(const TechnicianServiceHistoryScreen(), settings);
+
+      case AppRoutes.technicianChat:
+        return _fadeRoute(TechnicianChatInboxScreen(onBack: () {}), settings);
+
+      case AppRoutes.technicianPerformance:
+        return _fadeRoute(
+          TechnicianPerformanceScreen(onNavTap: (_) {}),
+          settings,
+        );
 
       default:
         return _fadeRoute(

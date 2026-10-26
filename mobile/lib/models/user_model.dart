@@ -27,7 +27,9 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       name: json['name'] as String? ?? '',
       email: json['email'] as String? ?? '',
       phone: json['phone'] as String?,
@@ -35,7 +37,8 @@ class UserModel {
       avatarUrl: json['avatar_url'] as String?,
       address: json['address'] as String?,
       isActive: json['is_active'] == true || json['is_active'] == 1,
-      technicianProfile: json['technician_profile'] != null && json['technician_profile'] is Map
+      technicianProfile: json['technician_profile'] != null &&
+              json['technician_profile'] is Map
           ? TechnicianProfileModel.fromJson(
               Map<String, dynamic>.from(json['technician_profile'] as Map))
           : null,
@@ -108,7 +111,9 @@ class TechnicianProfileModel {
 
   factory TechnicianProfileModel.fromJson(Map<String, dynamic> json) {
     return TechnicianProfileModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       experienceYears: json['experience_years'] is int
           ? json['experience_years']
           : int.tryParse(json['experience_years']?.toString() ?? ''),

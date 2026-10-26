@@ -3,6 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTextStyles {
+  static TextStyle get title => heading2;
+  static TextStyle get body => bodyMedium;
+  static TextStyle get caption => bodySmall;
+  static TextStyle get buttonLabel => button;
+  static TextStyle get subtitle => heading3;
+  static TextStyle get label => bodyBold;
   // Title / Heading styles from Figma (Inter 700 / Bold)
   static TextStyle get heading1 => GoogleFonts.inter(
         fontSize: 24,
@@ -87,4 +93,3 @@ class AppTextStyles {
         color: AppColors.textMuted,
       );
 }
-

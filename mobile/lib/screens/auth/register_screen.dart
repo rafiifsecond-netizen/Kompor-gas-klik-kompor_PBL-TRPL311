@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/utils/validators.dart';
+import '../../core/utils/app_feedback.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -44,7 +46,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       passwordConfirmation: _confirmCtrl.text,
       role: _selectedRole,
     );
-    if (!mounted || !ok) return;
+    if (!mounted) return;
+    if (!ok) {
+      AppFeedback.error(context, auth.errorMessage ?? 'Registrasi gagal.');
+      return;
+    }
+    AppFeedback.success(context, 'Registrasi berhasil.');
     final route = auth.isTechnician
         ? AppRoutes.technicianDashboard
         : AppRoutes.customerHome;
@@ -94,7 +101,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: _RoleOption(
                           label: 'Pelanggan',
                           selected: _selectedRole == 'customer',
-                          onTap: () => setState(() => _selectedRole = 'customer'),
+                          onTap: () =>
+                              setState(() => _selectedRole = 'customer'),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -102,7 +110,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: _RoleOption(
                           label: 'Teknisi',
                           selected: _selectedRole == 'technician',
-                          onTap: () => setState(() => _selectedRole = 'technician'),
+                          onTap: () =>
+                              setState(() => _selectedRole = 'technician'),
                         ),
                       ),
                     ],
@@ -116,8 +125,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     hint: 'Nama Lengkap',
                     icon: Icons.person_outline_rounded,
                     errorText: auth.getFieldError('name'),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Nama wajib diisi' : null,
+                    validator: (v) => Validators.required(v, label: 'Nama'),
                   ),
 
                   const SizedBox(height: 12),
@@ -129,8 +137,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     icon: Icons.mail_outline_rounded,
                     keyboardType: TextInputType.emailAddress,
                     errorText: auth.getFieldError('email'),
-                    validator: (v) =>
-                        (v == null || !v.contains('@')) ? 'Email tidak valid' : null,
+                    validator: Validators.email,
                   ),
 
                   const SizedBox(height: 12),
@@ -142,8 +149,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     icon: Icons.phone_outlined,
                     keyboardType: TextInputType.phone,
                     errorText: auth.getFieldError('phone'),
-                    validator: (v) =>
-                        (v == null || v.trim().length < 10) ? 'Nomor telepon minimal 10 digit' : null,
+                    validator: (v) => (v == null || v.trim().length < 10)
+                        ? 'Nomor telepon minimal 10 digit'
+                        : null,
                   ),
 
                   const SizedBox(height: 12),
@@ -165,9 +173,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         color: Colors.black54,
                       ),
                     ),
-                    validator: (v) => (v == null || v.length < 6)
-                        ? 'Minimal 6 karakter'
-                        : null,
+                    validator: Validators.password,
                   ),
 
                   const SizedBox(height: 12),
@@ -190,7 +196,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     validator: (v) =>
-                        (v != _passCtrl.text) ? 'Kata sandi tidak cocok' : null,
+                        Validators.confirmPassword(v, _passCtrl.text),
                   ),
 
                   const SizedBox(height: 18),
@@ -396,7 +402,9 @@ class _RoleOption extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary.withValues(alpha: 0.1) : const Color(0xFFE8E8E8),
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.1)
+              : const Color(0xFFE8E8E8),
           border: Border.all(
             color: selected ? AppColors.primary : const Color(0xFFCCCCCC),
             width: selected ? 1.5 : 1,

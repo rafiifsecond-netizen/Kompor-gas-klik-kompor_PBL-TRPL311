@@ -1,28 +1,37 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
-import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/network/api_client.dart';
+import '../../core/constants/app_radius.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/routes/route_args.dart';
 import '../../models/order_model.dart';
+import '../../repositories/order_repository.dart';
+import '../../core/utils/app_feedback.dart';
+import '../../core/constants/app_spacing.dart';
 
 class CustomerOrderTrackingScreen extends StatefulWidget {
   const CustomerOrderTrackingScreen({super.key});
 
   @override
-  State<CustomerOrderTrackingScreen> createState() => _CustomerOrderTrackingScreenState();
+  State<CustomerOrderTrackingScreen> createState() =>
+      _CustomerOrderTrackingScreenState();
 }
 
-class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScreen> {
+class _CustomerOrderTrackingScreenState
+    extends State<CustomerOrderTrackingScreen> {
   final MapController _mapController = MapController();
   Timer? _pollingTimer;
 
   bool _isLoading = true;
   OrderModel? _realOrder;
   String? _errorMessage;
+  final _repository = OrderRepository();
 
   final LatLng _customerPoint = const LatLng(1.1292, 104.0417);
   final LatLng _technicianPoint = const LatLng(1.1350, 104.0500);
@@ -34,7 +43,7 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
   }
 
   void _initRealTracking() {
-    final rawArgs = ModalRoute.of(context)?.settings.arguments;
+    final rawArgs = RouteArgs.of<OrderModel>(context) ?? RouteArgs.map(context);
     if (rawArgs is OrderModel) {
       _realOrder = rawArgs;
       _isLoading = false;
@@ -54,7 +63,8 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
     });
   }
 
-  Future<void> _fetchRealOrderDetails(int orderId, {bool isBackground = false}) async {
+  Future<void> _fetchRealOrderDetails(int orderId,
+      {bool isBackground = false}) async {
     if (!isBackground) {
       setState(() {
         _isLoading = true;
@@ -63,11 +73,12 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
     }
 
     try {
-      final res = await ApiClient().get(ApiEndpoints.orderDetail(orderId));
+      final res = await _repository.getOrder(orderId);
       if (res is Map && res['success'] == true && res['data'] != null) {
         if (!mounted) return;
         setState(() {
-          _realOrder = OrderModel.fromJson(Map<String, dynamic>.from(res['data'] as Map));
+          _realOrder = OrderModel.fromJson(
+              Map<String, dynamic>.from(res['data'] as Map));
           _isLoading = false;
         });
       } else {
@@ -96,7 +107,8 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
     final order = _realOrder;
     final String statusStr = order?.status ?? 'pending';
     final technician = order?.technician;
-    final bool hasTechnician = technician != null && (technician.name.isNotEmpty);
+    final bool hasTechnician =
+        technician != null && (technician.name.isNotEmpty);
 
     // Sequence:
     // 0: Mencari Teknisi
@@ -116,7 +128,9 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(order != null ? 'Lacak Pesanan ${order.orderNumber}' : 'Lacak Pesanan'),
+        title: Text(order != null
+            ? 'Lacak Pesanan ${order.orderNumber}'
+            : 'Lacak Pesanan'),
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -129,19 +143,26 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : _errorMessage != null && order == null
               ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: AppSpacing.allXxl,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+                        const Icon(Icons.error_outline_rounded,
+                            size: 48, color: AppColors.danger),
                         const SizedBox(height: 12),
-                        Text(_errorMessage!, textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+                        Text(_errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                                fontSize: 13, color: AppColors.textSecondary)),
                         const SizedBox(height: 16),
-                        ElevatedButton(onPressed: () => _initRealTracking(), child: const Text('Coba Lagi')),
+                        ElevatedButton(
+                            onPressed: () => _initRealTracking(),
+                            child: const Text('Coba Lagi')),
                       ],
                     ),
                   ),
@@ -152,7 +173,7 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                   },
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
+                    padding: AppSpacing.allLg,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -161,34 +182,49 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                         const SizedBox(height: 16),
 
                         // ── Status Banner ──────────────────────────────────────────
-                        _buildStatusBanner(activeStep: activeStep, hasTechnician: hasTechnician),
+                        _buildStatusBanner(
+                            activeStep: activeStep,
+                            hasTechnician: hasTechnician),
                         const SizedBox(height: 16),
 
                         // ── Active Servicing Indicator Card (In Progress) ──────────
                         if (statusStr == 'in_progress') ...[
                           Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: AppSpacing.allLg,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFF7ED),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFFF7A00), width: 1.5),
+                              color: AppColors.paleOrange,
+                              borderRadius: AppRadius.large,
+                              border: Border.all(
+                                  color: AppColors.primary, width: 1.5),
                             ),
                             child: Row(
                               children: [
                                 Container(
                                   width: 44,
                                   height: 44,
-                                  decoration: const BoxDecoration(color: Color(0xFFFF7A00), shape: BoxShape.circle),
-                                  child: const Icon(Icons.handyman_rounded, color: Colors.white, size: 24),
+                                  decoration: const BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle),
+                                  child: const Icon(Icons.handyman_rounded,
+                                      color: Colors.white, size: 24),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text('Teknisi Sedang Mengerjakan Servis', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFFFF7A00))),
+                                      Text('Teknisi Sedang Mengerjakan Servis',
+                                          style: GoogleFonts.inter(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.primary)),
                                       const SizedBox(height: 2),
-                                      Text('Kompor gas Anda sedang dalam proses perbaikan di lokasi.', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
+                                      Text(
+                                          'Kompor gas Anda sedang dalam proses perbaikan di lokasi.',
+                                          style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              color: AppColors.textSecondary)),
                                     ],
                                   ),
                                 ),
@@ -199,11 +235,28 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                         ],
 
                         // ── Timeline ───────────────────────────────────────────────
-                        _buildTimeline(activeStep: activeStep, hasTechnician: hasTechnician),
+                        _buildTimeline(
+                            activeStep: activeStep,
+                            hasTechnician: hasTechnician),
                         const SizedBox(height: 16),
 
                         // ── Technician Card ────────────────────────────────────────
-                        _buildTechnicianCard(technicianName: technician?.name, technicianPhone: technician?.phone, hasTechnician: hasTechnician, context: context),
+                        _buildTechnicianCard(
+                            technicianName: technician?.name,
+                            technicianPhone: technician?.phone,
+                            hasTechnician: hasTechnician,
+                            context: context),
+                        if (order != null &&
+                            !['completed', 'cancelled'].contains(statusStr)) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: () => _cancelOrder(order.id),
+                              child: const Text('Batalkan pesanan'),
+                            ),
+                          ),
+                        ],
 
                         // ── Button Konfirmasi Selesai & Ulasan ────────────────────
                         if (activeStep >= 3 || statusStr == 'completed') ...[
@@ -219,14 +272,19 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                                   arguments: order,
                                 );
                               },
-                              icon: const Icon(Icons.star_rounded, color: Colors.amber),
+                              icon: const Icon(Icons.star_rounded,
+                                  color: Colors.amber),
                               label: Text(
                                 'Konfirmasi Selesai & Beri Ulasan Teknisi',
-                                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFF7A00),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                backgroundColor: AppColors.primary,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: AppRadius.extraSmall),
                               ),
                             ),
                           ),
@@ -239,16 +297,33 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
     );
   }
 
+  Future<void> _cancelOrder(int orderId) async {
+    final confirmed = await AppFeedback.confirm(
+      context,
+      title: 'Batalkan pesanan?',
+      message: 'Pesanan akan ditandai sebagai dibatalkan.',
+      confirmLabel: 'Batalkan pesanan',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await _repository.updateStatus(orderId, {'status': 'cancelled'});
+      await _fetchRealOrderDetails(orderId);
+      if (mounted) AppFeedback.success(context, 'Pesanan berhasil dibatalkan.');
+    } catch (error) {
+      if (mounted) AppFeedback.error(context, 'Gagal membatalkan pesanan: $error');
+    }
+  }
+
   Widget _buildOpenStreetMapCard({required bool hasTechnician}) {
     return Container(
       width: double.infinity,
       height: 240,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppRadius.large,
         border: Border.all(color: AppColors.cardBorder),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppRadius.large,
         child: Stack(
           children: [
             FlutterMap(
@@ -271,7 +346,7 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                       Polyline(
                         points: [_technicianPoint, _customerPoint],
                         strokeWidth: 4,
-                        color: const Color(0xFFFF7A00),
+                        color: AppColors.primary,
                       ),
                     ],
                   ),
@@ -283,8 +358,10 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                         width: 48,
                         height: 48,
                         child: const DecoratedBox(
-                          decoration: BoxDecoration(color: Color(0xFFFF7A00), shape: BoxShape.circle),
-                          child: Icon(Icons.handyman_rounded, color: Colors.white, size: 24),
+                          decoration: BoxDecoration(
+                              color: AppColors.primary, shape: BoxShape.circle),
+                          child: Icon(Icons.handyman_rounded,
+                              color: Colors.white, size: 24),
                         ),
                       ),
                     Marker(
@@ -292,8 +369,10 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                       width: 48,
                       height: 48,
                       child: const DecoratedBox(
-                        decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                        child: Icon(Icons.person_rounded, color: Colors.white, size: 24),
+                        decoration: BoxDecoration(
+                            color: Colors.blue, shape: BoxShape.circle),
+                        child: Icon(Icons.person_rounded,
+                            color: Colors.white, size: 24),
                       ),
                     ),
                   ],
@@ -304,7 +383,8 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
               top: 12,
               left: 12,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.75),
                   borderRadius: BorderRadius.circular(8),
@@ -312,14 +392,23 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                 child: Row(
                   children: [
                     Icon(
-                      hasTechnician ? Icons.radar_rounded : Icons.search_rounded,
-                      color: hasTechnician ? Colors.greenAccent : Colors.orangeAccent,
+                      hasTechnician
+                          ? Icons.radar_rounded
+                          : Icons.search_rounded,
+                      color: hasTechnician
+                          ? Colors.greenAccent
+                          : Colors.orangeAccent,
                       size: 14,
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      hasTechnician ? 'GPS Live Tracking (Zoom Enabled)' : 'Mencari Teknisi Terdekat...',
-                      style: GoogleFonts.inter(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
+                      hasTechnician
+                          ? 'GPS Live Tracking (Zoom Enabled)'
+                          : 'Mencari Teknisi Terdekat...',
+                      style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -336,7 +425,8 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                     child: const Icon(Icons.add, color: Colors.black),
                     onPressed: () {
                       final zoom = _mapController.camera.zoom;
-                      _mapController.move(_mapController.camera.center, zoom + 1);
+                      _mapController.move(
+                          _mapController.camera.center, zoom + 1);
                     },
                   ),
                   const SizedBox(height: 4),
@@ -346,7 +436,8 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                     child: const Icon(Icons.remove, color: Colors.black),
                     onPressed: () {
                       final zoom = _mapController.camera.zoom;
-                      _mapController.move(_mapController.camera.center, zoom - 1);
+                      _mapController.move(
+                          _mapController.camera.center, zoom - 1);
                     },
                   ),
                 ],
@@ -358,7 +449,8 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
     );
   }
 
-  Widget _buildStatusBanner({required int activeStep, required bool hasTechnician}) {
+  Widget _buildStatusBanner(
+      {required int activeStep, required bool hasTechnician}) {
     final titles = [
       'Mencari Teknisi Terdekat...',
       'Pesanan Diterima Teknisi',
@@ -378,30 +470,33 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: AppSpacing.all18,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: hasTechnician
               ? [AppColors.primary, AppColors.primaryAccent]
-              : [const Color(0xFFEA580C), const Color(0xFFF97316)],
+              : [AppColors.trackingOrange, AppColors.trackingOrangeLight],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppRadius.large,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             titles[activeStep.clamp(0, titles.length - 1)],
-            style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
+            style: GoogleFonts.inter(
+                fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
           ),
           const SizedBox(height: 6),
-          Text(subtitles[activeStep.clamp(0, subtitles.length - 1)], style: GoogleFonts.inter(fontSize: 12.5, color: Colors.white70)),
+          Text(subtitles[activeStep.clamp(0, subtitles.length - 1)],
+              style: GoogleFonts.inter(fontSize: 12.5, color: Colors.white70)),
         ],
       ),
     );
   }
 
-  Widget _buildTimeline({required int activeStep, required bool hasTechnician}) {
+  Widget _buildTimeline(
+      {required int activeStep, required bool hasTechnician}) {
     final steps = [
       'Mencari Teknisi',
       'Pesanan Diterima',
@@ -412,16 +507,18 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
     ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: AppSpacing.allLg,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppRadius.large,
         border: Border.all(color: AppColors.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Status Pesanan Riil', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
+          Text('Status Pesanan Riil',
+              style:
+                  AppTextStyles.bodyBold),
           const SizedBox(height: 14),
           ...steps.asMap().entries.map((e) {
             final idx = e.key;
@@ -439,7 +536,8 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                       height: 24,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isDone ? AppColors.primary : AppColors.chipInactive,
+                        color:
+                            isDone ? AppColors.primary : AppColors.chipInactive,
                       ),
                       child: Icon(
                         isDone ? Icons.check_rounded : Icons.circle_outlined,
@@ -451,19 +549,27 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                       Container(
                         width: 2,
                         height: 28,
-                        color: idx < activeStep ? AppColors.primary : AppColors.chipInactive,
+                        color: idx < activeStep
+                            ? AppColors.primary
+                            : AppColors.chipInactive,
                       ),
                   ],
                 ),
                 const SizedBox(width: 12),
-                Padding(
-                  padding: const EdgeInsets.only(top: 3),
-                  child: Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: isDone ? FontWeight.w700 : FontWeight.w400,
-                      color: isDone ? AppColors.textPrimary : AppColors.textMuted,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Text(
+                      label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: isDone ? FontWeight.w700 : FontWeight.w400,
+                        color: isDone
+                            ? AppColors.textPrimary
+                            : AppColors.textMuted,
+                      ),
                     ),
                   ),
                 ),
@@ -483,11 +589,11 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
   }) {
     if (!hasTechnician) {
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: AppSpacing.allLg,
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF7ED),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFFD8A8)),
+          color: AppColors.paleOrange,
+          borderRadius: AppRadius.large,
+          border: Border.all(color: AppColors.trackingBorder),
         ),
         child: Row(
           children: [
@@ -496,9 +602,10 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
               height: 50,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color(0xFFFFEAD5),
+                color: AppColors.trackingSoft,
               ),
-              child: const Icon(Icons.search_rounded, size: 28, color: Color(0xFFFF7A00)),
+              child: const Icon(Icons.search_rounded,
+                  size: 28, color: AppColors.primary),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -507,12 +614,16 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
                 children: [
                   Text(
                     'Mencari Teknisi Terdekat...',
-                    style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFFFF7A00)),
+                    style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Pesanan Anda sedang dihubungkan ke teknisi KlikKompor.',
-                    style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -523,10 +634,10 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: AppSpacing.allLg,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppRadius.large,
         border: Border.all(color: AppColors.cardBorder),
       ),
       child: Row(
@@ -536,9 +647,10 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
             height: 54,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: Color(0xFFFFEFE2),
+              color: AppColors.trackingPale,
             ),
-            child: const Icon(Icons.person_rounded, size: 30, color: AppColors.primary),
+            child: const Icon(Icons.person_rounded,
+                size: 30, color: AppColors.primary),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -547,23 +659,30 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
               children: [
                 Text(
                   technicianName ?? 'Teknisi Resmi',
-                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700),
+                  style: GoogleFonts.inter(
+                      fontSize: 15, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
-                Text('Teknisi Resmi KlikKompor', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+                Text('Teknisi Resmi KlikKompor',
+                    style: GoogleFonts.inter(
+                        fontSize: 13, color: AppColors.textSecondary)),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary),
-            onPressed: () => Navigator.pushNamed(context, AppRoutes.customerChat),
+            icon: const Icon(Icons.chat_bubble_outline_rounded,
+                color: AppColors.primary),
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.customerChat),
             tooltip: 'Chat Teknisi',
           ),
           IconButton(
             icon: const Icon(Icons.phone_outlined, color: Colors.green),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Menghubungi ${technicianPhone ?? "teknisi"}...')),
+                SnackBar(
+                    content:
+                        Text('Menghubungi ${technicianPhone ?? "teknisi"}...')),
               );
             },
             tooltip: 'Telepon Teknisi',

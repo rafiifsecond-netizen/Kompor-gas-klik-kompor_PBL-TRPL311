@@ -1,24 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/network/api_client.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/order_model.dart';
 import '../../widgets/custom_bottom_nav_bar.dart';
 import '../../widgets/order_history_card_widget.dart';
+import '../../repositories/order_repository.dart';
 
 class CustomerOrderHistoryScreen extends StatefulWidget {
   const CustomerOrderHistoryScreen({super.key});
 
   @override
-  State<CustomerOrderHistoryScreen> createState() => _CustomerOrderHistoryScreenState();
+  State<CustomerOrderHistoryScreen> createState() =>
+      _CustomerOrderHistoryScreenState();
 }
 
-class _CustomerOrderHistoryScreenState extends State<CustomerOrderHistoryScreen> {
+class _CustomerOrderHistoryScreenState
+    extends State<CustomerOrderHistoryScreen> {
   bool _isLoading = true;
   List<OrderModel> _orders = [];
   String? _errorMessage;
+  final _repository = OrderRepository();
 
   @override
   void initState() {
@@ -33,25 +35,11 @@ class _CustomerOrderHistoryScreenState extends State<CustomerOrderHistoryScreen>
     });
 
     try {
-      final response = await ApiClient().get(ApiEndpoints.orders);
-      if (response is Map && response['success'] == true) {
-        final data = response['data'];
-        final list = (data is Map && data['data'] is List)
-            ? data['data'] as List
-            : (data is List ? data : []);
-
-        setState(() {
-          _orders = list
-              .map((o) => OrderModel.fromJson(Map<String, dynamic>.from(o as Map)))
-              .toList();
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _isLoading = false;
-          _orders = [];
-        });
-      }
+      final list = await _repository.getOrders();
+      setState(() {
+        _orders = list.map(OrderModel.fromJson).toList();
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -89,7 +77,8 @@ class _CustomerOrderHistoryScreenState extends State<CustomerOrderHistoryScreen>
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : _errorMessage != null
               ? Center(
                   child: Padding(
@@ -97,11 +86,17 @@ class _CustomerOrderHistoryScreenState extends State<CustomerOrderHistoryScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+                        const Icon(Icons.error_outline_rounded,
+                            size: 48, color: AppColors.danger),
                         const SizedBox(height: 12),
-                        Text(_errorMessage!, textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+                        Text(_errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                                fontSize: 13, color: AppColors.textSecondary)),
                         const SizedBox(height: 16),
-                        ElevatedButton(onPressed: _fetchRealOrders, child: const Text('Coba Lagi')),
+                        ElevatedButton(
+                            onPressed: _fetchRealOrders,
+                            child: const Text('Coba Lagi')),
                       ],
                     ),
                   ),
@@ -111,12 +106,18 @@ class _CustomerOrderHistoryScreenState extends State<CustomerOrderHistoryScreen>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.receipt_long_outlined, size: 52, color: AppColors.textMuted),
+                          const Icon(Icons.receipt_long_outlined,
+                              size: 52, color: AppColors.textMuted),
                           const SizedBox(height: 12),
-                          Text('Belum ada pesanan riil di database', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                          Text('Belum ada pesanan riil di database',
+                              style: GoogleFonts.inter(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary)),
                           const SizedBox(height: 8),
                           ElevatedButton(
-                            onPressed: () => Navigator.pushNamed(context, AppRoutes.customerCatalog),
+                            onPressed: () => Navigator.pushNamed(
+                                context, AppRoutes.customerCatalog),
                             child: const Text('Pesan Sekarang'),
                           ),
                         ],
@@ -129,7 +130,8 @@ class _CustomerOrderHistoryScreenState extends State<CustomerOrderHistoryScreen>
                         itemCount: _orders.length,
                         itemBuilder: (_, i) {
                           final o = _orders[i];
-                          final String title = (o.items.isNotEmpty && o.items.first.serviceName != null)
+                          final String title = (o.items.isNotEmpty &&
+                                  o.items.first.serviceName != null)
                               ? o.items.first.serviceName!
                               : 'Service Kompor Gas';
                           final statusLabel = switch (o.status) {
@@ -146,9 +148,15 @@ class _CustomerOrderHistoryScreenState extends State<CustomerOrderHistoryScreen>
                             date: o.bookingDate,
                             price: 'Rp ${_fmt(o.totalAmount.toInt())}',
                             status: statusLabel,
-                            onTap: () => Navigator.pushNamed(context, AppRoutes.customerOrderTracking, arguments: o),
-                            onReviewTap: o.isCompleted ? () => Navigator.pushNamed(context, AppRoutes.customerReview) : null,
-                            onReorderTap: () => Navigator.pushNamed(context, AppRoutes.customerCatalog),
+                            onTap: () => Navigator.pushNamed(
+                                context, AppRoutes.customerOrderTracking,
+                                arguments: o),
+                            onReviewTap: o.isCompleted
+                                ? () => Navigator.pushNamed(
+                                    context, AppRoutes.customerReview)
+                                : null,
+                            onReorderTap: () => Navigator.pushNamed(
+                                context, AppRoutes.customerCatalog),
                           );
                         },
                       ),

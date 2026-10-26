@@ -54,10 +54,13 @@ class TechnicianCardWidget extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFFFFEFE2),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 2),
+                    border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        width: 2),
                   ),
                   child: const Center(
-                    child: Icon(Icons.person_rounded, size: 40, color: AppColors.primary),
+                    child: Icon(Icons.person_rounded,
+                        size: 40, color: AppColors.primary),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -67,39 +70,56 @@ class TechnicianCardWidget extends StatelessWidget {
                     children: [
                       Text(
                         name,
-                        style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black),
+                        style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black),
                       ),
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          const Icon(Icons.star_rounded, size: 18, color: AppColors.star),
+                          const Icon(Icons.star_rounded,
+                              size: 18, color: AppColors.star),
                           const SizedBox(width: 3),
                           Text(
                             rating.toStringAsFixed(1),
-                            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFF5D5555)),
+                            style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF5D5555)),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '($reviewCount)',
-                            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF5D5555)),
+                            style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF5D5555)),
                           ),
                         ],
                       ),
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF5D5555)),
+                          const Icon(Icons.location_on_outlined,
+                              size: 14, color: Color(0xFF5D5555)),
                           const SizedBox(width: 3),
                           Text(
                             distance,
-                            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF5D5555)),
+                            style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF5D5555)),
                           ),
                         ],
                       ),
                       const SizedBox(height: 3),
                       Text(
                         experience,
-                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF5D5555)),
+                        style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF5D5555)),
                       ),
                     ],
                   ),
@@ -111,11 +131,15 @@ class TechnicianCardWidget extends StatelessWidget {
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       minimumSize: const Size(60, 36),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18)),
                       elevation: 0,
                     ),
-                    child: Text('Pilih', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700)),
+                    child: Text('Pilih',
+                        style: GoogleFonts.inter(
+                            fontSize: 13, fontWeight: FontWeight.w700)),
                   ),
               ],
             ),

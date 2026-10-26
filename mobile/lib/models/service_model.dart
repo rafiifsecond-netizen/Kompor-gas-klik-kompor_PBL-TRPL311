@@ -15,7 +15,9 @@ class ServiceCategoryModel {
 
   factory ServiceCategoryModel.fromJson(Map<String, dynamic> json) {
     return ServiceCategoryModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       name: json['name'] as String? ?? '',
       slug: json['slug'] as String? ?? '',
       description: json['description'] as String?,
@@ -61,21 +63,28 @@ class ServiceModel {
 
   factory ServiceModel.fromJson(Map<String, dynamic> json) {
     return ServiceModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       name: json['name'] as String? ?? '',
       slug: json['slug'] as String? ?? '',
       categoryId: json['category_id'] is int
           ? json['category_id']
           : int.tryParse(json['category_id']?.toString() ?? ''),
-      price: json['price'] != null ? (double.tryParse(json['price'].toString()) ?? 0.0) : 0.0,
+      price: json['price'] != null
+          ? (double.tryParse(json['price'].toString()) ?? 0.0)
+          : (double.tryParse(json['base_price']?.toString() ?? '') ?? 0.0),
       estimatedDurationMinutes: json['estimated_duration_minutes'] is int
           ? json['estimated_duration_minutes']
-          : int.tryParse(json['estimated_duration_minutes']?.toString() ?? '60') ?? 60,
+          : int.tryParse(
+                  json['estimated_duration_minutes']?.toString() ?? '') ??
+              (int.tryParse(json['estimated_minutes']?.toString() ?? '') ?? 60),
       description: json['description'] as String?,
       imageUrl: json['image_url'] as String?,
       isActive: json['is_active'] == true || json['is_active'] == 1,
       category: json['category'] != null && json['category'] is Map
-          ? ServiceCategoryModel.fromJson(Map<String, dynamic>.from(json['category'] as Map))
+          ? ServiceCategoryModel.fromJson(
+              Map<String, dynamic>.from(json['category'] as Map))
           : null,
     );
   }

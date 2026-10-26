@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
-import '../../core/constants/api_endpoints.dart';
+import '../../core/routes/route_args.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/network/api_client.dart';
 import '../../models/order_model.dart';
+import '../../repositories/order_repository.dart';
 
 class TechnicianOrderDetailScreen extends StatefulWidget {
   const TechnicianOrderDetailScreen({super.key});
@@ -17,6 +17,7 @@ class TechnicianOrderDetailScreen extends StatefulWidget {
 
 class _TechnicianOrderDetailScreenState
     extends State<TechnicianOrderDetailScreen> {
+  final _repository = OrderRepository();
   static const _stages = [
     'Pesanan Diterima',
     'Dalam Perjalanan',
@@ -42,7 +43,7 @@ class _TechnicianOrderDetailScreenState
     super.didChangeDependencies();
     if (_initialized) return;
     _initialized = true;
-    final raw = ModalRoute.of(context)?.settings.arguments;
+    final raw = RouteArgs.of<OrderModel>(context) ?? RouteArgs.map(context);
     final Map<String, dynamic> args = raw is OrderModel
         ? raw.toJson()
         : (raw is Map<String, dynamic> ? raw : const {});
@@ -73,9 +74,9 @@ class _TechnicianOrderDetailScreenState
     });
     try {
       final results = await Future.wait([
-        ApiClient().get(ApiEndpoints.orderDetail(id)),
-        ApiClient().get(ApiEndpoints.additionalCosts(id)),
-        ApiClient().get(ApiEndpoints.services),
+        _repository.getOrder(id),
+        _repository.getAdditionalCosts(id),
+        _repository.getServices(),
       ]);
       if (!mounted) return;
       final detailResponse = results[0];
@@ -516,10 +517,7 @@ class _TechnicianOrderDetailScreenState
     };
     setState(() => _updatingStatus = true);
     try {
-      await ApiClient().patch(
-        ApiEndpoints.updateOrderStatus(id),
-        data: {'status': status},
-      );
+      await _repository.updateStatus(id, {'status': status});
       if (!mounted) return;
       setState(() {
         _stage = nextStage;
@@ -630,14 +628,7 @@ class _TechnicianOrderDetailScreenState
     if (id == null) return;
     setState(() => _updatingService = true);
     try {
-      final response = await ApiClient().patch(
-        ApiEndpoints.updateOrderServices(id),
-        data: {
-          'services': serviceIds
-              .map((serviceId) => {'service_item_id': serviceId, 'quantity': 1})
-              .toList(),
-        },
-      );
+      final response = await _repository.updateServices(id, serviceIds);
       if (!mounted) return;
       final data = response is Map && response['data'] is Map
           ? _map(response['data'] as Map)
@@ -668,15 +659,12 @@ class _TechnicianOrderDetailScreenState
     );
     if (submitted == null) return;
     try {
-      await ApiClient().post(
-        ApiEndpoints.additionalCosts(_orderId!),
-        data: {
-          ...submitted,
-          'quantity': 1,
-          'description':
-              'Ditambahkan teknisi sesuai kesepakatan dengan pelanggan.',
-        },
-      );
+      await _repository.addAdditionalCost(_orderId!, {
+        ...submitted,
+        'quantity': 1,
+        'description':
+            'Ditambahkan teknisi sesuai kesepakatan dengan pelanggan.',
+      });
       await _loadOrderData();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

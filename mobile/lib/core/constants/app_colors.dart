@@ -33,7 +33,8 @@ class AppColors {
   static const Color textLight = Colors.white;
 
   // Status & Feedback from Figma
-  static const Color success = Color(0xFF43BA75); // Figma "Selesai" tag: rgb(67, 186, 117)
+  static const Color success =
+      Color(0xFF43BA75); // Figma "Selesai" tag: rgb(67, 186, 117)
   static const Color successLight = Color(0xFFE8F8EF);
   static const Color warning = Color(0xFFF59E0B);
   static const Color warningLight = Color(0xFFFEF3C7);
@@ -49,5 +50,42 @@ class AppColors {
   static const Color customerBadge = Color(0xFFFA7D10);
   static const Color technicianBadge = Color(0xFF2563EB);
   static const Color adminBadge = Color(0xFF7C3AED);
-}
 
+  static const Color bannerOrange = Color(0xFFE85D04);
+  static const Color bannerNavy = Color(0xFF1A1A2E);
+  static const Color bannerBrown = Color(0xFF2D1515);
+  static const Color bannerGreen = Color(0xFF0D3B2E);
+  static const Color bannerDarkGreen = Color(0xFF0A2E20);
+  static const Color mutedGrey = Color(0xFF8B8787);
+  static const Color lightGrey = Color(0xFFE0E0E0);
+  static const Color softGrey = Color(0xFFD8D8D8);
+  static const Color paleBackground = Color(0xFFF2F4FA);
+  static const Color purpleText = Color(0xFF4F378A);
+  static const Color darkText = Color(0xFF303445);
+  static const Color paleOrange = Color(0xFFFFF7ED);
+  static const Color paleBorder = Color(0xFFD0D0D0);
+  static const Color paleDivider = Color(0xFFE7E7E7);
+  static const Color chatInput = Color(0xFFF3EEF6);
+  static const Color chatBorder = Color(0xFFD5CFD9);
+  static const Color chatGrey = Color(0xFFD1D1D1);
+  static const Color chatInactive = Color(0xFFE4E4E4);
+  static const Color chatMuted = Color(0xFFB8B8B8);
+  static const Color chatPurple = Color(0xFFE8D9FF);
+  static const Color chatPurpleDark = Color(0xFF60409B);
+  static const Color slate = Color(0xFF1E293B);
+  static const Color paymentDivider = Color(0xFFD9D9D9);
+  static const Color addressBackground = Color(0xFFF9F9F9);
+  static const Color addressSelected = Color(0xFFFFF1E6);
+  static const Color addressOrange = Color(0xFFFF7900);
+  static const Color addressBorder = Color(0xFFE2E2E2);
+  static const Color addressAccent = Color(0xFFFFD9B5);
+  static const Color addressLight = Color(0xFFFFE2C9);
+  static const Color addressDark = Color(0xFFE66F00);
+  static const Color trackingOrange = Color(0xFFEA580C);
+  static const Color trackingOrangeLight = Color(0xFFF97316);
+  static const Color trackingBorder = Color(0xFFFFD8A8);
+  static const Color trackingSoft = Color(0xFFFFEAD5);
+  static const Color trackingPale = Color(0xFFFFEFE2);
+  static const Color lightGreyBorder = Color(0xFFEEEEEE);
+  static const Color mediumGrey = Color(0xFFE0E0E0);
+}

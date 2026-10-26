@@ -37,7 +37,8 @@ class TechnicianServiceHistoryScreen extends StatelessWidget {
         ),
         title: Text(
           'Riwayat Servis Selesai',
-          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+          style: GoogleFonts.inter(
+              fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
         ),
       ),
       body: ListView.builder(
@@ -59,26 +60,43 @@ class TechnicianServiceHistoryScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(item['orderNumber'] as String, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFFFF7A00))),
-                    Text(item['date'] as String, style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
+                    Text(item['orderNumber'] as String,
+                        style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFFFF7A00))),
+                    Text(item['date'] as String,
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: AppColors.textMuted)),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(item['service'] as String, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold)),
+                Text(item['service'] as String,
+                    style: GoogleFonts.inter(
+                        fontSize: 15, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text('Pelanggan: ${item['customer']}', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+                Text('Pelanggan: ${item['customer']}',
+                    style: GoogleFonts.inter(
+                        fontSize: 13, color: AppColors.textSecondary)),
                 const Divider(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.star_rounded, color: Color(0xFFFFA500), size: 18),
+                        const Icon(Icons.star_rounded,
+                            color: Color(0xFFFFA500), size: 18),
                         const SizedBox(width: 4),
-                        Text(item['rating'] as String, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold)),
+                        Text(item['rating'] as String,
+                            style: GoogleFonts.inter(
+                                fontSize: 13, fontWeight: FontWeight.bold)),
                       ],
                     ),
-                    Text('Pendapatan: ${item['earning']}', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.green.shade700)),
+                    Text('Pendapatan: ${item['earning']}',
+                        style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.green.shade700)),
                   ],
                 ),
               ],

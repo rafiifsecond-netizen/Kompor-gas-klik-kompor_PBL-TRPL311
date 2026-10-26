@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/utils/validators.dart';
+import '../../core/utils/app_feedback.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  bool _obscurePass = true;
 
   @override
   void dispose() {
@@ -33,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     if (!mounted) return;
     if (ok) {
+      AppFeedback.success(context, 'Login berhasil.');
       if (auth.user?.role == 'admin') {
         await auth.logout();
         if (!mounted) return;
@@ -48,6 +52,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ? AppRoutes.technicianDashboard
           : AppRoutes.customerHome;
       Navigator.pushReplacementNamed(context, route);
+    } else {
+      AppFeedback.error(context, auth.errorMessage ?? 'Login gagal.');
     }
   }
 
@@ -85,8 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     hint: 'Email atau nomor telepon',
                     icon: Icons.mail_outline_rounded,
                     keyboardType: TextInputType.emailAddress,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
+                    validator: (v) => Validators.required(v, label: 'Email'),
                   ),
 
                   const SizedBox(height: 12),
@@ -96,10 +101,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _passCtrl,
                     hint: 'Kata Sandi',
                     icon: Icons.lock_outline_rounded,
-                    obscureText: true,
-                    validator: (v) => (v == null || v.length < 6)
-                        ? 'Minimal 6 karakter'
-                        : null,
+                    obscureText: _obscurePass,
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePass
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined),
+                      onPressed: () =>
+                          setState(() => _obscurePass = !_obscurePass),
+                    ),
+                    validator: Validators.password,
                   ),
 
                   const SizedBox(height: 18),
@@ -234,6 +244,7 @@ class _AuthField extends StatelessWidget {
   final bool obscureText;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
+  final Widget? suffixIcon;
 
   const _AuthField({
     required this.controller,
@@ -242,6 +253,7 @@ class _AuthField extends StatelessWidget {
     this.obscureText = false,
     this.keyboardType,
     this.validator,
+    this.suffixIcon,
   });
 
   @override
@@ -261,6 +273,7 @@ class _AuthField extends StatelessWidget {
           fontWeight: FontWeight.w400,
         ),
         prefixIcon: Icon(icon, size: 20, color: Colors.black54),
+        suffixIcon: suffixIcon,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(

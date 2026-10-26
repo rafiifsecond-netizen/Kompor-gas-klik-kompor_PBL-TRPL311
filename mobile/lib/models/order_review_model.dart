@@ -17,7 +17,9 @@ class OrderReviewModel {
 
   factory OrderReviewModel.fromJson(Map<String, dynamic> json) {
     return OrderReviewModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       orderId: json['order_id'] is int
           ? json['order_id']
           : int.tryParse(json['order_id']?.toString() ?? '') ?? 0,

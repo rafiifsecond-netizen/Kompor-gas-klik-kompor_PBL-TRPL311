@@ -26,12 +26,14 @@ class ApiException implements Exception {
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
         return ApiException(
-          message: 'Koneksi ke server terputus (timeout). Silakan periksa jaringan Anda.',
+          message:
+              'Koneksi ke server terputus (timeout). Silakan periksa jaringan Anda.',
           statusCode: null,
         );
       case DioExceptionType.connectionError:
         return ApiException(
-          message: 'Gagal terhubung ke server backend KlikKompor. Pastikan API server aktif.',
+          message:
+              'Gagal terhubung ke server backend KlikKompor. Pastikan API server aktif.',
           statusCode: null,
         );
       case DioExceptionType.badResponse:
@@ -39,7 +41,9 @@ class ApiException implements Exception {
         if (response != null && response.data is Map) {
           final data = response.data as Map;
           final msg = data['message'] ?? 'Terjadi kesalahan pada server.';
-          final errs = data['errors'] is Map ? Map<String, dynamic>.from(data['errors']) : null;
+          final errs = data['errors'] is Map
+              ? Map<String, dynamic>.from(data['errors'])
+              : null;
           return ApiException(
             message: msg.toString(),
             statusCode: response.statusCode,

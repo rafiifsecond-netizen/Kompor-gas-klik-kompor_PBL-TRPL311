@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/network/api_client.dart';
 import '../../models/order_model.dart';
+import '../../repositories/income_repository.dart';
 
 class TechnicianIncomeScreen extends StatefulWidget {
   const TechnicianIncomeScreen({super.key});
@@ -13,6 +12,7 @@ class TechnicianIncomeScreen extends StatefulWidget {
 }
 
 class _TechnicianIncomeScreenState extends State<TechnicianIncomeScreen> {
+  final _repository = IncomeRepository();
   late Future<List<OrderModel>> _ordersFuture;
   bool _showWeekly = false;
 
@@ -28,10 +28,7 @@ class _TechnicianIncomeScreenState extends State<TechnicianIncomeScreen> {
     var lastPage = 1;
 
     do {
-      final response = await ApiClient().get(
-        ApiEndpoints.orders,
-        queryParameters: {'status': 'completed', 'page': pageNumber},
-      );
+      final response = await _repository.getCompletedOrders();
       if (response is! Map || response['success'] != true) {
         throw Exception('Data pendapatan tidak dapat dimuat.');
       }
@@ -48,7 +45,7 @@ class _TechnicianIncomeScreenState extends State<TechnicianIncomeScreen> {
         }
         lastPage = int.tryParse(page['last_page']?.toString() ?? '') ?? 1;
       }
-      pageNumber++;
+      pageNumber = lastPage + 1;
     } while (pageNumber <= lastPage);
 
     return orders.where((order) => order.isPaid).toList();

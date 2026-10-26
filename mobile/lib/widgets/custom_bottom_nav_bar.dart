@@ -35,10 +35,16 @@ class CustomBottomNavBar extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(0, Icons.home_rounded, 'Home'),
-              _buildNavItem(1, Icons.receipt_long_rounded, 'Riwayat'),
-              _buildNavItem(2, Icons.chat_bubble_outline_rounded, 'Pesan'),
-              _buildNavItem(3, Icons.person_outline_rounded, 'Profil'),
+              Expanded(child: _buildNavItem(0, Icons.home_rounded, 'Home')),
+              Expanded(
+                  child:
+                      _buildNavItem(1, Icons.receipt_long_rounded, 'Riwayat')),
+              Expanded(
+                  child: _buildNavItem(
+                      2, Icons.chat_bubble_outline_rounded, 'Pesan')),
+              Expanded(
+                  child:
+                      _buildNavItem(3, Icons.person_outline_rounded, 'Profil')),
             ],
           ),
         ),
@@ -54,17 +60,17 @@ class CustomBottomNavBar extends StatelessWidget {
       onTap: () => onTap(index),
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 24, color: color),
-            const SizedBox(height: 4),
+            Icon(icon, size: 22, color: color),
+            const SizedBox(height: 2),
             Text(
               label,
               style: GoogleFonts.inter(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: color,
               ),

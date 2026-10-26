@@ -76,7 +76,8 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.inputBg,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         hintStyle: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 13,
@@ -112,8 +113,10 @@ class AppTheme {
         unselectedItemColor: Color(0xFFB2B2B2),
         type: BottomNavigationBarType.fixed,
         elevation: 8,
-        selectedLabelStyle: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w700),
-        unselectedLabelStyle: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w500),
+        selectedLabelStyle: TextStyle(
+            fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w700),
+        unselectedLabelStyle: TextStyle(
+            fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w500),
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.divider,
@@ -123,4 +126,3 @@ class AppTheme {
     );
   }
 }
-

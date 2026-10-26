@@ -30,7 +30,8 @@ class CustomButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveBg = backgroundColor ?? AppColors.primary;
-    final effectiveText = textColor ?? (isOutlined ? effectiveBg : Colors.white);
+    final effectiveText =
+        textColor ?? (isOutlined ? effectiveBg : Colors.white);
 
     if (isOutlined) {
       return SizedBox(

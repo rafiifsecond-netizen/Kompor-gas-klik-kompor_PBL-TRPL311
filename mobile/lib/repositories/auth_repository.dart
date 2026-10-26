@@ -5,7 +5,8 @@ import '../services/storage_service.dart';
 class AuthRepository {
   final AuthService _authService;
 
-  AuthRepository({AuthService? authService}) : _authService = authService ?? AuthService();
+  AuthRepository({AuthService? authService})
+      : _authService = authService ?? AuthService();
 
   /// Retrieve locally cached user
   UserModel? getCachedUser() {

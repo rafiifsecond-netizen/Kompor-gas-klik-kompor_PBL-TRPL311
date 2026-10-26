@@ -30,14 +30,17 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? get validationErrors => _validationErrors;
 
   bool get isLoading => _status == AuthStatus.authenticating;
-  bool get isAuthenticated => _status == AuthStatus.authenticated && _user != null;
+  bool get isAuthenticated =>
+      _status == AuthStatus.authenticated && _user != null;
   bool get isCustomer => _user?.isCustomer ?? false;
   bool get isTechnician => _user?.isTechnician ?? false;
   bool get isAdmin => _user?.isAdmin ?? false;
 
   /// Helper to get single validation message
   String? getFieldError(String field) {
-    if (_validationErrors == null || !_validationErrors!.containsKey(field)) return null;
+    if (_validationErrors == null || !_validationErrors!.containsKey(field)) {
+      return null;
+    }
     final val = _validationErrors![field];
     if (val is List && val.isNotEmpty) return val.first.toString();
     if (val is String) return val;

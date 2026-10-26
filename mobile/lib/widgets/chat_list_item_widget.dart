@@ -42,10 +42,12 @@ class ChatListItemWidget extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFFFFEFE2),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.3)),
                   ),
                   child: const Center(
-                    child: Icon(Icons.person_rounded, size: 28, color: AppColors.primary),
+                    child: Icon(Icons.person_rounded,
+                        size: 28, color: AppColors.primary),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -59,18 +61,27 @@ class ChatListItemWidget extends StatelessWidget {
                           Expanded(
                             child: Text(
                               title,
-                              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black),
+                              style: GoogleFonts.inter(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black),
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 3),
                             decoration: BoxDecoration(
-                              color: status == 'Selesai' ? AppColors.success : AppColors.primary,
+                              color: status == 'Selesai'
+                                  ? AppColors.success
+                                  : AppColors.primary,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
                               status,
-                              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+                              style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white),
                             ),
                           ),
                         ],
@@ -80,18 +91,23 @@ class ChatListItemWidget extends StatelessWidget {
                         lastMessage,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF5D5555)),
+                        style: GoogleFonts.inter(
+                            fontSize: 13, color: const Color(0xFF5D5555)),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         time,
-                        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: const Color(0xFF767676)),
+                        style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF767676)),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.chevron_right_rounded, size: 22, color: Color(0xFF5D5555)),
+                const Icon(Icons.chevron_right_rounded,
+                    size: 22, color: Color(0xFF5D5555)),
               ],
             ),
           ),

@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_radius.dart';
+import '../../models/service_model.dart';
+import '../../repositories/service_repository.dart';
 import '../../core/routes/app_routes.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/animated_fade_slide.dart';
@@ -21,19 +26,19 @@ const List<_BannerItem> _carouselItems = [
     assetPath: null, // → 'assets/images/banner1.jpg'
     title: 'Promo Servis Kompor',
     subtitle: 'Diskon 20% untuk servis pertama Anda!',
-    gradient: [Color(0xFFFA7D10), Color(0xFFE85D04)],
+    gradient: [AppColors.primary, AppColors.bannerOrange],
   ),
   _BannerItem(
     assetPath: null, // → 'assets/images/banner2.jpg'
     title: 'Teknisi Berpengalaman',
     subtitle: 'Garansi pengerjaan hingga 30 hari',
-    gradient: [Color(0xFF1A1A2E), Color(0xFF2D1515)],
+    gradient: [AppColors.bannerNavy, AppColors.bannerBrown],
   ),
   _BannerItem(
     assetPath: null, // → 'assets/images/banner3.jpg'
     title: 'Cek Kebocoran Gas',
     subtitle: 'Keamanan rumah Anda prioritas kami',
-    gradient: [Color(0xFF0D3B2E), Color(0xFF0A2E20)],
+    gradient: [AppColors.bannerGreen, AppColors.bannerDarkGreen],
   ),
 ];
 
@@ -42,10 +47,10 @@ const List<_BannerItem> _carouselItems = [
 const String? _bannerBottomAsset = null;
 
 // ─── Warna & konstanta lokal ──────────────────────────────────────────────────
-const _kGrey = Color(0xFF8B8787);
+const _kGrey = AppColors.mutedGrey;
 const _kLabelGrey = Color(0xFF5D5555);
-const _kBorderGrey = Color(0xFFE0E0E0);
-const _kPad = EdgeInsets.symmetric(horizontal: 20);
+const _kBorderGrey = AppColors.lightGrey;
+const _kPad = EdgeInsets.symmetric(horizontal: AppSpacing.xl);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MODEL BANNER
@@ -129,25 +134,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
                 const SizedBox(height: 24),
 
-                // Layanan Kami
-                Padding(
-                  padding: _kPad,
-                  child: Text(
-                    'Layanan Kami',
-                    style: GoogleFonts.inter(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // 4 ikon layanan
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: _ServiceGrid(),
+                _HomeServicesSection(
+                  onSeeAll: () => Navigator.pushNamed(
+                      context, AppRoutes.customerCatalog),
                 ),
 
                 const SizedBox(height: 24),
@@ -159,10 +148,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     assetPath: _bannerBottomAsset,
                     height: 155,
                     borderRadius: 12,
-                    fallbackGradient: [
-                      Color(0xFF0D0D1A),
-                      Color(0xFF1A1A3E)
-                    ],
+                    fallbackGradient: [Color(0xFF0D0D1A), Color(0xFF1A1A3E)],
                     fallbackIcon: Icons.local_fire_department_rounded,
                     fallbackLabel: 'Kompor Gas Bersih & Efisien',
                     overlayDim: 0.18,
@@ -179,6 +165,47 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         currentIndex: _homeIndex,
         onTap: _onNavTap,
       ),
+    );
+  }
+}
+
+class _HomeServicesSection extends StatelessWidget {
+  final VoidCallback onSeeAll;
+
+  const _HomeServicesSection({required this.onSeeAll});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: _kPad,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text('Layanan Kami',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black)),
+              ),
+              TextButton(
+                onPressed: onSeeAll,
+                child: const Text('Layanan Lainnya'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: _RealServiceGrid(),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }
@@ -431,7 +458,7 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: AppRadius.small,
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: () => Navigator.pushNamed(context, AppRoutes.customerCatalog),
@@ -444,7 +471,7 @@ class _SearchBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(Icons.search, size: 20, color: Color(0xFFAAAAAA)),
+              const Icon(Icons.search, size: 20, color: AppColors.textHint),
               const SizedBox(width: 10),
               Text(
                 'Cari layanan...',
@@ -493,6 +520,7 @@ class _ProfileAvatar extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // SERVICE GRID
 // ─────────────────────────────────────────────────────────────────────────────
+// ignore: unused_element
 class _ServiceGrid extends StatelessWidget {
   const _ServiceGrid();
 
@@ -568,6 +596,69 @@ class _ServiceGrid extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _RealServiceGrid extends StatefulWidget {
+  const _RealServiceGrid();
+  @override
+  State<_RealServiceGrid> createState() => _RealServiceGridState();
+}
+
+class _RealServiceGridState extends State<_RealServiceGrid> {
+  final _repository = ServiceRepository();
+  List<ServiceModel> _services = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rows = await _repository.getServices();
+      if (mounted) {
+        setState(
+            () => _services = rows.map(ServiceModel.fromJson).take(4).toList());
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const SizedBox(
+          height: 120, child: Center(child: CircularProgressIndicator()));
+    }
+    if (_services.isEmpty) {
+      return const SizedBox(
+          height: 120,
+          child: Center(child: Text('Belum ada layanan tersedia')));
+    }
+    return Wrap(
+      alignment: WrapAlignment.spaceAround,
+      spacing: 12,
+      runSpacing: 16,
+      children: _services
+          .map((service) => _ServiceTile(
+                label: service.name,
+                icon: const _WhiteIcon(Icons.build_rounded),
+                onTap: () => Navigator.pushNamed(
+                    context, AppRoutes.customerServiceDetail,
+                    arguments: {
+                      'id': service.id,
+                      'name': service.name,
+                      'description': service.description ?? '',
+                      'hargaMulai': AppConstants.formatCurrency(service.price),
+                      'estimasi': '${service.estimatedDurationMinutes} menit',
+                    }),
+              ))
+          .toList(),
     );
   }
 }

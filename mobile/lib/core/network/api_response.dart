@@ -21,7 +21,9 @@ class ApiResponse<T> {
       data: json['data'] != null && fromJsonT != null
           ? fromJsonT(json['data'])
           : (json['data'] as T?),
-      errors: json['errors'] is Map ? Map<String, dynamic>.from(json['errors']) : null,
+      errors: json['errors'] is Map
+          ? Map<String, dynamic>.from(json['errors'])
+          : null,
     );
   }
 }

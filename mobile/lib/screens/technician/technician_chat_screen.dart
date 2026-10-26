@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/network/api_client.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/routes/app_routes.dart';
+import '../../repositories/chat_repository.dart';
+import '../../core/constants/app_radius.dart';
+import '../../core/constants/app_spacing.dart';
+import '../../core/theme/app_text_styles.dart';
 
 class TechnicianChatInboxScreen extends StatefulWidget {
   const TechnicianChatInboxScreen({super.key, required this.onBack});
@@ -17,6 +20,7 @@ class TechnicianChatInboxScreen extends StatefulWidget {
 }
 
 class _TechnicianChatInboxScreenState extends State<TechnicianChatInboxScreen> {
+  final _repository = ChatRepository();
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
   String? _error;
@@ -41,7 +45,7 @@ class _TechnicianChatInboxScreenState extends State<TechnicianChatInboxScreen> {
       _error = null;
     });
     try {
-      final response = await ApiClient().get(ApiEndpoints.technicianChats);
+      final response = await _repository.getTechnicianChats();
       final data = response is Map ? response['data'] : null;
       if (response is! Map || response['success'] != true || data is! List) {
         throw Exception('Daftar pesan tidak dapat dimuat.');
@@ -120,16 +124,12 @@ class _TechnicianChatInboxScreenState extends State<TechnicianChatInboxScreen> {
         : <String, dynamic>{};
     final orderId = _asInt(chat['order_id']);
     if (orderId == 0) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => _TechnicianChatDetailScreen(
-          orderId: orderId,
-          customerName: (customer['name'] ?? 'Pelanggan').toString(),
-          orderDate:
-              order['created_at']?.toString() ?? chat['created_at']?.toString(),
-        ),
-      ),
-    );
+    await Navigator.pushNamed(context, AppRoutes.technicianChat, arguments: {
+      'orderId': orderId,
+      'customerName': (customer['name'] ?? 'Pelanggan').toString(),
+      'orderDate':
+          order['created_at']?.toString() ?? chat['created_at']?.toString(),
+    });
     if (mounted) _loadChats();
   }
 
@@ -179,7 +179,7 @@ class _TechnicianChatInboxScreenState extends State<TechnicianChatInboxScreen> {
                 height: 36,
                 child: TextField(
                   controller: _searchController,
-                  style: GoogleFonts.inter(fontSize: 12),
+                  style: AppTextStyles.statusTag.copyWith(color: AppColors.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'Cari pelanggan atau pesanan',
                     hintStyle: GoogleFonts.inter(
@@ -191,14 +191,14 @@ class _TechnicianChatInboxScreenState extends State<TechnicianChatInboxScreen> {
                         const BoxConstraints(minWidth: 34, minHeight: 34),
                     contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     filled: true,
-                    fillColor: const Color(0xFFF3EEF6),
+                    fillColor: AppColors.chatInput,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(22),
-                      borderSide: const BorderSide(color: Color(0xFFD5CFD9)),
+                      borderSide: const BorderSide(color: AppColors.chatBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(22),
-                      borderSide: const BorderSide(color: Color(0xFFD5CFD9)),
+                      borderSide: const BorderSide(color: AppColors.chatBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(22),
@@ -293,11 +293,11 @@ class _ChatFilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.primary : const Color(0xFFD8D8D8),
-      borderRadius: BorderRadius.circular(18),
+      color: selected ? AppColors.primary : AppColors.softGrey,
+      borderRadius: AppRadius.extraLarge,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: AppRadius.extraLarge,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
           child: Text(
@@ -347,12 +347,12 @@ class _ChatInboxTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFD1D1D1)),
-        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.chatGrey),
+        borderRadius: AppRadius.extraSmall,
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppRadius.extraSmall,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(10, 9, 6, 9),
           child: Row(
@@ -385,8 +385,8 @@ class _ChatInboxTile extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: done
                                 ? const Color(0xFF43BA75)
-                                : const Color(0xFFE4E4E4),
-                            borderRadius: BorderRadius.circular(12),
+                                : AppColors.chatInactive,
+                            borderRadius: AppRadius.medium,
                           ),
                           child: Text(
                             done ? 'Selesai' : 'Aktif',
@@ -454,12 +454,12 @@ class _TechnicianChatDetailScreen extends StatefulWidget {
   const _TechnicianChatDetailScreen({
     required this.orderId,
     required this.customerName,
-    this.orderDate,
+    required this.orderDate,
   });
 
   final int orderId;
   final String customerName;
-  final String? orderDate;
+  final String orderDate;
 
   @override
   State<_TechnicianChatDetailScreen> createState() =>
@@ -468,6 +468,7 @@ class _TechnicianChatDetailScreen extends StatefulWidget {
 
 class _TechnicianChatDetailScreenState
     extends State<_TechnicianChatDetailScreen> {
+  final _repository = ChatRepository();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = true;
@@ -485,8 +486,7 @@ class _TechnicianChatDetailScreenState
 
   Future<void> _loadMessages() async {
     try {
-      final response =
-          await ApiClient().get(ApiEndpoints.orderChat(widget.orderId));
+      final response = await _repository.getOrderChat(widget.orderId);
       final data = response is Map ? response['data'] : null;
       final rows = data is Map ? data['messages'] : null;
       if (response is! Map || response['success'] != true || rows is! List) {
@@ -530,7 +530,7 @@ class _TechnicianChatDetailScreenState
   }
 
   String _headerDate() {
-    final date = DateTime.tryParse(widget.orderDate ?? '')?.toLocal();
+    final date = DateTime.tryParse(widget.orderDate)?.toLocal();
     if (date == null) return 'Percakapan pesanan';
     const months = [
       'Jan',
@@ -554,10 +554,7 @@ class _TechnicianChatDetailScreenState
     if (text.isEmpty || _isSending) return;
     setState(() => _isSending = true);
     try {
-      await ApiClient().post(
-        ApiEndpoints.sendChatMessage(widget.orderId),
-        data: {'message': text, 'message_type': 'text'},
-      );
+      await _repository.sendMessage(widget.orderId, text);
       if (!mounted) return;
       _messageController.clear();
       await _loadMessages();
@@ -682,7 +679,7 @@ class _TechnicianChatDetailScreenState
             padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
             decoration: const BoxDecoration(
               color: Colors.white,
-              border: Border(top: BorderSide(color: Color(0xFFE7E7E7))),
+              border: Border(top: BorderSide(color: AppColors.paleDivider)),
             ),
             child: SafeArea(
               top: false,
@@ -705,7 +702,7 @@ class _TechnicianChatDetailScreenState
                       maxLines: 4,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _sendMessage(),
-                      style: GoogleFonts.inter(fontSize: 11),
+                      style: AppTextStyles.caption,
                       decoration: InputDecoration(
                         hintText: 'Ketik pesan...',
                         hintStyle: GoogleFonts.inter(
@@ -714,13 +711,13 @@ class _TechnicianChatDetailScreenState
                         ),
                         isDense: true,
                         filled: true,
-                        fillColor: const Color(0xFFE4E4E4),
+                        fillColor: AppColors.chatInactive,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 10,
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+                        border: const OutlineInputBorder(
+                          borderRadius: AppRadius.small,
                           borderSide: BorderSide.none,
                         ),
                       ),
@@ -778,7 +775,7 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: AppSpacing.onlyBottom12,
       child: Row(
         mainAxisAlignment:
             isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -802,7 +799,7 @@ class _MessageBubble extends StatelessWidget {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: isMe ? AppColors.primary : const Color(0xFFB8B8B8),
+                    color: isMe ? AppColors.primary : AppColors.chatMuted,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(10),
                       topRight: const Radius.circular(10),
@@ -848,12 +845,12 @@ class _CustomerAvatar extends StatelessWidget {
       height: size,
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        color: Color(0xFFE8D9FF),
+        color: AppColors.chatPurple,
       ),
       child: Icon(
         Icons.person_outline_rounded,
         size: size * 0.68,
-        color: const Color(0xFF60409B),
+        color: AppColors.chatPurpleDark,
       ),
     );
   }
@@ -876,7 +873,7 @@ class _InboxMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: AppSpacing.all24,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

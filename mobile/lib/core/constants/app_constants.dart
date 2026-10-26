@@ -2,7 +2,8 @@ import 'package:intl/intl.dart';
 
 class AppConstants {
   static const String appName = 'KlikKompor';
-  static const String appTagline = 'Solusi Servis Kompor Gas Cepat & Terpercaya';
+  static const String appTagline =
+      'Solusi Servis Kompor Gas Cepat & Terpercaya';
 
   // Storage Keys
   static const String keyToken = 'klikkompor_token';
@@ -42,7 +43,8 @@ class AppConstants {
   // Rupiah Currency Formatter
   static String formatCurrency(dynamic amount) {
     if (amount == null) return 'Rp 0';
-    final num value = amount is num ? amount : (num.tryParse(amount.toString()) ?? 0);
+    final num value =
+        amount is num ? amount : (num.tryParse(amount.toString()) ?? 0);
     final formatter = NumberFormat.currency(
       locale: 'id_ID',
       symbol: 'Rp ',

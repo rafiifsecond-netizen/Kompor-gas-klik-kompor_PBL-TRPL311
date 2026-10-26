@@ -29,8 +29,12 @@ class AddressModel {
 
   factory AddressModel.fromJson(Map<String, dynamic> json) {
     return AddressModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
-      userId: json['user_id'] is int ? json['user_id'] : int.tryParse(json['user_id']?.toString() ?? '') ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
+      userId: json['user_id'] is int
+          ? json['user_id']
+          : int.tryParse(json['user_id']?.toString() ?? '') ?? 0,
       label: json['label'] as String? ?? 'Rumah',
       recipientName: json['recipient_name'] as String? ?? '',
       recipientPhone: json['recipient_phone'] as String? ?? '',
@@ -38,8 +42,12 @@ class AddressModel {
       city: json['city'] as String?,
       postalCode: json['postal_code'] as String?,
       notes: json['notes'] as String?,
-      latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
-      longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
+      latitude: json['latitude'] != null
+          ? double.tryParse(json['latitude'].toString())
+          : null,
+      longitude: json['longitude'] != null
+          ? double.tryParse(json['longitude'].toString())
+          : null,
       isDefault: json['is_default'] == true || json['is_default'] == 1,
     );
   }

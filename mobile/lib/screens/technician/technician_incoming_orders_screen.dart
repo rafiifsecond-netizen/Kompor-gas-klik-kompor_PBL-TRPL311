@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/network/api_client.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/order_model.dart';
+import '../../repositories/order_repository.dart';
 
 class TechnicianIncomingOrdersScreen extends StatefulWidget {
   const TechnicianIncomingOrdersScreen({super.key});
 
   @override
-  State<TechnicianIncomingOrdersScreen> createState() => _TechnicianIncomingOrdersScreenState();
+  State<TechnicianIncomingOrdersScreen> createState() =>
+      _TechnicianIncomingOrdersScreenState();
 }
 
-class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrdersScreen> {
+class _TechnicianIncomingOrdersScreenState
+    extends State<TechnicianIncomingOrdersScreen> {
+  final _repository = OrderRepository();
   bool _isLoading = true;
   List<OrderModel> _orders = [];
   String? _errorMessage;
@@ -31,26 +33,14 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
     });
 
     try {
-      final response = await ApiClient().get(ApiEndpoints.orders);
-      if (response is Map && response['success'] == true) {
-        final data = response['data'];
-        final list = (data is Map && data['data'] is List)
-            ? data['data'] as List
-            : (data is List ? data : []);
-
-        setState(() {
-          _orders = list
-              .map((o) => OrderModel.fromJson(Map<String, dynamic>.from(o as Map)))
-              .where((o) => !o.isCompleted && !o.isCancelled)
-              .toList();
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _isLoading = false;
-          _orders = [];
-        });
-      }
+      final list = await _repository.getOrders();
+      setState(() {
+        _orders = list
+            .map(OrderModel.fromJson)
+            .where((o) => !o.isCompleted && !o.isCancelled)
+            .toList();
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -61,19 +51,20 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
 
   Future<void> _updateOrderStatus(int orderId, String newStatus) async {
     try {
-      await ApiClient().patch(
-        ApiEndpoints.updateOrderStatus(orderId),
-        data: {'status': newStatus},
-      );
+      await _repository.updateStatus(orderId, {'status': newStatus});
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Status pesanan berhasil diperbarui!'), backgroundColor: Colors.green),
+        const SnackBar(
+            content: Text('Status pesanan berhasil diperbarui!'),
+            backgroundColor: Colors.green),
       );
       _fetchTechnicianOrders();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memperbarui status: $e'), backgroundColor: AppColors.danger),
+        SnackBar(
+            content: Text('Gagal memperbarui status: $e'),
+            backgroundColor: AppColors.danger),
       );
     }
   }
@@ -106,7 +97,8 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : _errorMessage != null
               ? Center(
                   child: Padding(
@@ -114,11 +106,17 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+                        const Icon(Icons.error_outline_rounded,
+                            size: 48, color: AppColors.danger),
                         const SizedBox(height: 12),
-                        Text(_errorMessage!, textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+                        Text(_errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                                fontSize: 13, color: AppColors.textSecondary)),
                         const SizedBox(height: 16),
-                        ElevatedButton(onPressed: _fetchTechnicianOrders, child: const Text('Coba Lagi')),
+                        ElevatedButton(
+                            onPressed: _fetchTechnicianOrders,
+                            child: const Text('Coba Lagi')),
                       ],
                     ),
                   ),
@@ -128,7 +126,8 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.assignment_turned_in_outlined, size: 56, color: AppColors.textMuted),
+                          const Icon(Icons.assignment_turned_in_outlined,
+                              size: 56, color: AppColors.textMuted),
                           const SizedBox(height: 12),
                           Text(
                             'Tidak ada order aktif di database saat ini',
@@ -148,11 +147,15 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
                         itemCount: _orders.length,
                         itemBuilder: (context, index) {
                           final order = _orders[index];
-                          final String serviceTitle = (order.items.isNotEmpty && order.items.first.serviceName != null)
+                          final String serviceTitle = (order.items.isNotEmpty &&
+                                  order.items.first.serviceName != null)
                               ? order.items.first.serviceName!
                               : 'Service Kompor Gas';
-                          final customerName = order.customer?.name ?? 'Pelanggan';
-                          final address = order.addressText ?? order.address?.addressLine ?? 'Alamat Pelanggan';
+                          final customerName =
+                              order.customer?.name ?? 'Pelanggan';
+                          final address = order.addressText ??
+                              order.address?.addressLine ??
+                              'Alamat Pelanggan';
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 16),
@@ -173,10 +176,12 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFFF7ED),
                                         borderRadius: BorderRadius.circular(8),
@@ -191,14 +196,18 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
                                       ),
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(
                                         color: Colors.blue.shade50,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
                                         order.status.toUpperCase(),
-                                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
+                                        style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.blue.shade700),
                                       ),
                                     ),
                                   ],
@@ -215,7 +224,9 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
                                 const SizedBox(height: 6),
                                 Row(
                                   children: [
-                                    const Icon(Icons.person_outline_rounded, size: 16, color: AppColors.textSecondary),
+                                    const Icon(Icons.person_outline_rounded,
+                                        size: 16,
+                                        color: AppColors.textSecondary),
                                     const SizedBox(width: 6),
                                     Text(
                                       customerName,
@@ -230,7 +241,9 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
-                                    const Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
+                                    const Icon(Icons.location_on_outlined,
+                                        size: 16,
+                                        color: AppColors.textSecondary),
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
@@ -249,7 +262,9 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
-                                    const Icon(Icons.access_time_rounded, size: 16, color: AppColors.textSecondary),
+                                    const Icon(Icons.access_time_rounded,
+                                        size: 16,
+                                        color: AppColors.textSecondary),
                                     const SizedBox(width: 6),
                                     Text(
                                       '${order.bookingDate} | ${order.bookingTime}',
@@ -266,11 +281,15 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
                                   children: [
                                     Expanded(
                                       child: OutlinedButton(
-                                        onPressed: () => _updateOrderStatus(order.id, 'cancelled'),
+                                        onPressed: () => _updateOrderStatus(
+                                            order.id, 'cancelled'),
                                         style: OutlinedButton.styleFrom(
                                           foregroundColor: Colors.red,
-                                          side: const BorderSide(color: Colors.red),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          side: const BorderSide(
+                                              color: Colors.red),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12)),
                                         ),
                                         child: const Text('Tolak'),
                                       ),
@@ -286,10 +305,13 @@ class _TechnicianIncomingOrdersScreenState extends State<TechnicianIncomingOrder
                                           );
                                         },
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFFFF7A00),
+                                          backgroundColor:
+                                              const Color(0xFFFF7A00),
                                           foregroundColor: Colors.white,
                                           elevation: 0,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12)),
                                         ),
                                         child: const Text('Kelola Order'),
                                       ),

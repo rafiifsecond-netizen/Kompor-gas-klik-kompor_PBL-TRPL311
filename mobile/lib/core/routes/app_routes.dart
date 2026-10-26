@@ -22,15 +22,18 @@ class AppRoutes {
   static const String customerProfile = '/customer/profile';
   static const String customerNotification = '/customer/notification';
   static const String customerHelpCenter = '/customer/help-center';
+  static const String customerEditAddress = '/customer/edit-address';
 
   // Technician Routes
   static const String technicianDashboard = '/technician/dashboard';
   static const String technicianIncomingOrders = '/technician/incoming-orders';
   static const String technicianOrderDetail = '/technician/order-detail';
-  static const String technicianCustomerLocation = '/technician/customer-location';
+  static const String technicianCustomerLocation =
+      '/technician/customer-location';
   static const String technicianUpdateStatus = '/technician/update-status';
   static const String technicianAdditionalCost = '/technician/additional-cost';
   static const String technicianChat = '/technician/chat';
   static const String technicianServiceHistory = '/technician/service-history';
   static const String technicianProfile = '/technician/profile';
+  static const String technicianPerformance = '/technician/performance';
 }

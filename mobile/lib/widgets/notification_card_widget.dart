@@ -9,6 +9,7 @@ class NotificationCardWidget extends StatelessWidget {
   final String time;
   final IconData icon;
   final VoidCallback? onTap;
+  final bool isUnread;
 
   const NotificationCardWidget({
     super.key,
@@ -18,6 +19,7 @@ class NotificationCardWidget extends StatelessWidget {
     this.time = 'Hari ini',
     this.icon = Icons.notifications_active_rounded,
     this.onTap,
+    this.isUnread = false,
   });
 
   @override
@@ -35,9 +37,12 @@ class NotificationCardWidget extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isUnread ? const Color(0xFFFFF5EC) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFB2B2B2), width: 1),
+        border: Border.all(
+          color: isUnread ? AppColors.primary : const Color(0xFFB2B2B2),
+          width: isUnread ? 1.4 : 1,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -60,28 +65,45 @@ class NotificationCardWidget extends StatelessWidget {
                           Expanded(
                             child: Text(
                               title,
-                              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black),
+                              style: GoogleFonts.inter(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black),
                             ),
                           ),
                         ],
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                      decoration: BoxDecoration(color: tagBg, borderRadius: BorderRadius.circular(12)),
-                      child: Text(tag, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: tagColor)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                          color: tagBg,
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Text(tag,
+                          style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: tagColor)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
                   message,
-                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w400, color: const Color(0xFF5D5555), height: 1.3),
+                  style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF5D5555),
+                      height: 1.3),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   time,
-                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: const Color(0xFF767676)),
+                  style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF767676)),
                 ),
               ],
             ),
