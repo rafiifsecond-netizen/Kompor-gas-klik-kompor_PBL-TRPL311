@@ -224,7 +224,7 @@ Route::get('/admin/orders', function () {
 Route::delete('/admin/orders/{id}', function ($id) {
     Order::findOrFail($id)->delete();
     return back()->with('success', 'Pesanan berhasil dihapus.');
-})->name('admin.orders.destroy');
+})->middleware(['auth', 'role:admin'])->name('admin.orders.destroy');
 
 // ── Customers CRUD ──────────────────────────────────────────────────────────
 Route::get('/admin/customers', function () {
@@ -265,12 +265,12 @@ Route::post('/admin/customers', function (Request $request) {
     ]);
 
     return back()->with('success', 'Pelanggan baru berhasil ditambahkan.');
-})->name('admin.customers.store');
+})->middleware(['auth', 'role:admin'])->name('admin.customers.store');
 
 Route::delete('/admin/customers/{id}', function ($id) {
     User::findOrFail($id)->delete();
     return back()->with('success', 'Pelanggan berhasil dihapus.');
-})->name('admin.customers.destroy');
+})->middleware(['auth', 'role:admin'])->name('admin.customers.destroy');
 
 // ── Technicians CRUD ────────────────────────────────────────────────────────
 Route::get('/admin/technicians', function () {
@@ -318,12 +318,12 @@ Route::post('/admin/technicians', function (Request $request) {
     ]);
 
     return back()->with('success', 'Teknisi baru berhasil ditambahkan.');
-})->name('admin.technicians.store');
+})->middleware(['auth', 'role:admin'])->name('admin.technicians.store');
 
 Route::delete('/admin/technicians/{id}', function ($id) {
     User::findOrFail($id)->delete();
     return back()->with('success', 'Teknisi berhasil dihapus.');
-})->name('admin.technicians.destroy');
+})->middleware(['auth', 'role:admin'])->name('admin.technicians.destroy');
 
 // ── Services CRUD ───────────────────────────────────────────────────────────
 Route::get('/admin/services', function () {
@@ -365,12 +365,12 @@ Route::post('/admin/services', function (Request $request) {
     ]);
 
     return back()->with('success', 'Layanan baru berhasil ditambahkan.');
-})->name('admin.services.store');
+})->middleware(['auth', 'role:admin'])->name('admin.services.store');
 
 Route::delete('/admin/services/{id}', function ($id) {
     ServiceItem::findOrFail($id)->delete();
     return back()->with('success', 'Layanan berhasil dihapus.');
-})->name('admin.services.destroy');
+})->middleware(['auth', 'role:admin'])->name('admin.services.destroy');
 
 // ── Payments CRUD ───────────────────────────────────────────────────────────
 Route::get('/admin/payments', function () {
@@ -394,7 +394,7 @@ Route::get('/admin/payments', function () {
 Route::delete('/admin/payments/{id}', function ($id) {
     Payment::findOrFail($id)->delete();
     return back()->with('success', 'Transaksi pembayaran berhasil dihapus.');
-})->name('admin.payments.destroy');
+})->middleware(['auth', 'role:admin'])->name('admin.payments.destroy');
 
 // ── Reviews ─────────────────────────────────────────────────────────────────
 Route::get('/admin/reviews', function () {
@@ -418,7 +418,7 @@ Route::get('/admin/reviews', function () {
 Route::delete('/admin/reviews/{id}', function ($id) {
     Review::findOrFail($id)->delete();
     return back()->with('success', 'Ulasan berhasil dihapus.');
-})->name('admin.reviews.destroy');
+})->middleware(['auth', 'role:admin'])->name('admin.reviews.destroy');
 
 // ── Reports ─────────────────────────────────────────────────────────────────
 Route::get('/admin/reports', function () {
@@ -458,11 +458,11 @@ Route::get('/admin/settings', function () {
 
 Route::post('/admin/settings', function (Request $request) {
     return back()->with('success', 'Pengaturan sistem & tarif berhasil diperbarui.');
-})->name('admin.settings.update');
+})->middleware(['auth', 'role:admin'])->name('admin.settings.update');
 
 Route::post('/admin/logout', function (Request $request) {
     Auth::logout();
     $request->session()->invalidate();
     $request->session()->regenerateToken();
     return redirect()->route('admin.login');
-})->name('admin.logout');
+})->middleware(['auth', 'role:admin'])->name('admin.logout');

@@ -114,17 +114,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 const SizedBox(height: 18),
 
                 // Search bar
-                Padding(
+                const Padding(
                   padding: _kPad,
-                  child: const _SearchBar(),
+                  child: _SearchBar(),
                 ),
 
                 const SizedBox(height: 16),
 
                 // ── Carousel banner (auto-scroll) ──────────────
-                Padding(
+                const Padding(
                   padding: _kPad,
-                  child: const _BannerCarousel(items: _carouselItems),
+                  child: _BannerCarousel(items: _carouselItems),
                 ),
 
                 const SizedBox(height: 24),
@@ -153,13 +153,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 const SizedBox(height: 24),
 
                 // Banner bawah
-                Padding(
+                const Padding(
                   padding: _kPad,
                   child: _PhotoBanner(
                     assetPath: _bannerBottomAsset,
                     height: 155,
                     borderRadius: 12,
-                    fallbackGradient: const [
+                    fallbackGradient: [
                       Color(0xFF0D0D1A),
                       Color(0xFF1A1A3E)
                     ],
@@ -497,10 +497,10 @@ class _ServiceGrid extends StatelessWidget {
   const _ServiceGrid();
 
   static final _defs = <_ServiceDef>[
-    _ServiceDef(
+    const _ServiceDef(
       label: 'Service\nKompor',
-      icon: const _WhiteIcon(Icons.settings_rounded),
-      args: const ServiceDetailArgs(
+      icon: _WhiteIcon(Icons.settings_rounded),
+      args: ServiceDetailArgs(
         name: 'Service Kompor Gas',
         description:
             'Perbaikan berbagai masalah pada kompor gas, seperti api kecil, kompor tidak menyala, hingga kebocoran gas.',
@@ -523,10 +523,10 @@ class _ServiceGrid extends StatelessWidget {
         hargaMulai: 'Rp.75.000',
       ),
     ),
-    _ServiceDef(
+    const _ServiceDef(
       label: 'Cek\nKebocoran',
-      icon: const _WhiteIcon(Icons.propane_tank_rounded),
-      args: const ServiceDetailArgs(
+      icon: _WhiteIcon(Icons.propane_tank_rounded),
+      args: ServiceDetailArgs(
         name: 'Cek Kebocoran Gas',
         description:
             'Deteksi kebocoran dengan cepat dan akurat. Teknisi kami akan memeriksa seluruh sambungan gas untuk mencegah risiko kebakaran dan kecelakaan.',
@@ -536,10 +536,10 @@ class _ServiceGrid extends StatelessWidget {
         hargaMulai: 'Rp.75.000',
       ),
     ),
-    _ServiceDef(
+    const _ServiceDef(
       label: 'Lainnya',
-      icon: const _WhiteIcon(Icons.more_horiz_rounded),
-      args: const ServiceDetailArgs(
+      icon: _WhiteIcon(Icons.more_horiz_rounded),
+      args: ServiceDetailArgs(
         name: 'Layanan Lainnya',
         description:
             'Berbagai layanan perawatan dan perbaikan kompor gas lainnya oleh teknisi profesional berpengalaman.',

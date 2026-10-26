@@ -21,6 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmCtrl = TextEditingController();
   bool _obscurePass = true;
   bool _obscureConfirm = true;
+  String _selectedRole = 'customer';
 
   @override
   void dispose() {
@@ -41,7 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       phone: _phoneCtrl.text.trim(),
       password: _passCtrl.text,
       passwordConfirmation: _confirmCtrl.text,
-      role: 'customer',
+      role: _selectedRole,
     );
     if (!mounted || !ok) return;
     final route = auth.isTechnician
@@ -77,6 +78,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     _ErrorBanner(message: auth.errorMessage!),
                     const SizedBox(height: 14),
                   ],
+
+                  Text(
+                    'Pilih jenis akun',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _RoleOption(
+                          label: 'Pelanggan',
+                          selected: _selectedRole == 'customer',
+                          onTap: () => setState(() => _selectedRole = 'customer'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _RoleOption(
+                          label: 'Teknisi',
+                          selected: _selectedRole == 'technician',
+                          onTap: () => setState(() => _selectedRole = 'technician'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 18),
 
                   // ── Field Nama Lengkap ─────────────────────────
                   _AuthField(
@@ -341,6 +373,46 @@ class _AuthField extends StatelessWidget {
         errorStyle: GoogleFonts.inter(fontSize: 11, color: AppColors.danger),
       ),
       validator: validator,
+    );
+  }
+}
+
+class _RoleOption extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _RoleOption({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary.withValues(alpha: 0.1) : const Color(0xFFE8E8E8),
+          border: Border.all(
+            color: selected ? AppColors.primary : const Color(0xFFCCCCCC),
+            width: selected ? 1.5 : 1,
+          ),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: selected ? AppColors.primary : Colors.black87,
+          ),
+        ),
+      ),
     );
   }
 }
