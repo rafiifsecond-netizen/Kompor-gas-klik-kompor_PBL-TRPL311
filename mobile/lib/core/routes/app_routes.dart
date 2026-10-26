@@ -4,6 +4,7 @@ class AppRoutes {
   static const String landing = '/landing';
   static const String login = '/login';
   static const String register = '/register';
+  static const String forgotPassword = '/forgot-password';
 
   // Customer Routes
   static const String customerHome = '/customer/home';

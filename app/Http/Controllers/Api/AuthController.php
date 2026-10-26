@@ -8,7 +8,9 @@ use App\Models\TechnicianProfile;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -274,6 +276,126 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Logout berhasil.',
+        ]);
+    }
+
+    /**
+     * Request password reset token / code for mobile user.
+     */
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'string', 'email'],
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Alamat email tidak terdaftar.',
+            ], 422);
+        }
+
+        if ($user->role === 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akun Admin hanya dapat mereset kata sandi melalui Web Admin.',
+            ], 403);
+        }
+
+        // Generate 6-digit numeric token for mobile OTP flow
+        $token = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $user->email],
+            [
+                'token' => Hash::make($token),
+                'created_at' => now(),
+            ]
+        );
+
+        ActivityLog::logEvent(
+            eventName: 'auth.password.forgot',
+            description: 'Permintaan reset kata sandi diajukan',
+            entity: $user,
+            request: $request
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => "Kode verifikasi 6-digit berhasil dikirimkan ke email {$user->email} (Simulasi Email).",
+            'data' => [
+                'email' => $user->email,
+                'reset_token' => $token,
+                'dummy_email' => [
+                    'from' => 'noreply@klikkompor.com',
+                    'to' => $user->email,
+                    'subject' => '[Simulasi Email] Kode Verifikasi Reset Kata Sandi',
+                    'message' => "Halo {$user->name},\n\nAnda menerima email ini untuk melakukan reset kata sandi pada akun KlikKompor Anda.\n\nKode verifikasi Anda: {$token}\n\nMasukkan kode tersebut pada aplikasi mobile untuk melanjutkan.",
+                    'sent_at' => now()->format('Y-m-d H:i:s'),
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Reset password using token / code.
+     */
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'string', 'email', 'exists:users,email'],
+            'token' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        if (!$user || $user->role === 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akun tidak valid untuk reset kata sandi.',
+            ], 403);
+        }
+
+        $resetRecord = DB::table('password_reset_tokens')
+            ->where('email', $validated['email'])
+            ->first();
+
+        if (!$resetRecord) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Permintaan reset kata sandi tidak ditemukan atau sudah kadaluarsa.',
+            ], 422);
+        }
+
+        $tokenValid = Hash::check($validated['token'], $resetRecord->token) || $validated['token'] === $resetRecord->token;
+
+        if (!$tokenValid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kode reset kata sandi tidak valid.',
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        DB::table('password_reset_tokens')->where('email', $user->email)->delete();
+
+        ActivityLog::logEvent(
+            eventName: 'auth.password.reset',
+            description: 'Reset kata sandi berhasil',
+            entity: $user,
+            request: $request,
+            actor: $user
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kata sandi berhasil diatur ulang. Silakan login kembali.',
         ]);
     }
 }

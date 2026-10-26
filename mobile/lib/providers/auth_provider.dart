@@ -224,6 +224,70 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Request forgot password reset token
+  Future<Map<String, dynamic>?> forgotPassword({
+    required String email,
+  }) async {
+    _status = AuthStatus.authenticating;
+    _errorMessage = null;
+    _validationErrors = null;
+    notifyListeners();
+
+    try {
+      final res = await _authRepository.forgotPassword(email: email);
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return res;
+    } on ApiException catch (e) {
+      _status = AuthStatus.error;
+      _errorMessage = e.message;
+      _validationErrors = e.errors;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _status = AuthStatus.error;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Reset password
+  Future<bool> resetPassword({
+    required String email,
+    required String token,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    _status = AuthStatus.authenticating;
+    _errorMessage = null;
+    _validationErrors = null;
+    notifyListeners();
+
+    try {
+      await _authRepository.resetPassword(
+        email: email,
+        token: token,
+        newPassword: newPassword,
+        newPasswordConfirmation: newPasswordConfirmation,
+      );
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _status = AuthStatus.error;
+      _errorMessage = e.message;
+      _validationErrors = e.errors;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _status = AuthStatus.error;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Change custom API IP
   Future<void> setCustomBaseUrl(String url) async {
     await StorageService.saveCustomBaseUrl(url);
