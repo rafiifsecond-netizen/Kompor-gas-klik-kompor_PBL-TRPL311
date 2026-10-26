@@ -41,9 +41,19 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
             : (data is List ? data : []);
 
         setState(() {
-          _chatOrders = list
+          final allOrders = list
               .map((o) => OrderModel.fromJson(Map<String, dynamic>.from(o as Map)))
               .toList();
+
+          // Deduplicate by technician name or ID so each technician appears only once
+          final Map<String, OrderModel> uniqueMap = {};
+          for (final o in allOrders) {
+            final techKey = o.technician?.name ?? o.technicianId?.toString() ?? 'tech_${o.id}';
+            if (!uniqueMap.containsKey(techKey)) {
+              uniqueMap[techKey] = o;
+            }
+          }
+          _chatOrders = uniqueMap.values.toList();
           _isLoading = false;
         });
       } else {
@@ -80,6 +90,7 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
       appBar: AppBar(
         title: const Text('Pesan & Chat Teknisi'),
         backgroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),

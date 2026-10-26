@@ -70,7 +70,23 @@ class _TechnicianChatInboxScreenState extends State<TechnicianChatInboxScreen> {
   }
 
   List<Map<String, dynamic>> get _visibleChats {
-    return _chats.where((chat) {
+    final Map<int, Map<String, dynamic>> uniqueMap = {};
+    for (final chat in _chats) {
+      final customer = chat['customer'] is Map
+          ? Map<String, dynamic>.from(chat['customer'] as Map)
+          : <String, dynamic>{};
+      final customerId = int.tryParse(customer['id']?.toString() ?? '') ?? 0;
+      if (customerId > 0) {
+        if (!uniqueMap.containsKey(customerId)) {
+          uniqueMap[customerId] = chat;
+        }
+      } else {
+        uniqueMap[uniqueMap.length + 999999] = chat;
+      }
+    }
+    final deduplicatedChats = uniqueMap.values.toList();
+
+    return deduplicatedChats.where((chat) {
       final customer = chat['customer'] is Map
           ? Map<String, dynamic>.from(chat['customer'] as Map)
           : <String, dynamic>{};
