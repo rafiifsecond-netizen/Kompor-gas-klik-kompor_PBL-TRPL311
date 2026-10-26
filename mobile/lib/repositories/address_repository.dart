@@ -18,10 +18,49 @@ class AddressRepository {
         : [];
   }
 
-  Future<Map<String, dynamic>> saveDummy(Map<String, dynamic> address) async =>
-      address;
+  Future<Map<String, dynamic>> saveDummy(Map<String, dynamic> address) async {
+    if (AppConfig.useDummyData) {
+      final id = (address['id'] as int?) ??
+          (dummyAddresses
+                  .map((item) => item['id'] as int)
+                  .fold(0, (max, value) => value > max ? value : max) +
+              1);
+      final saved = {
+        ...address,
+        'id': id,
+        'is_default': address['is_default'] == true,
+      };
+      final index = dummyAddresses.indexWhere((item) => item['id'] == id);
+      if (index == -1) {
+        dummyAddresses.add(saved);
+      } else {
+        dummyAddresses[index] = saved;
+      }
+      if (saved['is_default'] == true) {
+        _setOnlyDefault(id);
+      }
+      return Map<String, dynamic>.from(saved);
+    }
+    return address;
+  }
 
-  Future<void> deleteDummy(int id) async {}
+  Future<void> deleteDummy(int id) async {
+    if (!AppConfig.useDummyData) return;
+    dummyAddresses.removeWhere((item) => item['id'] == id);
+    if (dummyAddresses.isNotEmpty &&
+        !dummyAddresses.any((item) => item['is_default'] == true)) {
+      dummyAddresses.first['is_default'] = true;
+    }
+  }
 
-  Future<void> setDefaultDummy(int id) async {}
+  Future<void> setDefaultDummy(int id) async {
+    if (!AppConfig.useDummyData) return;
+    _setOnlyDefault(id);
+  }
+
+  void _setOnlyDefault(int id) {
+    for (final address in dummyAddresses) {
+      address['is_default'] = address['id'] == id;
+    }
+  }
 }

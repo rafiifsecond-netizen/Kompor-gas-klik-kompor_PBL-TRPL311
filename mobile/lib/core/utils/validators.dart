@@ -24,4 +24,13 @@ class Validators {
     if (requiredError != null) return requiredError;
     return value != password ? 'Kata sandi tidak cocok' : null;
   }
+
+  static String? positiveNumber(String? value, {String label = 'Harga'}) {
+    final requiredError = required(value, label: label);
+    if (requiredError != null) return requiredError;
+    final amount = num.tryParse(value!.trim());
+    return amount == null || amount <= 0
+        ? '$label harus berupa angka positif'
+        : null;
+  }
 }

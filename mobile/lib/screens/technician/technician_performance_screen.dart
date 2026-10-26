@@ -21,6 +21,11 @@ class TechnicianPerformanceScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Kembali',
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.black),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
         title: Text('Performa Kerja',
             style: GoogleFonts.inter(
                 fontSize: 18,

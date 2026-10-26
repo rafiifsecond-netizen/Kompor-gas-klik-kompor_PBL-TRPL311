@@ -662,32 +662,37 @@ class _OrderPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final customerName = order?.customer?.name ?? 'Pelanggan';
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      elevation: 8,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
-            child: _OrderPanelHeader(
-              customerName: customerName,
-              userName: userName,
-              customerPoint: customerPoint,
-              order: order,
-              error: error,
-              onOpenActiveOrder: onOpenActiveOrder,
-              onShowRoute: onShowRoute,
-            ),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 220),
+      child: SingleChildScrollView(
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          elevation: 8,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
+                child: _OrderPanelHeader(
+                  customerName: customerName,
+                  userName: userName,
+                  customerPoint: customerPoint,
+                  order: order,
+                  error: error,
+                  onOpenActiveOrder: onOpenActiveOrder,
+                  onShowRoute: onShowRoute,
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xFFE8EAF0)),
+              _PanelAction(
+                title: 'Pesanan Masuk ($orderCount)',
+                onTap: onOpenOrders,
+                bottomRadius: true,
+              ),
+            ],
           ),
-          const Divider(height: 1, color: Color(0xFFE8EAF0)),
-          _PanelAction(
-            title: 'Pesanan Masuk ($orderCount)',
-            onTap: onOpenOrders,
-            bottomRadius: true,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -876,6 +881,8 @@ class _MapPin extends StatelessWidget {
             boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
           ),
           child: Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                   fontSize: 10, fontWeight: FontWeight.w700, color: color)),
         ),

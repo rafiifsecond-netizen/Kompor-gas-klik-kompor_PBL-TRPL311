@@ -29,8 +29,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     super.initState();
     final initial = _profileRepository.customerProfile;
     _profileUser = initial['user'] as UserModel;
-    _profileStatistics =
-        initial['statistics'] as Map<String, dynamic>;
+    _profileStatistics = initial['statistics'] as Map<String, dynamic>;
     _loadProfile();
   }
 
@@ -42,6 +41,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
       _profileStatistics = profile['statistics'] as Map<String, dynamic>;
     });
   }
+
   void _onNavTap(BuildContext context, int index) {
     final route = switch (index) {
       0 => AppRoutes.customerHome,
@@ -77,8 +77,8 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
             _buildMenuItem(
               Icons.person_outline_rounded,
               'Edit Profil',
-              () => _showEditProfileSheet(context, user.name,
-                user.phone ?? '', user.address ?? '', user),
+              () => _showEditProfileSheet(context, user.name, user.phone ?? '',
+                  user.address ?? '', user),
             ),
             _buildMenuItem(
               Icons.location_on_outlined,
@@ -106,6 +106,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
           const SizedBox(height: 12),
           _buildMenuSection('Lainnya', [
+            _buildMenuItem(
+                Icons.notifications_outlined,
+                'Notifikasi',
+                () => Navigator.pushNamed(
+                    context, AppRoutes.customerNotification)),
             _buildMenuItem(
                 Icons.help_outline_rounded,
                 'Pusat Bantuan',
@@ -208,106 +213,105 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               child: Form(
                 key: formKey,
                 child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Edit Profil Saya',
-                          style: GoogleFonts.inter(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                      IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(ctx)),
-                    ],
-                  ),
-                  const Divider(),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: nameCtrl,
-                    validator: (v) => Validators.required(v, label: 'Nama'),
-                    decoration: InputDecoration(
-                      labelText: 'Nama Lengkap',
-                      border: const OutlineInputBorder(
-                          borderRadius: AppRadius.medium),
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Edit Profil Saya',
+                            style: GoogleFonts.inter(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                        IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(ctx)),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: phoneCtrl,
-                    validator: (v) =>
-                        Validators.required(v, label: 'Nomor telepon'),
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: 'Nomor Telepon (WhatsApp)',
-                      border: const OutlineInputBorder(
-                          borderRadius: AppRadius.medium),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: addressCtrl,
-                    maxLines: 2,
-                    validator: (v) => Validators.required(v, label: 'Alamat'),
-                    decoration: InputDecoration(
-                      labelText: 'Alamat Lengkap',
-                      border: const OutlineInputBorder(
-                          borderRadius: AppRadius.medium),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: isLoading
-                          ? null
-                          : () async {
-                              setStateModal(() => isLoading = true);
-                              if (!formKey.currentState!.validate()) {
-                                setStateModal(() => isLoading = false);
-                                return;
-                              }
-                              final ok = await _saveProfile(
-                                name: nameCtrl.text.trim(),
-                                phone: phoneCtrl.text.trim(),
-                                address: addressCtrl.text.trim(),
-                                currentUser: currentUser,
-                              );
-                              setStateModal(() => isLoading = false);
-                              if (ctx.mounted) {
-                                Navigator.pop(ctx);
-                                if (ok) {
-                                  AppFeedback.success(
-                                      ctx, 'Profil berhasil diperbarui.');
-                                } else {
-                                  AppFeedback.error(
-                                      ctx, 'Gagal memperbarui profil.');
-                                }
-                              }
-
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: nameCtrl,
+                      validator: (v) => Validators.required(v, label: 'Nama'),
+                      decoration: InputDecoration(
+                        labelText: 'Nama Lengkap',
+                        border: const OutlineInputBorder(
                             borderRadius: AppRadius.medium),
                       ),
-                      child: isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2))
-                          : Text('Simpan Perubahan',
-                              style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: phoneCtrl,
+                      validator: (v) =>
+                          Validators.required(v, label: 'Nomor telepon'),
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        labelText: 'Nomor Telepon (WhatsApp)',
+                        border: const OutlineInputBorder(
+                            borderRadius: AppRadius.medium),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: addressCtrl,
+                      maxLines: 2,
+                      validator: (v) => Validators.required(v, label: 'Alamat'),
+                      decoration: InputDecoration(
+                        labelText: 'Alamat Lengkap',
+                        border: const OutlineInputBorder(
+                            borderRadius: AppRadius.medium),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: isLoading
+                            ? null
+                            : () async {
+                                setStateModal(() => isLoading = true);
+                                if (!formKey.currentState!.validate()) {
+                                  setStateModal(() => isLoading = false);
+                                  return;
+                                }
+                                final ok = await _saveProfile(
+                                  name: nameCtrl.text.trim(),
+                                  phone: phoneCtrl.text.trim(),
+                                  address: addressCtrl.text.trim(),
+                                  currentUser: currentUser,
+                                );
+                                setStateModal(() => isLoading = false);
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                  if (ok) {
+                                    AppFeedback.success(
+                                        ctx, 'Profil berhasil diperbarui.');
+                                  } else {
+                                    AppFeedback.error(
+                                        ctx, 'Gagal memperbarui profil.');
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: AppRadius.medium),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : Text('Simpan Perubahan',
+                                style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -347,150 +351,150 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               child: Form(
                 key: formKey,
                 child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Ubah Kata Sandi',
-                          style: GoogleFonts.inter(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                      IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(ctx)),
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Ubah Kata Sandi',
+                            style: GoogleFonts.inter(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                        IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(ctx)),
+                      ],
+                    ),
+                    const Divider(),
+                    if (errorMsg != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                            color: AppColors.dangerLight,
+                            borderRadius: BorderRadius.circular(8)),
+                        child: Text(errorMsg!,
+                            style: GoogleFonts.inter(
+                                fontSize: 12, color: AppColors.danger)),
+                      ),
+                      const SizedBox(height: 8),
                     ],
-                  ),
-                  const Divider(),
-                  if (errorMsg != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                          color: AppColors.dangerLight,
-                          borderRadius: BorderRadius.circular(8)),
-                      child: Text(errorMsg!,
-                          style: GoogleFonts.inter(
-                              fontSize: 12, color: AppColors.danger)),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  TextFormField(
-                    controller: currentPassCtrl,
-                    obscureText: obscureCurrent,
-                    validator: Validators.required,
-                    decoration: InputDecoration(
-                      labelText: 'Kata Sandi Saat Ini',
-                      suffixIcon: IconButton(
-                        icon: Icon(obscureCurrent
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined),
-                        onPressed: () => setStateModal(
-                            () => obscureCurrent = !obscureCurrent),
+                    TextFormField(
+                      controller: currentPassCtrl,
+                      obscureText: obscureCurrent,
+                      validator: Validators.required,
+                      decoration: InputDecoration(
+                        labelText: 'Kata Sandi Saat Ini',
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureCurrent
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined),
+                          onPressed: () => setStateModal(
+                              () => obscureCurrent = !obscureCurrent),
+                        ),
+                        border:
+                            OutlineInputBorder(borderRadius: AppRadius.medium),
                       ),
-                      border: OutlineInputBorder(
-                          borderRadius: AppRadius.medium),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: newPassCtrl,
-                    obscureText: obscureNew,
-                    validator: Validators.password,
-                    decoration: InputDecoration(
-                      labelText: 'Kata Sandi Baru (min 6 karakter)',
-                      suffixIcon: IconButton(
-                        icon: Icon(obscureNew
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined),
-                        onPressed: () =>
-                            setStateModal(() => obscureNew = !obscureNew),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: newPassCtrl,
+                      obscureText: obscureNew,
+                      validator: Validators.password,
+                      decoration: InputDecoration(
+                        labelText: 'Kata Sandi Baru (min 6 karakter)',
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureNew
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined),
+                          onPressed: () =>
+                              setStateModal(() => obscureNew = !obscureNew),
+                        ),
+                        border:
+                            OutlineInputBorder(borderRadius: AppRadius.medium),
                       ),
-                      border: OutlineInputBorder(
-                          borderRadius: AppRadius.medium),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: confirmPassCtrl,
-                    obscureText: obscureConfirm,
-                    validator: (v) =>
-                        Validators.confirmPassword(v, newPassCtrl.text),
-                    decoration: InputDecoration(
-                      labelText: 'Konfirmasi Kata Sandi Baru',
-                      suffixIcon: IconButton(
-                        icon: Icon(obscureConfirm
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined),
-                        onPressed: () => setStateModal(
-                            () => obscureConfirm = !obscureConfirm),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: confirmPassCtrl,
+                      obscureText: obscureConfirm,
+                      validator: (v) =>
+                          Validators.confirmPassword(v, newPassCtrl.text),
+                      decoration: InputDecoration(
+                        labelText: 'Konfirmasi Kata Sandi Baru',
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureConfirm
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined),
+                          onPressed: () => setStateModal(
+                              () => obscureConfirm = !obscureConfirm),
+                        ),
+                        border:
+                            OutlineInputBorder(borderRadius: AppRadius.medium),
                       ),
-                      border: OutlineInputBorder(
-                          borderRadius: AppRadius.medium),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: isLoading
-                          ? null
-                          : () async {
-                              if (newPassCtrl.text.length < 6) {
-                                setStateModal(() => errorMsg =
-                                    'Kata sandi baru minimal 6 karakter.');
-                                return;
-                              }
-                              if (!formKey.currentState!.validate()) return;
-                              if (newPassCtrl.text != confirmPassCtrl.text) {
-                                setStateModal(() => errorMsg =
-                                    'Konfirmasi kata sandi tidak cocok.');
-                                return;
-                              }
-                              setStateModal(() {
-                                isLoading = true;
-                                errorMsg = null;
-                              });
-                              final auth = ctx.read<AuthProvider>();
-                              final ok = await auth.changePassword(
-                                currentPassword: currentPassCtrl.text,
-                                newPassword: newPassCtrl.text,
-                                newPasswordConfirmation: confirmPassCtrl.text,
-                              );
-                              setStateModal(() => isLoading = false);
-                              if (ctx.mounted) {
-                                if (ok) {
-                                  Navigator.pop(ctx);
-                                  AppFeedback.success(
-                                      ctx, 'Kata sandi berhasil diperbarui.');
-                                } else {
-                                  errorMsg = auth.errorMessage ??
-                                      'Gagal mengubah kata sandi.';
-                                  AppFeedback.error(ctx, errorMsg!);
-                                  setStateModal(() {});
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: isLoading
+                            ? null
+                            : () async {
+                                if (newPassCtrl.text.length < 6) {
+                                  setStateModal(() => errorMsg =
+                                      'Kata sandi baru minimal 6 karakter.');
+                                  return;
                                 }
-                              }
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: AppRadius.medium),
+                                if (!formKey.currentState!.validate()) return;
+                                if (newPassCtrl.text != confirmPassCtrl.text) {
+                                  setStateModal(() => errorMsg =
+                                      'Konfirmasi kata sandi tidak cocok.');
+                                  return;
+                                }
+                                setStateModal(() {
+                                  isLoading = true;
+                                  errorMsg = null;
+                                });
+                                final auth = ctx.read<AuthProvider>();
+                                final ok = await auth.changePassword(
+                                  currentPassword: currentPassCtrl.text,
+                                  newPassword: newPassCtrl.text,
+                                  newPasswordConfirmation: confirmPassCtrl.text,
+                                );
+                                setStateModal(() => isLoading = false);
+                                if (ctx.mounted) {
+                                  if (ok) {
+                                    Navigator.pop(ctx);
+                                    AppFeedback.success(
+                                        ctx, 'Kata sandi berhasil diperbarui.');
+                                  } else {
+                                    errorMsg = auth.errorMessage ??
+                                        'Gagal mengubah kata sandi.';
+                                    AppFeedback.error(ctx, errorMsg!);
+                                    setStateModal(() {});
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: AppRadius.medium),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : Text('Simpan Password Baru',
+                                style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white)),
                       ),
-                      child: isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2))
-                          : Text('Simpan Password Baru',
-                              style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
               ),
             );
           },
@@ -525,8 +529,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
             decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: AppRadius.small),
+                color: AppColors.primaryLight, borderRadius: AppRadius.small),
             child: Text('Pelanggan',
                 style: GoogleFonts.inter(
                     fontSize: 12,
@@ -556,8 +559,8 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
       child: Column(
         children: [
           Text('$value',
-              style: GoogleFonts.inter(
-                  fontSize: 18, fontWeight: FontWeight.w700)),
+              style:
+                  GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
           Text(label,
               textAlign: TextAlign.center,

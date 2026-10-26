@@ -9,6 +9,7 @@ import '../../core/constants/app_spacing.dart';
 import '../../core/constants/app_radius.dart';
 import '../../models/service_model.dart';
 import '../../repositories/service_repository.dart';
+import '../../repositories/order_repository.dart';
 import '../../core/routes/app_routes.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/animated_fade_slide.dart';
@@ -81,6 +82,25 @@ class CustomerHomeScreen extends StatefulWidget {
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   static const int _homeIndex = 0;
+  late final Future<Map<String, dynamic>?> _latestCompletedOrder;
+
+  @override
+  void initState() {
+    super.initState();
+    _latestCompletedOrder = _loadLatestCompletedOrder();
+  }
+
+  Future<Map<String, dynamic>?> _loadLatestCompletedOrder() async {
+    final orders = await OrderRepository().getOrders();
+    final completed = orders
+        .where((order) => order['status'] == 'completed')
+        .toList()
+      ..sort((a, b) => (b['completed_at'] ?? b['booking_date'] ?? '')
+          .toString()
+          .compareTo(
+              (a['completed_at'] ?? a['booking_date'] ?? '').toString()));
+    return completed.isEmpty ? null : completed.first;
+  }
 
   void _onNavTap(int index) {
     final route = switch (index) {
@@ -135,8 +155,22 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 const SizedBox(height: 24),
 
                 _HomeServicesSection(
-                  onSeeAll: () => Navigator.pushNamed(
-                      context, AppRoutes.customerCatalog),
+                  onSeeAll: () =>
+                      Navigator.pushNamed(context, AppRoutes.customerCatalog),
+                ),
+
+                const SizedBox(height: 24),
+
+                Padding(
+                  padding: _kPad,
+                  child: FutureBuilder<Map<String, dynamic>?>(
+                    future: _latestCompletedOrder,
+                    builder: (context, snapshot) => _ServiceReminderCard(
+                      completedOrder: snapshot.data,
+                      onBook: () => Navigator.pushNamed(
+                          context, AppRoutes.customerCatalog),
+                    ),
+                  ),
                 ),
 
                 const SizedBox(height: 24),
@@ -206,6 +240,63 @@ class _HomeServicesSection extends StatelessWidget {
         ),
         const SizedBox(height: 24),
       ],
+    );
+  }
+}
+
+class _ServiceReminderCard extends StatelessWidget {
+  final Map<String, dynamic>? completedOrder;
+  final VoidCallback onBook;
+
+  const _ServiceReminderCard({
+    required this.completedOrder,
+    required this.onBook,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final completedDate = DateTime.tryParse(
+        completedOrder?['completed_at']?.toString() ??
+            completedOrder?['booking_date']?.toString() ??
+            '');
+    final nextDate = completedDate?.add(const Duration(days: 182));
+    final message = nextDate == null
+        ? 'Belum ada riwayat servis. Pesan servis pertama Anda sekarang.'
+        : 'Jadwalkan pemeriksaan berikutnya sekitar '
+            '${nextDate.day.toString().padLeft(2, '0')}/'
+            '${nextDate.month.toString().padLeft(2, '0')}/'
+            '${nextDate.year}.';
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.paleBackground,
+        borderRadius: AppRadius.medium,
+        border: Border.all(color: AppColors.lightGrey),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.calendar_month_rounded,
+              color: AppColors.primary, size: 30),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Pengingat Servis Berkala',
+                    style: GoogleFonts.inter(
+                        fontSize: 15, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          TextButton(onPressed: onBook, child: const Text('Pesan')),
+        ],
+      ),
     );
   }
 }

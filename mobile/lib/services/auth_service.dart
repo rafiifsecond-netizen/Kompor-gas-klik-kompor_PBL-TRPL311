@@ -4,6 +4,7 @@ import '../core/network/api_response.dart';
 import '../models/user_model.dart';
 import '../core/config/app_config.dart';
 import '../data/dummy/dummy_data.dart';
+import 'storage_service.dart';
 
 class AuthResponseData {
   final UserModel user;
@@ -20,6 +21,10 @@ class AuthResponseData {
 }
 
 class AuthService {
+  static final _dummyPasswords = <String, String>{
+    'dewi@example.com': 'password123',
+    'agus.teknisi@klikkompor.com': 'password123',
+  };
   final ApiClient _apiClient;
 
   AuthService({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
@@ -31,12 +36,12 @@ class AuthService {
     String deviceName = 'Flutter Mobile App',
   }) async {
     if (AppConfig.useDummyData) {
-      final account = email == 'dewi@example.com' && password == 'password123'
+      final account = email == 'dewi@example.com'
           ? dummyCustomerUser
-          : email == 'agus.teknisi@klikkompor.com' && password == 'password123'
+          : email == 'agus.teknisi@klikkompor.com'
               ? dummyTechnicianUser
               : null;
-      if (account == null) {
+      if (account == null || _dummyPasswords[email] != password) {
         return ApiResponse<AuthResponseData>(
             success: false, message: 'Email atau password salah.');
       }
@@ -87,6 +92,7 @@ class AuthService {
           phone: phone,
           role: role,
           address: address);
+      _dummyPasswords[email.trim()] = password;
       return ApiResponse<AuthResponseData>(
           success: true,
           data: AuthResponseData(user: user, token: 'dummy-register-token'));
@@ -113,6 +119,10 @@ class AuthService {
 
   /// Get current authenticated user profile
   Future<ApiResponse<UserModel>> getMe() async {
+    if (AppConfig.useDummyData) {
+      final user = StorageService.getUser();
+      return ApiResponse<UserModel>(success: user != null, data: user);
+    }
     final response = await _apiClient.get(ApiEndpoints.me);
     return ApiResponse<UserModel>.fromJson(
       Map<String, dynamic>.from(response as Map),
@@ -159,10 +169,26 @@ class AuthService {
     required String newPasswordConfirmation,
   }) async {
     if (AppConfig.useDummyData) {
+      final user = StorageService.getUser();
+      final email = user?.email;
+      final storedPassword = email == null ? null : _dummyPasswords[email];
+      if (email == null ||
+          storedPassword == null ||
+          storedPassword != currentPassword) {
+        return ApiResponse<void>(
+          success: false,
+          message: 'Kata sandi lama tidak sesuai.',
+        );
+      }
+      if (newPassword.length < 8 || newPassword != newPasswordConfirmation) {
+        return ApiResponse<void>(
+          success: false,
+          message: 'Kata sandi baru tidak valid.',
+        );
+      }
+      _dummyPasswords[email] = newPassword;
       return ApiResponse<void>(
-          success:
-              newPassword.length >= 8 && newPassword == newPasswordConfirmation,
-          message: 'Password berhasil diperbarui.');
+          success: true, message: 'Password berhasil diperbarui.');
     }
     final response = await _apiClient.put(
       ApiEndpoints.changePassword,
@@ -179,6 +205,9 @@ class AuthService {
 
   /// Invalidate token and logout
   Future<ApiResponse<void>> logout() async {
+    if (AppConfig.useDummyData) {
+      return ApiResponse<void>(success: true);
+    }
     final response = await _apiClient.post(ApiEndpoints.logout);
     return ApiResponse<void>.fromJson(
         Map<String, dynamic>.from(response as Map), null);

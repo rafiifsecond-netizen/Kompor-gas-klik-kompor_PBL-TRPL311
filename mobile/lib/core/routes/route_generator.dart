@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'route_args.dart';
 import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/landing_screen.dart';
 import '../../screens/auth/login_screen.dart';
@@ -106,6 +107,20 @@ class RouteGenerator {
       case AppRoutes.customerChat:
         return _fadeRoute(const CustomerChatScreen(), settings);
 
+      case AppRoutes.customerChatDetail:
+        final args = settings.arguments;
+        final validArgs = args is Map &&
+            args['orderId'] is int &&
+            args['technicianName'] is String;
+        return _fadeRoute(
+          validArgs
+              ? const CustomerChatDetailScreen()
+              : const MissingArgsScreen(
+                  message: 'Data percakapan tidak ditemukan',
+                ),
+          settings,
+        );
+
       case AppRoutes.customerReview:
         return _fadeRoute(const CustomerReviewScreen(), settings);
 
@@ -146,6 +161,26 @@ class RouteGenerator {
         return _fadeRoute(const TechnicianServiceHistoryScreen(), settings);
 
       case AppRoutes.technicianChat:
+        final args = settings.arguments;
+        if (args is Map) {
+          final values = Map<String, dynamic>.from(args);
+          final orderId = int.tryParse(values['orderId']?.toString() ?? '');
+          final customerName = values['customerName']?.toString();
+          if (orderId != null && orderId > 0 && customerName != null) {
+            return _fadeRoute(
+              TechnicianChatDetailScreen(
+                orderId: orderId,
+                customerName: customerName,
+                orderDate: values['orderDate']?.toString() ?? '',
+              ),
+              settings,
+            );
+          }
+          return _fadeRoute(
+            const MissingArgsScreen(message: 'Data percakapan tidak valid.'),
+            settings,
+          );
+        }
         return _fadeRoute(TechnicianChatInboxScreen(onBack: () {}), settings);
 
       case AppRoutes.technicianPerformance:

@@ -19,6 +19,16 @@ class OrderRepository {
                 'total_amount': 90000,
                 'status': _dummyState[item['id']] ?? item['status'],
                 'payment_status': item['status'] == 'paid' ? 'paid' : 'unpaid',
+                'items': item['items'] ??
+                    [
+                      {
+                        'service_item_id': item['service_id'] ?? 1,
+                        'service_name':
+                            item['service_name'] ?? 'Servis Kompor Gas',
+                        'quantity': 1,
+                        'total_price': 75000,
+                      }
+                    ],
               })
           .toList();
     }
@@ -72,9 +82,17 @@ class OrderRepository {
     return _api.patch(ApiEndpoints.updateOrderStatus(id), data: data);
   }
 
-  Future<dynamic> updateTechnicianAvailability(bool available) =>
-      _api.patch(ApiEndpoints.updateAvailability,
-          data: {'is_available': available});
+  Future<dynamic> updateTechnicianAvailability(bool available) async {
+    if (AppConfig.useDummyData) {
+      dummyTechnicianUser['is_available'] = available;
+      return {
+        'success': true,
+        'data': {'is_available': available},
+      };
+    }
+    return _api.patch(ApiEndpoints.updateAvailability,
+        data: {'is_available': available});
+  }
 
   Future<dynamic> getAdditionalCosts(int id) async {
     if (AppConfig.useDummyData) {
@@ -114,10 +132,13 @@ class OrderRepository {
 
   Future<dynamic> addAdditionalCost(int id, Map<String, dynamic> data) async {
     if (AppConfig.useDummyData) {
-      return {
-        'success': true,
-        'data': {'id': id, ...data}
+      final costs = dummyAdditionalCosts.putIfAbsent(id, () => []);
+      final item = {
+        'id': costs.length + 1,
+        ...data,
       };
+      costs.add(item);
+      return {'success': true, 'data': item};
     }
     return _api.post(ApiEndpoints.additionalCosts(id), data: data);
   }

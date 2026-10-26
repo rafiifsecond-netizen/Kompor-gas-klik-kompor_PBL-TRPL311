@@ -18,6 +18,7 @@ class AppRoutes {
   static const String customerOrderTracking = '/customer/order-tracking';
   static const String customerOrderHistory = '/customer/order-history';
   static const String customerChat = '/customer/chat';
+  static const String customerChatDetail = '/customer/chat/detail';
   static const String customerReview = '/customer/review';
   static const String customerProfile = '/customer/profile';
   static const String customerNotification = '/customer/notification';

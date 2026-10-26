@@ -16,9 +16,31 @@ class NotificationRepository {
     return _api.get(ApiEndpoints.notifications);
   }
 
-  Future<dynamic> markRead(int id) =>
-      _api.patch(ApiEndpoints.markNotificationRead(id));
+  Future<dynamic> markRead(int id) async {
+    if (AppConfig.useDummyData) {
+      final index = dummyNotifications
+          .indexWhere((notification) => notification['id'] == id);
+      if (index != -1) {
+        dummyNotifications[index] = {
+          ...dummyNotifications[index],
+          'is_read': true,
+        };
+      }
+      return {'success': true};
+    }
+    return _api.patch(ApiEndpoints.markNotificationRead(id));
+  }
 
-  Future<dynamic> markAllRead() =>
-      _api.post(ApiEndpoints.markAllNotificationsRead);
+  Future<dynamic> markAllRead() async {
+    if (AppConfig.useDummyData) {
+      for (var index = 0; index < dummyNotifications.length; index++) {
+        dummyNotifications[index] = {
+          ...dummyNotifications[index],
+          'is_read': true,
+        };
+      }
+      return {'success': true};
+    }
+    return _api.post(ApiEndpoints.markAllNotificationsRead);
+  }
 }

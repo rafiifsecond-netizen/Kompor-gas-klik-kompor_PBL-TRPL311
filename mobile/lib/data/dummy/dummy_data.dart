@@ -127,30 +127,177 @@ final dummyTechnicianUser = <String, dynamic>{
 };
 
 final dummyServices = <Map<String, dynamic>>[
-  {'id': 1, 'name': 'Servis Kompor Gas', 'price': 75000, 'duration': 60, 'description': 'Servis kompor gas dengan pemeriksaan dan perbaikan menyeluruh.', 'rating': 4.8, 'review_count': 120},
-  {'id': 2, 'name': 'Servis Kompor Tanam', 'price': 125000, 'duration': 90, 'description': 'Perawatan dan perbaikan kompor tanam.', 'rating': 4.8, 'review_count': 80},
-  {'id': 3, 'name': 'Cek Kebocoran Gas', 'price': 85000, 'duration': 45, 'description': 'Pemeriksaan keamanan instalasi dan kebocoran gas.', 'rating': 4.9, 'review_count': 95},
-  {'id': 4, 'name': 'Ganti Regulator', 'price': 80000, 'duration': 45, 'description': 'Penggantian regulator kompor gas.', 'rating': 4.7, 'review_count': 64},
-  {'id': 5, 'name': 'Ganti Selang Gas', 'price': 60000, 'duration': 30, 'description': 'Penggantian selang gas yang aman dan sesuai standar.', 'rating': 4.8, 'review_count': 72},
+  {
+    'id': 1,
+    'name': 'Servis Kompor Gas',
+    'price': 75000,
+    'duration': 60,
+    'description':
+        'Servis kompor gas dengan pemeriksaan dan perbaikan menyeluruh.',
+    'rating': 4.8,
+    'review_count': 120
+  },
+  {
+    'id': 2,
+    'name': 'Servis Kompor Tanam',
+    'price': 125000,
+    'duration': 90,
+    'description': 'Perawatan dan perbaikan kompor tanam.',
+    'rating': 4.8,
+    'review_count': 80
+  },
+  {
+    'id': 3,
+    'name': 'Cek Kebocoran Gas',
+    'price': 85000,
+    'duration': 45,
+    'description': 'Pemeriksaan keamanan instalasi dan kebocoran gas.',
+    'rating': 4.9,
+    'review_count': 95
+  },
+  {
+    'id': 4,
+    'name': 'Ganti Regulator',
+    'price': 80000,
+    'duration': 45,
+    'description': 'Penggantian regulator kompor gas.',
+    'rating': 4.7,
+    'review_count': 64
+  },
+  {
+    'id': 5,
+    'name': 'Ganti Selang Gas',
+    'price': 60000,
+    'duration': 30,
+    'description': 'Penggantian selang gas yang aman dan sesuai standar.',
+    'rating': 4.8,
+    'review_count': 72
+  },
 ];
 
 final dummyDamageTypes = <String, List<String>>{
-  'regulator': ['Regulator bocor', 'Regulator rusak', 'Tekanan gas tidak stabil', 'Lainnya'],
+  'regulator': [
+    'Regulator bocor',
+    'Regulator rusak',
+    'Tekanan gas tidak stabil',
+    'Lainnya'
+  ],
   'selang': ['Selang bocor', 'Selang retak', 'Bau gas dari selang', 'Lainnya'],
-  'instalasi': ['Pemasangan baru', 'Sambungan kurang rapat', 'Cek keamanan instalasi', 'Lainnya'],
-  'default': ['Api kecil atau merah', 'Pemantik tidak berfungsi', 'Kompor tidak menyala', 'Bau atau kebocoran gas', 'Lainnya'],
+  'instalasi': [
+    'Pemasangan baru',
+    'Sambungan kurang rapat',
+    'Cek keamanan instalasi',
+    'Lainnya'
+  ],
+  'default': [
+    'Api kecil atau merah',
+    'Pemantik tidak berfungsi',
+    'Kompor tidak menyala',
+    'Bau atau kebocoran gas',
+    'Lainnya'
+  ],
 };
 
 final dummyOrders = <Map<String, dynamic>>[
-  {'id': 1, 'status': 'pending', 'label': 'Menunggu Pembayaran'},
-  {'id': 2, 'status': 'paid', 'label': 'Dibayar'},
-  {'id': 3, 'status': 'in_progress', 'label': 'Dikerjakan'},
-  {'id': 4, 'status': 'completed', 'label': 'Selesai'},
-  {'id': 5, 'status': 'cancelled', 'label': 'Dibatalkan'},
-  {'id': 6, 'status': 'on_the_way', 'label': 'Teknisi Menuju Lokasi'},
+  {
+    'id': 1,
+    'status': 'pending',
+    'label': 'Menunggu Pembayaran',
+    'customer': {'id': 101, 'name': 'Dewi Lestari'},
+    'customer_name': 'Dewi Lestari',
+    'service_name': 'Servis Kompor Gas',
+    'problem_description': 'Api kecil atau merah',
+    'address': 'Jl. Sei Beduk No. 77, Batam',
+    'latitude': 1.1292,
+    'longitude': 104.0417,
+    'technician_id': 201,
+    'technician': {'id': 201, 'name': 'Andi Saputra'},
+    'booking_date': '2026-10-27',
+    'booking_time': '09:00',
+  },
+  {
+    'id': 2,
+    'status': 'paid',
+    'label': 'Dibayar',
+    'customer': {'id': 101, 'name': 'Dewi Lestari'},
+    'customer_name': 'Dewi Lestari',
+    'service_name': 'Servis Kompor Tanam',
+    'problem_description': 'Pemantik tidak berfungsi',
+    'address': 'Batam Centre Blok A No. 8',
+    'latitude': 1.1187,
+    'longitude': 104.0482,
+    'technician_id': 201,
+    'technician': {'id': 201, 'name': 'Andi Saputra'},
+    'booking_date': '2026-10-27',
+    'booking_time': '10:00',
+  },
+  {
+    'id': 3,
+    'status': 'in_progress',
+    'label': 'Dikerjakan',
+    'customer': {'id': 101, 'name': 'Dewi Lestari'},
+    'customer_name': 'Dewi Lestari',
+    'service_name': 'Cek Kebocoran Gas',
+    'problem_description': 'Bau atau kebocoran gas',
+    'address': 'Perumahan Baloi Mas, Batam',
+    'latitude': 1.1351,
+    'longitude': 104.0098,
+    'technician_id': 201,
+    'technician': {'id': 201, 'name': 'Andi Saputra'},
+    'booking_date': '2026-10-27',
+    'booking_time': '11:00',
+  },
+  {
+    'id': 4,
+    'status': 'completed',
+    'label': 'Selesai',
+    'customer': {'id': 101, 'name': 'Dewi Lestari'},
+    'customer_name': 'Dewi Lestari',
+    'service_name': 'Ganti Regulator',
+    'problem_description': 'Regulator rusak',
+    'address': 'Nagoya, Batam',
+    'latitude': 1.1456,
+    'longitude': 104.0084,
+    'technician_id': 201,
+    'technician': {'id': 201, 'name': 'Andi Saputra'},
+    'booking_date': '2026-10-26',
+    'booking_time': '13:00',
+  },
+  {
+    'id': 5,
+    'status': 'cancelled',
+    'label': 'Dibatalkan',
+    'customer': {'id': 101, 'name': 'Dewi Lestari'},
+    'customer_name': 'Dewi Lestari',
+    'service_name': 'Ganti Selang Gas',
+    'problem_description': 'Selang retak',
+    'address': 'Tiban, Batam',
+    'latitude': 1.1127,
+    'longitude': 103.9704,
+    'technician_id': 201,
+    'technician': {'id': 201, 'name': 'Andi Saputra'},
+    'booking_date': '2026-10-25',
+    'booking_time': '14:00',
+  },
+  {
+    'id': 6,
+    'status': 'on_the_way',
+    'label': 'Teknisi Menuju Lokasi',
+    'customer': {'id': 101, 'name': 'Dewi Lestari'},
+    'customer_name': 'Dewi Lestari',
+    'service_name': 'Servis Kompor Gas',
+    'problem_description': 'Kompor tidak menyala',
+    'address': 'Batu Aji, Batam',
+    'latitude': 1.0469,
+    'longitude': 103.9632,
+    'technician_id': 201,
+    'technician': {'id': 201, 'name': 'Andi Saputra'},
+    'booking_date': '2026-10-27',
+    'booking_time': '15:00',
+  },
 ];
 
-const dummyAdditionalCosts = <int, List<Map<String, dynamic>>>{
+final dummyAdditionalCosts = <int, List<Map<String, dynamic>>>{
   1: [
     {
       'id': 1,
@@ -162,7 +309,7 @@ const dummyAdditionalCosts = <int, List<Map<String, dynamic>>>{
   ],
 };
 
-const dummyAddresses = <Map<String, dynamic>>[
+final dummyAddresses = <Map<String, dynamic>>[
   {
     'id': 1,
     'label': 'Rumah',
@@ -183,7 +330,7 @@ const dummyAddresses = <Map<String, dynamic>>[
   },
 ];
 
-const dummyNotifications = <Map<String, dynamic>>[
+final dummyNotifications = <Map<String, dynamic>>[
   {
     'id': 1,
     'user_id': 1,
@@ -231,7 +378,7 @@ const dummyNotifications = <Map<String, dynamic>>[
   },
 ];
 
-const dummyChatMessages = <int, List<Map<String, dynamic>>>{
+final dummyChatMessages = <int, List<Map<String, dynamic>>>{
   1: [
     {
       'id': 1,
@@ -271,3 +418,38 @@ const dummyChatMessages = <int, List<Map<String, dynamic>>>{
     },
   ],
 };
+
+final dummyTechnicianChats = <Map<String, dynamic>>[
+  {
+    'order_id': 1,
+    'customer': {'id': 301, 'name': 'Dewi Lestari'},
+    'order': {'id': 1, 'order_number': '#KP-1', 'status': 'pending'},
+    'last_message': 'Saya sudah menerima pesanan Anda.',
+    'last_message_at': '2026-10-27T09:00:00Z',
+    'unread_count': 2,
+  },
+  {
+    'order_id': 2,
+    'customer': {'id': 302, 'name': 'Budi Santoso'},
+    'order': {'id': 2, 'order_number': '#KP-2', 'status': 'paid'},
+    'last_message': 'Baik, saya siapkan area kompor.',
+    'last_message_at': '2026-10-27T09:12:00Z',
+    'unread_count': 1,
+  },
+  {
+    'order_id': 3,
+    'customer': {'id': 303, 'name': 'Siti Aminah'},
+    'order': {'id': 3, 'order_number': '#KP-3', 'status': 'in_progress'},
+    'last_message': 'Teknisi sedang dalam perjalanan.',
+    'last_message_at': '2026-10-27T09:30:00Z',
+    'unread_count': 0,
+  },
+  {
+    'order_id': 4,
+    'customer': {'id': 304, 'name': 'Rudi Hartono'},
+    'order': {'id': 4, 'order_number': '#KP-4', 'status': 'completed'},
+    'last_message': 'Terima kasih, servisnya sudah selesai.',
+    'last_message_at': '2026-10-26T14:00:00Z',
+    'unread_count': 0,
+  },
+];

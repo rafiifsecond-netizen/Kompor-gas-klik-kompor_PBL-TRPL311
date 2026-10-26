@@ -7,6 +7,7 @@ import '../../widgets/chat_list_item_widget.dart';
 import '../../widgets/custom_bottom_nav_bar.dart';
 import '../../repositories/chat_repository.dart';
 import '../../repositories/order_repository.dart';
+import '../../core/routes/route_args.dart';
 
 class CustomerChatScreen extends StatefulWidget {
   const CustomerChatScreen({super.key});
@@ -156,7 +157,7 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                             status: statusLabel,
                             onTap: () => Navigator.pushNamed(
                               context,
-                              AppRoutes.customerChat,
+                              AppRoutes.customerChatDetail,
                               arguments: {
                                 'orderId': order.id,
                                 'technicianName': techName
@@ -174,34 +175,43 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
   }
 }
 
-class _ChatDetailScreen extends StatefulWidget {
-  final int orderId;
-  final String technicianName;
-
-  const _ChatDetailScreen({
-    required this.orderId,
-    required this.technicianName,
-  });
+class CustomerChatDetailScreen extends StatefulWidget {
+  const CustomerChatDetailScreen({super.key});
 
   @override
-  State<_ChatDetailScreen> createState() => _ChatDetailScreenState();
+  State<CustomerChatDetailScreen> createState() => _ChatDetailScreenState();
 }
 
-class _ChatDetailScreenState extends State<_ChatDetailScreen> {
+class _ChatDetailScreenState extends State<CustomerChatDetailScreen> {
   final _chatRepository = ChatRepository();
   final TextEditingController _ctrl = TextEditingController();
   bool _isLoading = true;
   List<Map<String, dynamic>> _messages = [];
+  int _orderId = 0;
+  String _technicianName = 'Teknisi KlikKompor';
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
+    final args = RouteArgs.map(context);
+    final orderId = args?['orderId'];
+    if (orderId is! int) {
+      _isLoading = false;
+      return;
+    }
+    _orderId = orderId;
+    if (args?['technicianName'] is String) {
+      _technicianName = args!['technicianName'] as String;
+    }
     _fetchRealMessages();
   }
 
   Future<void> _fetchRealMessages() async {
     try {
-      final res = await _chatRepository.getOrderChat(widget.orderId);
+      final res = await _chatRepository.getOrderChat(_orderId);
       if (res is Map && res['success'] == true) {
         final data = res['data'];
         final list = (data is Map && data['messages'] is List)
@@ -248,7 +258,7 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
     });
 
     try {
-      await _chatRepository.sendMessage(widget.orderId, text);
+      await _chatRepository.sendMessage(_orderId, text);
     } catch (_) {
       // Message added optimistically
     }
@@ -280,7 +290,7 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.technicianName,
+                Text(_technicianName,
                     style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,

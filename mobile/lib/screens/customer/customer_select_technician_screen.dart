@@ -22,7 +22,7 @@ class _CustomerSelectTechnicianScreenState
   List<Map<String, dynamic>> _technicians = [];
   String? _errorMessage;
   String _query = '';
-  String _sort = 'nearest';
+  List<String> _sorts = ['nearest'];
 
   @override
   void initState() {
@@ -190,29 +190,34 @@ class _CustomerSelectTechnicianScreenState
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                           child: Row(
                             children: [
                               Expanded(
-                                child: DropdownButton<String>(
-                                  value: _sort,
-                                  isExpanded: true,
-                                  items: const [
-                                    DropdownMenuItem(
-                                        value: 'nearest',
-                                        child: Text('Lokasi terdekat')),
-                                    DropdownMenuItem(
-                                        value: 'price_low',
-                                        child: Text('Harga termurah')),
-                                    DropdownMenuItem(
-                                        value: 'price_high',
-                                        child: Text('Harga termahal')),
-                                    DropdownMenuItem(
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  children: const [
+                                    _SortChip(
+                                        value: 'nearest', label: 'Terdekat'),
+                                    _SortChip(
                                         value: 'rating',
-                                        child: Text('Rating tertinggi')),
-                                  ],
-                                  onChanged: (value) =>
-                                      setState(() => _sort = value!),
+                                        label: 'Rating tertinggi'),
+                                    _SortChip(
+                                        value: 'price_low',
+                                        label: 'Harga termurah'),
+                                    _SortChip(
+                                        value: 'price_high',
+                                        label: 'Harga termahal'),
+                                  ]
+                                      .map((chip) => FilterChip(
+                                            label: chip.labelWidget,
+                                            selected:
+                                                _sorts.contains(chip.value),
+                                            onSelected: (_) =>
+                                                _toggleSort(chip.value),
+                                          ))
+                                      .toList(),
                                 ),
                               ),
                               TextButton(
@@ -227,32 +232,31 @@ class _CustomerSelectTechnicianScreenState
                             child: EmptyStateWidget(
                               icon: Icons.search_off,
                               title: 'Teknisi tidak ditemukan',
-                              message:
-                                  'Coba ubah pencarian atau reset filter.',
+                              message: 'Coba ubah pencarian atau reset filter.',
                               buttonText: 'Reset filter',
                               onButtonPressed: _resetFilters,
                             ),
                           )
                         else
-                        Expanded(
-                          child: ListView(
-                            padding: const EdgeInsets.all(16),
-                            children: visibleTechnicians
-                                .map((t) => TechnicianCardWidget(
-                                      name: t['name'] as String,
-                                      rating: (t['rating'] as num).toDouble(),
-                                      reviewCount: t['reviewCount'] as int,
-                                      distance: t['distance'] as String,
-                                      experience: t['experience'] as String,
-                                      isSelected:
-                                          _selectedTechnicianId == t['id'],
-                                      onTap: () => setState(() =>
-                                          _selectedTechnicianId =
-                                              t['id'] as int),
-                                    ))
-                                .toList(),
+                          Expanded(
+                            child: ListView(
+                              padding: const EdgeInsets.all(16),
+                              children: visibleTechnicians
+                                  .map((t) => TechnicianCardWidget(
+                                        name: t['name'] as String,
+                                        rating: (t['rating'] as num).toDouble(),
+                                        reviewCount: t['reviewCount'] as int,
+                                        distance: t['distance'] as String,
+                                        experience: t['experience'] as String,
+                                        isSelected:
+                                            _selectedTechnicianId == t['id'],
+                                        onTap: () => setState(() =>
+                                            _selectedTechnicianId =
+                                                t['id'] as int),
+                                      ))
+                                  .toList(),
+                            ),
                           ),
-                        ),
                         SafeArea(
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -305,28 +309,49 @@ class _CustomerSelectTechnicianScreenState
           name.contains(query) ||
           specialization.contains(query);
     }).toList();
-    result.sort((a, b) {
-      final aValue = switch (_sort) {
-        'price_low' => a['price'] as double,
-        'price_high' => -(a['price'] as double),
-        'rating' => -(a['rating'] as double),
-        _ => a['distance_km'] as double,
-      };
-      final bValue = switch (_sort) {
-        'price_low' => b['price'] as double,
-        'price_high' => -(b['price'] as double),
-        'rating' => -(b['rating'] as double),
-        _ => b['distance_km'] as double,
-      };
-      return aValue.compareTo(bValue);
+    return sortTechnicians(result, _sorts);
+  }
+
+  void _toggleSort(String value) {
+    setState(() {
+      if (_sorts.contains(value)) {
+        _sorts.remove(value);
+      } else {
+        _sorts.add(value);
+      }
+      if (_sorts.isEmpty) _sorts = ['nearest'];
     });
-    return result;
   }
 
   void _resetFilters() {
     setState(() {
       _query = '';
-      _sort = 'nearest';
+      _sorts = ['nearest'];
     });
   }
+}
+
+class _SortChip {
+  final String value;
+  final String label;
+  const _SortChip({required this.value, required this.label});
+  Widget get labelWidget => Text(label);
+}
+
+List<Map<String, dynamic>> sortTechnicians(
+    List<Map<String, dynamic>> technicians, List<String> criteria) {
+  final result = List<Map<String, dynamic>>.from(technicians);
+  result.sort((a, b) {
+    for (final criterion in criteria) {
+      final comparison = switch (criterion) {
+        'rating' => (b['rating'] as num).compareTo(a['rating'] as num),
+        'price_low' => (a['price'] as num).compareTo(b['price'] as num),
+        'price_high' => (b['price'] as num).compareTo(a['price'] as num),
+        _ => (a['distance_km'] as num).compareTo(b['distance_km'] as num),
+      };
+      if (comparison != 0) return comparison;
+    }
+    return 0;
+  });
+  return result;
 }

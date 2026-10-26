@@ -38,8 +38,8 @@ class _CustomerSelectAddressScreenState
         ..addAll(rows.map((row) => Address(
               row['id'] as int,
               row['label'] as String? ?? 'Rumah',
-              'Setiawan Ade',
-              '+62 800 0000 0000',
+              row['name'] as String? ?? 'Setiawan Ade',
+              row['phone'] as String? ?? '+62 800 0000 0000',
               row['address'] as String? ?? '',
               row['is_default'] == true,
             )));
@@ -66,6 +66,15 @@ class _CustomerSelectAddressScreenState
       arguments: address,
     );
     if (!mounted || result == null) return;
+    await _repository.saveDummy({
+      'id': result.id == 0 ? null : result.id,
+      'label': result.label,
+      'name': result.name,
+      'phone': result.phone,
+      'address': result.detail,
+      'is_default': result.isDefault,
+    });
+    await _loadAddresses();
     setState(() {
       final index = _addresses.indexWhere((item) => item.id == result.id);
       if (index == -1) {
@@ -102,29 +111,29 @@ class _CustomerSelectAddressScreenState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
-          const _InfoBanner(),
-          const SizedBox(height: 24),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Daftar Alamat',
-                  style: GoogleFonts.inter(
-                      fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _editAddress(),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Tambah Alamat'),
+            const _InfoBanner(),
+            const SizedBox(height: 24),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Daftar Alamat',
+                    style: GoogleFonts.inter(
+                        fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _editAddress(),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Tambah Alamat'),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ..._addresses.map((address) => _addressCard(address, selecting)),
-        ],
-      ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ..._addresses.map((address) => _addressCard(address, selecting)),
+          ],
+        ),
       ),
       bottomNavigationBar: selecting
           ? null
@@ -243,7 +252,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final name = _name.text.trim(),
         phone = _phone.text.trim(),
@@ -253,10 +262,19 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
           content: Text('Nama, nomor HP, dan alamat wajib diisi.')));
       return;
     }
+    final saved = await AddressRepository().saveDummy({
+      'id': widget.address?.id,
+      'label': widget.address?.label ?? 'Rumah',
+      'name': name,
+      'phone': phone,
+      'address': detail,
+      'is_default': _default,
+    });
+    if (!mounted) return;
     Navigator.pop(
         context,
-        Address(widget.address?.id ?? 0, widget.address?.label ?? 'Rumah', name,
-            phone, detail, _default));
+        Address(saved['id'] as int, saved['label'] as String, name, phone,
+            detail, saved['is_default'] == true));
     AppFeedback.success(context, 'Alamat berhasil disimpan.');
   }
 

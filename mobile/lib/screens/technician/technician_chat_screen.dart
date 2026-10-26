@@ -136,143 +136,152 @@ class _TechnicianChatInboxScreenState extends State<TechnicianChatInboxScreen> {
   @override
   Widget build(BuildContext context) {
     final chats = _visibleChats;
-    return ColoredBox(
+    return Material(
       color: Colors.white,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 16, 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Kembali',
-                    onPressed: widget.onBack,
-                    icon: const Icon(Icons.arrow_back_rounded, size: 22),
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints.tightFor(width: 30, height: 36),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Pesan',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
+      child: ColoredBox(
+        color: Colors.white,
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 16, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Kembali',
+                      onPressed: widget.onBack,
+                      icon: const Icon(Icons.arrow_back_rounded, size: 22),
+                      padding: EdgeInsets.zero,
+                      constraints:
+                          const BoxConstraints.tightFor(width: 30, height: 36),
                     ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: 'Muat ulang',
-                    onPressed: _loadChats,
-                    icon: const Icon(Icons.refresh_rounded, size: 20),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Text(
+                      'Pesan',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: 'Muat ulang',
+                      onPressed: _loadChats,
+                      icon: const Icon(Icons.refresh_rounded, size: 20),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-              child: SizedBox(
-                height: 36,
-                child: TextField(
-                  controller: _searchController,
-                  style: AppTextStyles.statusTag.copyWith(color: AppColors.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Cari pelanggan atau pesanan',
-                    hintStyle: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: AppColors.textMuted,
-                    ),
-                    prefixIcon: const Icon(Icons.search_rounded, size: 17),
-                    prefixIconConstraints:
-                        const BoxConstraints(minWidth: 34, minHeight: 34),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                    filled: true,
-                    fillColor: AppColors.chatInput,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
-                      borderSide: const BorderSide(color: AppColors.chatBorder),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
-                      borderSide: const BorderSide(color: AppColors.chatBorder),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
-                      borderSide: const BorderSide(color: AppColors.primary),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                child: SizedBox(
+                  height: 36,
+                  child: TextField(
+                    controller: _searchController,
+                    style: AppTextStyles.statusTag
+                        .copyWith(color: AppColors.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Cari pelanggan atau pesanan',
+                      hintStyle: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                      prefixIcon: const Icon(Icons.search_rounded, size: 17),
+                      prefixIconConstraints:
+                          const BoxConstraints(minWidth: 34, minHeight: 34),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      filled: true,
+                      fillColor: AppColors.chatInput,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(22),
+                        borderSide:
+                            const BorderSide(color: AppColors.chatBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(22),
+                        borderSide:
+                            const BorderSide(color: AppColors.chatBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(22),
+                        borderSide: const BorderSide(color: AppColors.primary),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            SizedBox(
-              height: 34,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                children: [
-                  for (final filter in ['Semua', 'Aktif', 'Belum dibaca'])
-                    Padding(
-                      padding: const EdgeInsets.only(right: 7),
-                      child: _ChatFilterChip(
-                        label: filter,
-                        selected: _filter == filter,
-                        onTap: () => setState(() => _filter = filter),
+              SizedBox(
+                height: 34,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  children: [
+                    for (final filter in ['Semua', 'Aktif', 'Belum dibaca'])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 7),
+                        child: _ChatFilterChip(
+                          label: filter,
+                          selected: _filter == filter,
+                          onTap: () => setState(() => _filter = filter),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : _error != null
-                      ? _InboxMessage(
-                          icon: Icons.wifi_off_rounded,
-                          text: _error!,
-                          actionLabel: 'Coba lagi',
-                          onAction: _loadChats,
-                        )
-                      : chats.isEmpty
-                          ? RefreshIndicator(
-                              onRefresh: _loadChats,
-                              child: ListView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                children: [
-                                  SizedBox(
-                                    height: 260,
-                                    child: _InboxMessage(
-                                      icon: Icons.chat_bubble_outline_rounded,
-                                      text: _chats.isEmpty
-                                          ? 'Belum ada percakapan.'
-                                          : 'Tidak ada pesan yang cocok.',
+              const SizedBox(height: 8),
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : _error != null
+                        ? _InboxMessage(
+                            icon: Icons.wifi_off_rounded,
+                            text: _error!,
+                            actionLabel: 'Coba lagi',
+                            onAction: _loadChats,
+                          )
+                        : chats.isEmpty
+                            ? RefreshIndicator(
+                                onRefresh: _loadChats,
+                                child: ListView(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  children: [
+                                    SizedBox(
+                                      height: 260,
+                                      child: _InboxMessage(
+                                        icon: Icons.chat_bubble_outline_rounded,
+                                        text: _chats.isEmpty
+                                            ? 'Belum ada percakapan.'
+                                            : 'Tidak ada pesan yang cocok.',
+                                      ),
                                     ),
+                                  ],
+                                ),
+                              )
+                            : RefreshIndicator(
+                                onRefresh: _loadChats,
+                                child: ListView.builder(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                                  itemCount: chats.length,
+                                  itemBuilder: (context, index) =>
+                                      _ChatInboxTile(
+                                    chat: chats[index],
+                                    onTap: () => _openChat(chats[index]),
                                   ),
-                                ],
-                              ),
-                            )
-                          : RefreshIndicator(
-                              onRefresh: _loadChats,
-                              child: ListView.builder(
-                                padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-                                itemCount: chats.length,
-                                itemBuilder: (context, index) => _ChatInboxTile(
-                                  chat: chats[index],
-                                  onTap: () => _openChat(chats[index]),
                                 ),
                               ),
-                            ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -450,8 +459,9 @@ class _ChatInboxTile extends StatelessWidget {
   }
 }
 
-class _TechnicianChatDetailScreen extends StatefulWidget {
-  const _TechnicianChatDetailScreen({
+class TechnicianChatDetailScreen extends StatefulWidget {
+  const TechnicianChatDetailScreen({
+    super.key,
     required this.orderId,
     required this.customerName,
     required this.orderDate,
@@ -462,12 +472,12 @@ class _TechnicianChatDetailScreen extends StatefulWidget {
   final String orderDate;
 
   @override
-  State<_TechnicianChatDetailScreen> createState() =>
+  State<TechnicianChatDetailScreen> createState() =>
       _TechnicianChatDetailScreenState();
 }
 
 class _TechnicianChatDetailScreenState
-    extends State<_TechnicianChatDetailScreen> {
+    extends State<TechnicianChatDetailScreen> {
   final _repository = ChatRepository();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
