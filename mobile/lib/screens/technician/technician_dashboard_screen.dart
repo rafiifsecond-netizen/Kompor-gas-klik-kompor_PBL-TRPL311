@@ -456,9 +456,9 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
                     Expanded(
                       child: InkWell(
                         onTap: onOpenActiveOrder,
-                        child: Text(
+                        child: const Text(
                           'Pesanan Berlangsung',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                             color: Color(0xFF303445),
