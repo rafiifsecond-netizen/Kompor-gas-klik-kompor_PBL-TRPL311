@@ -17,9 +17,9 @@ class LandingScreen extends StatelessWidget {
           child: Column(
             children: [
               // ── Logo dengan Efek Kebakar / Nyala Api ───────────
-              Expanded(
+              const Expanded(
                 child: Center(
-                  child: const _BurningLogo(),
+                  child: _BurningLogo(),
                 ),
               ),
 
