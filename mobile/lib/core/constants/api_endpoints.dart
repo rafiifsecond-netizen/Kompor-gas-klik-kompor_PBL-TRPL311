@@ -50,6 +50,7 @@ class ApiEndpoints {
   static String reviewOrder(int id) => '$baseUrl/orders/$id/review';
 
   // Order Chat
+  static String get technicianChats => '$baseUrl/chats';
   static String orderChat(int orderId) => '$baseUrl/orders/$orderId/chat';
   static String sendChatMessage(int orderId) =>
       '$baseUrl/orders/$orderId/chat/messages';

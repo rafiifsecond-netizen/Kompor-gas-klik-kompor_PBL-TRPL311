@@ -63,6 +63,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/orders/{id}/review', [ReviewController::class, 'store']);
 
         // Order In-App Chat
+        Route::get('/chats', [ChatController::class, 'index']);
         Route::get('/orders/{id}/chat', [ChatController::class, 'show']);
         Route::post('/orders/{id}/chat/messages', [ChatController::class, 'sendMessage']);
         Route::patch('/orders/{id}/chat/read', [ChatController::class, 'markAsRead']);

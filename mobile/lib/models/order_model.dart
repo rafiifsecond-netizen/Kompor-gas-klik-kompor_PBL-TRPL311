@@ -13,6 +13,7 @@ class OrderModel {
   final String status;
   final String bookingDate;
   final String bookingTime;
+  final String? completedAt;
   final String? addressText;
   final double? latitude;
   final double? longitude;
@@ -37,6 +38,7 @@ class OrderModel {
     required this.status,
     required this.bookingDate,
     required this.bookingTime,
+    this.completedAt,
     this.addressText,
     this.latitude,
     this.longitude,
@@ -91,6 +93,7 @@ class OrderModel {
           (scheduledAt == null
               ? ''
               : '${scheduledAt.hour.toString().padLeft(2, '0')}:${scheduledAt.minute.toString().padLeft(2, '0')}'),
+      completedAt: json['completed_at']?.toString(),
       addressText: addressJson is String ? addressJson : null,
       latitude: _toDouble(json['latitude']) ?? address?.latitude,
       longitude: _toDouble(json['longitude']) ?? address?.longitude,
@@ -146,6 +149,7 @@ class OrderModel {
       'status': status,
       'booking_date': bookingDate,
       'booking_time': bookingTime,
+      'completed_at': completedAt,
       'subtotal': subtotal,
       'total_amount': totalAmount,
       'payment_status': paymentStatus,

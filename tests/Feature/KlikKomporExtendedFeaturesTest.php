@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AdditionalCost;
 use App\Models\Address;
+use App\Models\Chat;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\User;
@@ -116,6 +117,38 @@ class KlikKomporExtendedFeaturesTest extends TestCase
         $this->actingAs($unrelatedUser)
             ->getJson("/api/v1/orders/{$order->id}/chat")
             ->assertStatus(403);
+    }
+
+    public function test_technician_chat_inbox_shows_latest_message_and_unread_count(): void
+    {
+        $customer = User::where('email', 'dewi@example.com')->first();
+        $tech = User::where('email', 'agus.teknisi@klikkompor.com')->first();
+        $order = Order::where('customer_id', $customer->id)->first();
+        $order->update([
+            'technician_id' => $tech->id,
+            'status' => Order::STATUS_ACCEPTED,
+        ]);
+
+        $chat = Chat::create([
+            'order_id' => $order->id,
+            'customer_id' => $customer->id,
+            'technician_id' => $tech->id,
+        ]);
+        $message = $chat->messages()->create([
+            'sender_id' => $customer->id,
+            'message' => 'Pesan belum dibaca teknisi',
+            'message_type' => 'text',
+        ]);
+
+        $this->actingAs($tech)
+            ->getJson('/api/v1/chats')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.0.order_id', $order->id)
+            ->assertJsonPath('data.0.latest_message.message', 'Pesan belum dibaca teknisi')
+            ->assertJsonPath('data.0.unread_count', 1);
+
+        $this->assertNull($message->fresh()->read_at);
     }
 
     public function test_in_app_notifications_workflow(): void

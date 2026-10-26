@@ -7,6 +7,8 @@ import '../../core/network/api_client.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
+import 'technician_chat_screen.dart';
+import 'technician_income_screen.dart';
 
 class TechnicianDashboardScreen extends StatefulWidget {
   const TechnicianDashboardScreen({super.key});
@@ -57,285 +59,312 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
     );
 
     return Scaffold(
-      body: FutureBuilder<List<OrderModel>>(
-        future: _ordersFuture,
-        builder: (context, snapshot) {
-          final orders = snapshot.data ?? const <OrderModel>[];
-          final selectedOrder = _selectOrder(orders);
-          final customerPoint = _validPoint(
-            selectedOrder?.latitude,
-            selectedOrder?.longitude,
-          );
-          final center = _mapCenter(technicianPoint, customerPoint);
-          final mapPoints = [
-            if (technicianPoint != null) technicianPoint,
-            if (customerPoint != null) customerPoint,
-          ];
-          final incomingOrders =
-              orders.where((order) => order.status == 'pending').length;
-          final mapTarget = [
-            technicianPoint?.latitude,
-            technicianPoint?.longitude,
-            customerPoint?.latitude,
-            customerPoint?.longitude,
-          ].join(':');
+      body: _currentIndex == 1
+          ? const TechnicianIncomeScreen()
+          : _currentIndex == 2
+              ? TechnicianChatInboxScreen(
+                  onBack: () => setState(() => _currentIndex = 0),
+                )
+              : FutureBuilder<List<OrderModel>>(
+                  future: _ordersFuture,
+                  builder: (context, snapshot) {
+                    final orders = snapshot.data ?? const <OrderModel>[];
+                    final selectedOrder = _selectOrder(orders);
+                    final customerPoint = _validPoint(
+                      selectedOrder?.latitude,
+                      selectedOrder?.longitude,
+                    );
+                    final center = _mapCenter(technicianPoint, customerPoint);
+                    final mapPoints = [
+                      if (technicianPoint != null) technicianPoint,
+                      if (customerPoint != null) customerPoint,
+                    ];
+                    final incomingOrders = orders
+                        .where((order) => order.status == 'pending')
+                        .length;
+                    final mapTarget = [
+                      technicianPoint?.latitude,
+                      technicianPoint?.longitude,
+                      customerPoint?.latitude,
+                      customerPoint?.longitude,
+                    ].join(':');
 
-          if (_lastMapTarget != mapTarget) {
-            _lastMapTarget = mapTarget;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted || mapPoints.isEmpty) return;
-              if (mapPoints.length == 2) {
-                _mapController.fitCamera(
-                  CameraFit.bounds(
-                    bounds: LatLngBounds.fromPoints(mapPoints),
-                    padding: const EdgeInsets.fromLTRB(72, 100, 72, 300),
-                  ),
-                );
-              } else {
-                _mapController.move(mapPoints.first, 14);
-              }
-            });
-          }
+                    if (_lastMapTarget != mapTarget) {
+                      _lastMapTarget = mapTarget;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted || mapPoints.isEmpty) return;
+                        if (mapPoints.length == 2) {
+                          _mapController.fitCamera(
+                            CameraFit.bounds(
+                              bounds: LatLngBounds.fromPoints(mapPoints),
+                              padding:
+                                  const EdgeInsets.fromLTRB(72, 100, 72, 300),
+                            ),
+                          );
+                        } else {
+                          _mapController.move(mapPoints.first, 14);
+                        }
+                      });
+                    }
 
-          return SizedBox.expand(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Positioned.fill(
-                  child: FlutterMap(
-                    mapController: _mapController,
-                    options: MapOptions(initialCenter: center, initialZoom: 13),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.klikkompor.mobile',
-                      ),
-                      if (technicianPoint != null && customerPoint != null)
-                        PolylineLayer(
-                          polylines: [
-                            Polyline(
-                              points: [technicianPoint, customerPoint],
-                              strokeWidth: 4,
-                              color: const Color(0xFFFA7D10),
-                            ),
-                          ],
-                        ),
-                      MarkerLayer(
-                        markers: [
-                          if (technicianPoint != null)
-                            Marker(
-                              point: technicianPoint,
-                              width: 58,
-                              height: 72,
-                              child: const _MapPin(
-                                icon: Icons.handyman_rounded,
-                                color: Color(0xFFFA7D10),
-                                label: 'Teknisi',
-                              ),
-                            ),
-                          if (customerPoint != null)
-                            Marker(
-                              point: customerPoint,
-                              width: 58,
-                              height: 72,
-                              child: const _MapPin(
-                                icon: Icons.person_rounded,
-                                color: Color(0xFF2563EB),
-                                label: 'Pelanggan',
-                              ),
-                            ),
-                        ],
-                      ),
-                      const RichAttributionWidget(
-                        attributions: [
-                          TextSourceAttribution('OpenStreetMap contributors'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    return SizedBox.expand(
+                      child: Stack(
+                        fit: StackFit.expand,
                         children: [
-                          _roundAction(
-                            icon: Icons.person_outline_rounded,
-                            background: const Color(0xFFEADDFF),
-                            foreground: const Color(0xFF4F378A),
-                            tooltip: user?.name ?? 'Profil teknisi',
-                            onTap: () {},
+                          Positioned.fill(
+                            child: FlutterMap(
+                              mapController: _mapController,
+                              options: MapOptions(
+                                  initialCenter: center, initialZoom: 13),
+                              children: [
+                                TileLayer(
+                                  urlTemplate:
+                                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  userAgentPackageName: 'com.klikkompor.mobile',
+                                ),
+                                if (technicianPoint != null &&
+                                    customerPoint != null)
+                                  PolylineLayer(
+                                    polylines: [
+                                      Polyline(
+                                        points: [
+                                          technicianPoint,
+                                          customerPoint
+                                        ],
+                                        strokeWidth: 4,
+                                        color: const Color(0xFFFA7D10),
+                                      ),
+                                    ],
+                                  ),
+                                MarkerLayer(
+                                  markers: [
+                                    if (technicianPoint != null)
+                                      Marker(
+                                        point: technicianPoint,
+                                        width: 58,
+                                        height: 72,
+                                        child: const _MapPin(
+                                          icon: Icons.handyman_rounded,
+                                          color: Color(0xFFFA7D10),
+                                          label: 'Teknisi',
+                                        ),
+                                      ),
+                                    if (customerPoint != null)
+                                      Marker(
+                                        point: customerPoint,
+                                        width: 58,
+                                        height: 72,
+                                        child: const _MapPin(
+                                          icon: Icons.person_rounded,
+                                          color: Color(0xFF2563EB),
+                                          label: 'Pelanggan',
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const RichAttributionWidget(
+                                  attributions: [
+                                    TextSourceAttribution(
+                                        'OpenStreetMap contributors'),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                          Flexible(
-                            child: Material(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(40),
-                              elevation: 3,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(40),
-                                onTap: () =>
-                                    setState(() => _isOnline = !_isOnline),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 16,
-                                  ),
-                                  child: Text(
-                                    _isOnline ? 'Online  >' : 'Offline  >',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w800,
-                                      color: _isOnline
-                                          ? const Color(0xFF27834A)
-                                          : const Color(0xFF5D5555),
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: SafeArea(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _roundAction(
+                                      icon: Icons.person_outline_rounded,
+                                      background: const Color(0xFFEADDFF),
+                                      foreground: const Color(0xFF4F378A),
+                                      tooltip: user?.name ?? 'Profil teknisi',
+                                      onTap: () {},
                                     ),
-                                  ),
+                                    Flexible(
+                                      child: Material(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(40),
+                                        elevation: 3,
+                                        child: InkWell(
+                                          borderRadius:
+                                              BorderRadius.circular(40),
+                                          onTap: () => setState(
+                                              () => _isOnline = !_isOnline),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 16,
+                                            ),
+                                            child: Text(
+                                              _isOnline
+                                                  ? 'Online  >'
+                                                  : 'Offline  >',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w800,
+                                                color: _isOnline
+                                                    ? const Color(0xFF27834A)
+                                                    : const Color(0xFF5D5555),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    _roundAction(
+                                      icon: Icons.power_settings_new_rounded,
+                                      background: _isOnline
+                                          ? const Color(0xFF27834A)
+                                          : Colors.black,
+                                      foreground: Colors.white,
+                                      tooltip: _isOnline
+                                          ? 'Nonaktifkan status online'
+                                          : 'Aktifkan status online',
+                                      onTap: () => setState(
+                                          () => _isOnline = !_isOnline),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
-                          _roundAction(
-                            icon: Icons.power_settings_new_rounded,
-                            background: _isOnline
-                                ? const Color(0xFF27834A)
-                                : Colors.black,
-                            foreground: Colors.white,
-                            tooltip: _isOnline
-                                ? 'Nonaktifkan status online'
-                                : 'Aktifkan status online',
-                            onTap: () => setState(() => _isOnline = !_isOnline),
+                          Positioned(
+                            right: 18,
+                            bottom: 246,
+                            child: Column(
+                              children: [
+                                _mapControl(Icons.add, 'Perbesar', () {
+                                  _mapController.move(
+                                      center, _mapController.camera.zoom + 1);
+                                }),
+                                const SizedBox(height: 8),
+                                _mapControl(Icons.remove, 'Perkecil', () {
+                                  _mapController.move(
+                                      center, _mapController.camera.zoom - 1);
+                                }),
+                                const SizedBox(height: 8),
+                                _mapControl(
+                                    Icons.my_location_rounded, 'Lokasi teknisi',
+                                    () {
+                                  if (technicianPoint != null) {
+                                    _mapController.move(technicianPoint, 15);
+                                  }
+                                }),
+                              ],
+                            ),
+                          ),
+                          Positioned(
+                            left: 18,
+                            right: 18,
+                            bottom: 18,
+                            child: _orderPanel(
+                              userName: user?.name ?? 'Teknisi',
+                              order: selectedOrder,
+                              customerPoint: customerPoint,
+                              orderCount: incomingOrders,
+                              loading: snapshot.connectionState ==
+                                  ConnectionState.waiting,
+                              error: snapshot.hasError
+                                  ? snapshot.error.toString()
+                                  : null,
+                              onOpenActiveOrder: () {
+                                if (selectedOrder == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Belum ada pesanan yang sedang berlangsung.'),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.technicianOrderDetail,
+                                  arguments: {
+                                    'orderId': selectedOrder.id,
+                                    'orderNumber': selectedOrder.orderNumber,
+                                    'customerName':
+                                        selectedOrder.customer?.name ??
+                                            'Pelanggan',
+                                    'serviceName':
+                                        selectedOrder.items.isNotEmpty
+                                            ? selectedOrder
+                                                    .items.first.serviceName ??
+                                                selectedOrder.items.first
+                                                    .service?.name ??
+                                                'Servis Kompor Gas'
+                                            : 'Servis Kompor Gas',
+                                    'latitude': selectedOrder.latitude,
+                                    'longitude': selectedOrder.longitude,
+                                    'technician_latitude':
+                                        technicianPoint?.latitude,
+                                    'technician_longitude':
+                                        technicianPoint?.longitude,
+                                    'paymentMethod':
+                                        selectedOrder.paymentMethod,
+                                    'address': selectedOrder.addressText ??
+                                        selectedOrder.address?.addressLine ??
+                                        'Lokasi pelanggan belum tersedia',
+                                    'amount': selectedOrder.totalAmount,
+                                    'status': selectedOrder.status,
+                                  },
+                                ).then((_) {
+                                  if (mounted) {
+                                    setState(
+                                        () => _ordersFuture = _loadOrders());
+                                  }
+                                });
+                              },
+                              onOpenOrders: () => Navigator.pushNamed(
+                                context,
+                                AppRoutes.technicianIncomingOrders,
+                              ).then((_) {
+                                if (mounted) {
+                                  setState(() => _ordersFuture = _loadOrders());
+                                }
+                              }),
+                              onShowRoute: () {
+                                if (mapPoints.length == 2) {
+                                  final bounds =
+                                      LatLngBounds.fromPoints(mapPoints);
+                                  _mapController.fitCamera(
+                                    CameraFit.bounds(
+                                      bounds: bounds,
+                                      padding: const EdgeInsets.all(90),
+                                    ),
+                                  );
+                                } else if (technicianPoint != null) {
+                                  _mapController.move(technicianPoint, 15);
+                                }
+                              },
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
-                Positioned(
-                  right: 18,
-                  bottom: 246,
-                  child: Column(
-                    children: [
-                      _mapControl(Icons.add, 'Perbesar', () {
-                        _mapController.move(
-                            center, _mapController.camera.zoom + 1);
-                      }),
-                      const SizedBox(height: 8),
-                      _mapControl(Icons.remove, 'Perkecil', () {
-                        _mapController.move(
-                            center, _mapController.camera.zoom - 1);
-                      }),
-                      const SizedBox(height: 8),
-                      _mapControl(Icons.my_location_rounded, 'Lokasi teknisi',
-                          () {
-                        if (technicianPoint != null) {
-                          _mapController.move(technicianPoint, 15);
-                        }
-                      }),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  left: 18,
-                  right: 18,
-                  bottom: 18,
-                  child: _orderPanel(
-                    userName: user?.name ?? 'Teknisi',
-                    order: selectedOrder,
-                    customerPoint: customerPoint,
-                    orderCount: incomingOrders,
-                    loading:
-                        snapshot.connectionState == ConnectionState.waiting,
-                    error: snapshot.hasError ? snapshot.error.toString() : null,
-                    onOpenActiveOrder: () {
-                      if (selectedOrder == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'Belum ada pesanan yang sedang berlangsung.'),
-                          ),
-                        );
-                        return;
-                      }
-                      Navigator.pushNamed(
-                        context,
-                        AppRoutes.technicianOrderDetail,
-                        arguments: {
-                          'orderId': selectedOrder.id,
-                          'orderNumber': selectedOrder.orderNumber,
-                          'customerName':
-                              selectedOrder.customer?.name ?? 'Pelanggan',
-                          'serviceName': selectedOrder.items.isNotEmpty
-                              ? selectedOrder.items.first.serviceName ??
-                                  selectedOrder.items.first.service?.name ??
-                                  'Servis Kompor Gas'
-                              : 'Servis Kompor Gas',
-                          'latitude': selectedOrder.latitude,
-                          'longitude': selectedOrder.longitude,
-                          'technician_latitude': technicianPoint?.latitude,
-                          'technician_longitude': technicianPoint?.longitude,
-                          'paymentMethod': selectedOrder.paymentMethod,
-                          'address': selectedOrder.addressText ??
-                              selectedOrder.address?.addressLine ??
-                              'Lokasi pelanggan belum tersedia',
-                          'amount': selectedOrder.totalAmount,
-                          'status': selectedOrder.status,
-                        },
-                      ).then((_) {
-                        if (mounted) {
-                          setState(() => _ordersFuture = _loadOrders());
-                        }
-                      });
-                    },
-                    onOpenOrders: () => Navigator.pushNamed(
-                      context,
-                      AppRoutes.technicianIncomingOrders,
-                    ).then((_) {
-                      if (mounted) {
-                        setState(() => _ordersFuture = _loadOrders());
-                      }
-                    }),
-                    onShowRoute: () {
-                      if (mapPoints.length == 2) {
-                        final bounds = LatLngBounds.fromPoints(mapPoints);
-                        _mapController.fitCamera(
-                          CameraFit.bounds(
-                            bounds: bounds,
-                            padding: const EdgeInsets.all(90),
-                          ),
-                        );
-                      } else if (technicianPoint != null) {
-                        _mapController.move(technicianPoint, 15);
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
           if (index == 1) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Halaman pendapatan belum tersedia.')),
-            );
+            setState(() => _currentIndex = 1);
           } else if (index == 2) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Halaman pesan belum tersedia.')),
-            );
+            setState(() => _currentIndex = 2);
           } else if (index == 3) {
             Navigator.pushNamed(context, AppRoutes.technicianServiceHistory);
           } else {

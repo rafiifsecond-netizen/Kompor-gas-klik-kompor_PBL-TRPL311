@@ -12,6 +12,36 @@ use Illuminate\Support\Str;
 
 class ChatController extends Controller
 {
+    public function index(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user->isTechnician()) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+        }
+
+        $chats = Chat::query()
+            ->where('technician_id', $user->id)
+            ->with([
+                'customer:id,name,avatar_url',
+                'order:id,order_number,status',
+                'latestMessage.sender:id,name,role',
+            ])
+            ->withCount([
+                'messages as unread_count' => fn ($query) => $query
+                    ->where('sender_id', '!=', $user->id)
+                    ->whereNull('read_at'),
+            ])
+            ->withMax('messages as last_message_at', 'created_at')
+            ->orderByDesc('last_message_at')
+            ->orderByDesc('id')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $chats,
+        ]);
+    }
+
     /**
      * Retrieve chat room details and message history for an order.
      */

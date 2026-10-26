@@ -25,7 +25,7 @@ class OrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = Order::with(['items.serviceItem', 'technician:id,name,phone,avatar_url', 'customer:id,name,phone,avatar_url', 'payment']);
+        $query = Order::with(['items.serviceItem', 'additionalCosts', 'technician:id,name,phone,avatar_url', 'customer:id,name,phone,avatar_url', 'payment']);
 
         if ($user->isCustomer()) {
             $query->where('customer_id', $user->id);
