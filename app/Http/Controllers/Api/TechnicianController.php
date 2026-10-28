@@ -77,6 +77,11 @@ class TechnicianController extends Controller
 
         $technicians->each(function (User $technician): void {
             $technician->makeHidden(['email', 'phone', 'address']);
+            $technician->technicianProfile?->makeHidden([
+                'current_latitude',
+                'current_longitude',
+                'last_location_updated_at',
+            ]);
         });
 
         return response()->json([
@@ -101,6 +106,11 @@ class TechnicianController extends Controller
             ->firstOrFail();
 
         $technician->makeHidden(['email', 'phone', 'address']);
+        $technician->technicianProfile?->makeHidden([
+            'current_latitude',
+            'current_longitude',
+            'last_location_updated_at',
+        ]);
 
         return response()->json([
             'success' => true,
