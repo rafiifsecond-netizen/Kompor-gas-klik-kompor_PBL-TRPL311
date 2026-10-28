@@ -73,16 +73,86 @@ class ActivityLog extends Model
             'actor_id' => $user?->id,
             'actor_role' => $user?->role ?? 'system',
             'event_name' => $eventName,
-            'description' => $description,
+            'description' => self::sanitizeText($description),
             'entity_type' => $entity ? class_basename($entity) : null,
             'entity_id' => $entity?->getKey(),
             'ip_address' => $req?->ip() ?? '127.0.0.1',
             'user_agent' => $req?->userAgent(),
             'platform' => $platform,
-            'old_values' => $oldValues,
-            'new_values' => $newValues,
+            'old_values' => self::sanitizeValues($oldValues),
+            'new_values' => self::sanitizeValues($newValues),
             'status' => $status,
             'created_at' => now(),
         ]);
+    }
+
+    /**
+     * Audit records must not become a secondary store for credentials or PII.
+     *
+     * @param  array<string, mixed>|null  $values
+     * @return array<string, mixed>|null
+     */
+    private static function sanitizeValues(?array $values): ?array
+    {
+        if ($values === null) {
+            return null;
+        }
+
+        $sensitiveKeys = [
+            'password',
+            'password_confirmation',
+            'token',
+            'access_token',
+            'remember_token',
+            'email',
+            'phone',
+            'address',
+            'full_address',
+            'recipient_name',
+            'customer_name',
+            'customer_phone',
+            'ktp_number',
+            'latitude',
+            'longitude',
+            'current_latitude',
+            'current_longitude',
+            'proof_url',
+            'transaction_reference',
+            'payload',
+            'message',
+            'user_agent',
+        ];
+
+        $sanitize = function (mixed $value, ?string $key = null) use (&$sanitize, $sensitiveKeys): mixed {
+            if ($key !== null && in_array(strtolower($key), $sensitiveKeys, true)) {
+                return '[REDACTED]';
+            }
+
+            if (is_array($value)) {
+                $result = [];
+                foreach ($value as $childKey => $childValue) {
+                    $result[$childKey] = $sanitize($childValue, is_string($childKey) ? $childKey : null);
+                }
+
+                return $result;
+            }
+
+            return $value;
+        };
+
+        return $sanitize($values);
+    }
+
+    private static function sanitizeText(?string $text): ?string
+    {
+        if ($text === null) {
+            return null;
+        }
+
+        return preg_replace(
+            '/((?:email|identifier|phone|telepon|alamat|address)\s*[:=]\s*)([^,\s;]+)/i',
+            '$1[REDACTED]',
+            $text
+        ) ?? '[REDACTED]';
     }
 }

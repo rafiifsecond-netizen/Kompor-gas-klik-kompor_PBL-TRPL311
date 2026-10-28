@@ -11,6 +11,7 @@ use App\Models\TechnicianProfile;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 
@@ -48,8 +49,24 @@ Route::post('/admin/login', function (Request $request) {
         Auth::login($user);
         $request->session()->regenerate();
 
+        ActivityLog::logEvent(
+            eventName: 'auth.login.success',
+            description: 'Admin login web berhasil',
+            entity: $user,
+            request: $request,
+            actor: $user
+        );
+
         return redirect()->route('admin.dashboard');
     }
+
+    ActivityLog::logEvent(
+        eventName: 'auth.login.failed',
+        description: 'Percobaan login admin web gagal untuk identifier hash: '.
+            hash('sha256', strtolower($credentials['email'])),
+        status: 'failed',
+        request: $request
+    );
 
     return back()->withErrors(['email' => 'Email atau kata sandi salah.']);
 })->name('admin.login.submit');
@@ -67,7 +84,21 @@ Route::post('/admin/forgot-password', function (Request $request) {
         return back()->withErrors(['email' => 'Email ini bukan akun administrator.']);
     }
 
+    ActivityLog::logEvent(
+        eventName: 'auth.password.forgot',
+        description: 'Permintaan reset password admin web',
+        entity: $user,
+        request: $request
+    );
+
     $token = \Illuminate\Support\Str::random(60);
+    DB::table('password_reset_tokens')->updateOrInsert(
+        ['email' => $user->email],
+        [
+            'token' => Hash::make($token),
+            'created_at' => now(),
+        ]
+    );
     $resetLink = route('admin.reset_password', ['token' => $token, 'email' => $user->email]);
 
     return back()
@@ -82,7 +113,7 @@ Route::get('/admin/reset-password/{token}', function ($token, Request $request) 
 Route::post('/admin/reset-password', function (Request $request) {
     $request->validate([
         'email' => 'required|email|exists:users,email',
-        'password' => 'required|min:6|confirmed',
+        'password' => 'required|min:8|confirmed',
         'token' => 'required',
     ]);
 
@@ -91,18 +122,36 @@ Route::post('/admin/reset-password', function (Request $request) {
         return back()->withErrors(['email' => 'Akun admin tidak ditemukan.']);
     }
 
+    $resetRecord = DB::table('password_reset_tokens')
+        ->where('email', $user->email)
+        ->first();
+
+    if (
+        ! $resetRecord
+        || now()->greaterThan(\Illuminate\Support\Carbon::parse($resetRecord->created_at)->addHour())
+        || ! Hash::check($request->token, $resetRecord->token)
+    ) {
+        return back()->withErrors(['token' => 'Token reset tidak valid atau sudah kadaluarsa.']);
+    }
+
     $user->update([
         'password' => Hash::make($request->password),
     ]);
+    DB::table('password_reset_tokens')->where('email', $user->email)->delete();
+
+    ActivityLog::logEvent(
+        eventName: 'auth.password.reset',
+        description: 'Reset password admin web berhasil',
+        entity: $user,
+        request: $request,
+        actor: $user
+    );
 
     return redirect()->route('admin.login')->with('success', 'Kata sandi berhasil diatur ulang! Silakan login.');
 })->name('admin.reset_password.submit');
 
+Route::middleware(['auth', 'role:admin'])->group(function () {
 Route::get('/admin/dashboard', function () {
-    $user = Auth::user();
-    if (!$user || $user->role !== 'admin') {
-        return redirect()->route('admin.login');
-    }
 
     $stats = [
         'total_users' => User::where('role', 'customer')->count(),
@@ -136,10 +185,6 @@ Route::get('/admin/dashboard', function () {
 
 // ── Profile Admin ────────────────────────────────────────────────────────────
 Route::get('/admin/profile', function () {
-    $user = Auth::user();
-    if (!$user || $user->role !== 'admin') {
-        return redirect()->route('admin.login');
-    }
     return view('admin.profile');
 })->name('admin.profile');
 
@@ -173,10 +218,6 @@ Route::post('/admin/profile/password', function (Request $request) {
 // ── Notifications Admin ──────────────────────────────────────────────────────
 Route::get('/admin/notifications', function () {
     $user = Auth::user();
-    if (!$user || $user->role !== 'admin') {
-        return redirect()->route('admin.login');
-    }
-
     $notifications = Notification::where('user_id', $user->id)
         ->whereNull('read_at')
         ->latest()
@@ -205,10 +246,6 @@ Route::post('/admin/notifications/{id}/read', function ($id) {
 // ── Orders CRUD ─────────────────────────────────────────────────────────────
 Route::get('/admin/orders', function () {
     $user = Auth::user();
-    if (!$user || $user->role !== 'admin') {
-        return redirect()->route('admin.login');
-    }
-
     $stats = [
         'total_users' => User::where('role', 'customer')->count(),
         'total_technicians' => TechnicianProfile::count(),
@@ -229,10 +266,6 @@ Route::delete('/admin/orders/{id}', function ($id) {
 // ── Customers CRUD ──────────────────────────────────────────────────────────
 Route::get('/admin/customers', function () {
     $user = Auth::user();
-    if (!$user || $user->role !== 'admin') {
-        return redirect()->route('admin.login');
-    }
-
     $stats = [
         'total_users' => User::where('role', 'customer')->count(),
         'total_technicians' => TechnicianProfile::count(),
@@ -275,10 +308,6 @@ Route::delete('/admin/customers/{id}', function ($id) {
 // ── Technicians CRUD ────────────────────────────────────────────────────────
 Route::get('/admin/technicians', function () {
     $user = Auth::user();
-    if (!$user || $user->role !== 'admin') {
-        return redirect()->route('admin.login');
-    }
-
     $stats = [
         'total_users' => User::where('role', 'customer')->count(),
         'total_technicians' => TechnicianProfile::count(),
@@ -328,10 +357,6 @@ Route::delete('/admin/technicians/{id}', function ($id) {
 // ── Services CRUD ───────────────────────────────────────────────────────────
 Route::get('/admin/services', function () {
     $user = Auth::user();
-    if (!$user || $user->role !== 'admin') {
-        return redirect()->route('admin.login');
-    }
-
     $stats = [
         'total_users' => User::where('role', 'customer')->count(),
         'total_technicians' => TechnicianProfile::count(),
@@ -375,10 +400,6 @@ Route::delete('/admin/services/{id}', function ($id) {
 // ── Payments CRUD ───────────────────────────────────────────────────────────
 Route::get('/admin/payments', function () {
     $user = Auth::user();
-    if (!$user || $user->role !== 'admin') {
-        return redirect()->route('admin.login');
-    }
-
     $stats = [
         'total_users' => User::where('role', 'customer')->count(),
         'total_technicians' => TechnicianProfile::count(),
@@ -399,10 +420,6 @@ Route::delete('/admin/payments/{id}', function ($id) {
 // ── Reviews ─────────────────────────────────────────────────────────────────
 Route::get('/admin/reviews', function () {
     $user = Auth::user();
-    if (!$user || $user->role !== 'admin') {
-        return redirect()->route('admin.login');
-    }
-
     $stats = [
         'total_users' => User::where('role', 'customer')->count(),
         'total_technicians' => TechnicianProfile::count(),
@@ -423,10 +440,6 @@ Route::delete('/admin/reviews/{id}', function ($id) {
 // ── Reports ─────────────────────────────────────────────────────────────────
 Route::get('/admin/reports', function () {
     $user = Auth::user();
-    if (!$user || $user->role !== 'admin') {
-        return redirect()->route('admin.login');
-    }
-
     $stats = [
         'total_users' => User::where('role', 'customer')->count(),
         'total_technicians' => TechnicianProfile::count(),
@@ -442,10 +455,6 @@ Route::get('/admin/reports', function () {
 // ── Settings ────────────────────────────────────────────────────────────────
 Route::get('/admin/settings', function () {
     $user = Auth::user();
-    if (!$user || $user->role !== 'admin') {
-        return redirect()->route('admin.login');
-    }
-
     $stats = [
         'total_users' => User::where('role', 'customer')->count(),
         'total_technicians' => TechnicianProfile::count(),
@@ -461,8 +470,17 @@ Route::post('/admin/settings', function (Request $request) {
 })->middleware(['auth', 'role:admin'])->name('admin.settings.update');
 
 Route::post('/admin/logout', function (Request $request) {
+    $user = Auth::user();
+    ActivityLog::logEvent(
+        eventName: 'auth.logout',
+        description: 'Admin logout dari sesi web',
+        entity: $user,
+        request: $request,
+        actor: $user
+    );
     Auth::logout();
     $request->session()->invalidate();
     $request->session()->regenerateToken();
     return redirect()->route('admin.login');
 })->middleware(['auth', 'role:admin'])->name('admin.logout');
+});

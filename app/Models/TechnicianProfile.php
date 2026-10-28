@@ -38,6 +38,7 @@ class TechnicianProfile extends Model
     {
         return [
             'skills' => 'array',
+            'ktp_number' => 'encrypted',
             'is_verified' => 'boolean',
             'is_available' => 'boolean',
             'verified_at' => 'datetime',

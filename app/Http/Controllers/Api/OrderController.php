@@ -326,6 +326,7 @@ class OrderController extends Controller
         $statusTo = $validated['status'];
         $oldStatus = $order->status;
 
+        return DB::transaction(function () use ($order, $user, $validated, $request, $statusTo, $oldStatus) {
         // Auto-assign technician if order has no technician_id assigned yet
         if (! $order->technician_id && $user->isTechnician()) {
             $order->technician_id = $user->id;
@@ -470,6 +471,7 @@ class OrderController extends Controller
             'message' => "Status pesanan berhasil diperbarui menjadi {$statusTo}.",
             'data' => $order,
         ]);
+        });
     }
 
     /**
@@ -497,6 +499,7 @@ class OrderController extends Controller
             'reason' => ['nullable', 'string'],
         ]);
 
+        return DB::transaction(function () use ($order, $user, $validated, $request) {
         $oldSchedule = $order->scheduled_at->toDateTimeString();
         $order->update(['scheduled_at' => $validated['scheduled_at']]);
 
@@ -534,6 +537,7 @@ class OrderController extends Controller
             'message' => 'Jadwal kunjungan berhasil diubah.',
             'data' => $order,
         ]);
+        });
     }
 
     /**
@@ -565,6 +569,7 @@ class OrderController extends Controller
             'proof_url' => ['nullable', 'string'],
         ]);
 
+        return DB::transaction(function () use ($order, $user, $validated, $request) {
         $paymentNumber = 'PAY-'.date('Ymd').'-'.strtoupper(Str::random(5));
 
         $payment = Payment::updateOrCreate(
@@ -612,5 +617,6 @@ class OrderController extends Controller
                 'payment' => $payment,
             ],
         ]);
+        });
     }
 }

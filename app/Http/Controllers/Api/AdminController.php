@@ -9,6 +9,7 @@ use App\Models\TechnicianProfile;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
@@ -133,6 +134,7 @@ class AdminController extends Controller
             'role' => ['required', 'string', 'in:customer,technician,admin'],
         ]);
 
+        return DB::transaction(function () use ($admin, $user, $validated, $request) {
         $oldRole = $user->role;
         $user->update(['role' => $validated['role']]);
 
@@ -162,6 +164,7 @@ class AdminController extends Controller
             'message' => 'Peran pengguna berhasil diubah.',
             'data' => $user->fresh('technicianProfile'),
         ]);
+        });
     }
 
     /**
