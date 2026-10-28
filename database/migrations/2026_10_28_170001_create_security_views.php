@@ -7,8 +7,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement(<<<'SQL'
-            CREATE VIEW IF NOT EXISTS v_service_catalog_public AS
+        $createView = DB::getDriverName() === 'sqlite'
+            ? 'CREATE VIEW IF NOT EXISTS'
+            : 'CREATE OR REPLACE VIEW';
+
+        DB::statement(<<<SQL
+            {$createView} v_service_catalog_public AS
             SELECT
                 si.id,
                 si.service_category_id,
@@ -22,8 +26,8 @@ return new class extends Migration
             WHERE si.is_active = 1
         SQL);
 
-        DB::statement(<<<'SQL'
-            CREATE VIEW IF NOT EXISTS v_technician_public AS
+        DB::statement(<<<SQL
+            {$createView} v_technician_public AS
             SELECT
                 u.id,
                 u.name,
@@ -40,8 +44,8 @@ return new class extends Migration
             WHERE u.role = 'technician' AND u.is_active = 1
         SQL);
 
-        DB::statement(<<<'SQL'
-            CREATE VIEW IF NOT EXISTS v_payment_operational AS
+        DB::statement(<<<SQL
+            {$createView} v_payment_operational AS
             SELECT
                 p.id,
                 p.order_id,
@@ -56,8 +60,8 @@ return new class extends Migration
             FROM payments p
         SQL);
 
-        DB::statement(<<<'SQL'
-            CREATE VIEW IF NOT EXISTS v_audit_event_summary AS
+        DB::statement(<<<SQL
+            {$createView} v_audit_event_summary AS
             SELECT
                 id,
                 actor_id,
