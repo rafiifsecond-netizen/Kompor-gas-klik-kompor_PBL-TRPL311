@@ -75,6 +75,10 @@ class TechnicianController extends Controller
             })->values();
         }
 
+        $technicians->each(function (User $technician): void {
+            $technician->makeHidden(['email', 'phone', 'address']);
+        });
+
         return response()->json([
             'success' => true,
             'data' => $technicians,
@@ -95,6 +99,8 @@ class TechnicianController extends Controller
                 },
             ])
             ->firstOrFail();
+
+        $technician->makeHidden(['email', 'phone', 'address']);
 
         return response()->json([
             'success' => true,
