@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -97,7 +98,7 @@ class AuthController extends Controller
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             ActivityLog::logEvent(
                 eventName: 'auth.login.failed',
-                description: 'Percobaan login gagal untuk identifier: '.$validated['identifier'],
+                description: 'Percobaan login gagal untuk identifier: '.self::maskIdentifier($validated['identifier']),
                 status: 'failed',
                 request: $request
             );
@@ -304,7 +305,8 @@ class AuthController extends Controller
             ], 403);
         }
 
-        // Generate 6-digit numeric token for mobile OTP flow
+        // The token is sent through the configured mail channel and never returned
+        // in an API response or persisted in plaintext.
         $token = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
 
         DB::table('password_reset_tokens')->updateOrInsert(
@@ -313,6 +315,14 @@ class AuthController extends Controller
                 'token' => Hash::make($token),
                 'created_at' => now(),
             ]
+        );
+
+        Mail::raw(
+            "Kode verifikasi reset kata sandi Anda: {$token}\nKode berlaku selama satu jam.",
+            function ($message) use ($user): void {
+                $message->to($user->email)
+                    ->subject('Kode reset kata sandi KlikKompor');
+            }
         );
 
         ActivityLog::logEvent(
@@ -324,18 +334,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => "Kode verifikasi 6-digit berhasil dikirimkan ke email {$user->email} (Simulasi Email).",
-            'data' => [
-                'email' => $user->email,
-                'reset_token' => $token,
-                'dummy_email' => [
-                    'from' => 'noreply@klikkompor.com',
-                    'to' => $user->email,
-                    'subject' => '[Simulasi Email] Kode Verifikasi Reset Kata Sandi',
-                    'message' => "Halo {$user->name},\n\nAnda menerima email ini untuk melakukan reset kata sandi pada akun KlikKompor Anda.\n\nKode verifikasi Anda: {$token}\n\nMasukkan kode tersebut pada aplikasi mobile untuk melanjutkan.",
-                    'sent_at' => now()->format('Y-m-d H:i:s'),
-                ],
-            ],
+            'message' => 'Jika akun dengan alamat tersebut tersedia, kode verifikasi telah dikirimkan melalui kanal pemulihan yang dikonfigurasi.',
         ]);
     }
 
@@ -370,7 +369,19 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $tokenValid = Hash::check($validated['token'], $resetRecord->token) || $validated['token'] === $resetRecord->token;
+        $expiresAt = \Illuminate\Support\Carbon::parse($resetRecord->created_at)
+            ->addSeconds((int) config('auth.passwords.users.expire', 3600));
+
+        if ($expiresAt->isPast()) {
+            DB::table('password_reset_tokens')->where('email', $user->email)->delete();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Kode reset kata sandi sudah kadaluarsa.',
+            ], 422);
+        }
+
+        $tokenValid = Hash::check($validated['token'], $resetRecord->token);
 
         if (!$tokenValid) {
             return response()->json([
@@ -397,5 +408,20 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'Kata sandi berhasil diatur ulang. Silakan login kembali.',
         ]);
+    }
+
+    private static function maskIdentifier(string $identifier): string
+    {
+        $identifier = trim($identifier);
+
+        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            [$local, $domain] = explode('@', $identifier, 2);
+
+            return substr($local, 0, 1).'***@'.$domain;
+        }
+
+        return strlen($identifier) <= 4
+            ? '***'
+            : substr($identifier, 0, 2).'***'.substr($identifier, -2);
     }
 }

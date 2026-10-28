@@ -146,6 +146,7 @@ class AdditionalCostController extends Controller
             ], 422);
         }
 
+        return DB::transaction(function () use ($order, $cost, $user, $request) {
         $cost->update(['status' => AdditionalCost::STATUS_APPROVED]);
 
         // Recalculate order subtotal and total amount
@@ -182,6 +183,7 @@ class AdditionalCostController extends Controller
                 'order' => $order->fresh(),
             ],
         ]);
+        });
     }
 
     /**
@@ -209,6 +211,7 @@ class AdditionalCostController extends Controller
             ], 422);
         }
 
+        return DB::transaction(function () use ($order, $cost, $user, $request) {
         $cost->update(['status' => AdditionalCost::STATUS_REJECTED]);
 
         if ($order->technician_id) {
@@ -237,6 +240,7 @@ class AdditionalCostController extends Controller
             'message' => 'Biaya tambahan ditolak.',
             'data' => $cost->fresh(),
         ]);
+        });
     }
 
     /**
