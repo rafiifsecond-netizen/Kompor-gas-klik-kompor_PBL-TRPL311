@@ -25,7 +25,16 @@ class OrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = Order::with(['items.serviceItem', 'additionalCosts', 'technician:id,name,phone,avatar_url', 'customer:id,name,phone,avatar_url', 'payment']);
+        $query = Order::with([
+            'items.serviceItem',
+            'additionalCosts',
+            'technician' => function ($q) {
+                $q->select('id', 'name', 'phone', 'avatar_url')
+                    ->with('technicianProfile');
+            },
+            'customer:id,name,phone,avatar_url',
+            'payment',
+        ]);
 
         if ($user->isCustomer()) {
             $query->where('customer_id', $user->id);
@@ -170,7 +179,10 @@ class OrderController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Pesanan berhasil dibuat.',
-                'data' => $order->load(['items', 'technician']),
+                'data' => $order->load([
+                    'items',
+                    'technician.technicianProfile',
+                ]),
             ], 201);
         });
     }

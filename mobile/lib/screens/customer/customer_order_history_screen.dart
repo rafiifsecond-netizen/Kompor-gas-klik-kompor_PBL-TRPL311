@@ -153,7 +153,9 @@ class _CustomerOrderHistoryScreenState
                                 arguments: o),
                             onReviewTap: o.isCompleted
                                 ? () => Navigator.pushNamed(
-                                    context, AppRoutes.customerReview)
+                                    context,
+                                    AppRoutes.customerReview,
+                                    arguments: {'orderId': o.id})
                                 : null,
                             onReorderTap: () => Navigator.pushNamed(
                                 context, AppRoutes.customerCatalog),

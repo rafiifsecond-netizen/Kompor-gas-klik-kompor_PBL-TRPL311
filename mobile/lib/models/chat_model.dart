@@ -33,8 +33,11 @@ class ChatMessageModel {
           ? json['sender_id']
           : int.tryParse(json['sender_id']?.toString() ?? '') ?? 0,
       message: json['message'] as String? ?? '',
-      imageUrl: json['image_url'] as String?,
-      isRead: json['is_read'] == true || json['is_read'] == 1,
+      imageUrl:
+          (json['attachment_url'] ?? json['image_url']) as String?,
+      isRead: json['read_at'] != null ||
+          json['is_read'] == true ||
+          json['is_read'] == 1,
       createdAt: json['created_at'] as String?,
       sender: json['sender'] != null && json['sender'] is Map
           ? UserModel.fromJson(Map<String, dynamic>.from(json['sender'] as Map))
@@ -83,9 +86,10 @@ class ChatModel {
                   Map<String, dynamic>.from(m as Map)))
               .toList()
           : [],
-      lastMessage: json['last_message'] != null && json['last_message'] is Map
-          ? ChatMessageModel.fromJson(
-              Map<String, dynamic>.from(json['last_message'] as Map))
+      lastMessage: (json['latest_message'] ?? json['last_message']) != null &&
+              (json['latest_message'] ?? json['last_message']) is Map
+          ? ChatMessageModel.fromJson(Map<String, dynamic>.from(
+              (json['latest_message'] ?? json['last_message']) as Map))
           : null,
     );
   }

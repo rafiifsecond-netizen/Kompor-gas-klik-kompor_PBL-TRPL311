@@ -715,6 +715,8 @@ class _RealServiceGridState extends State<_RealServiceGrid> {
         setState(
             () => _services = rows.map(ServiceModel.fromJson).take(4).toList());
       }
+    } catch (_) {
+      if (mounted) setState(() => _services = []);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

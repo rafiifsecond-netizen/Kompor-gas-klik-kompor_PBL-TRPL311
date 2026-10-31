@@ -37,8 +37,10 @@ class AddressModel {
           : int.tryParse(json['user_id']?.toString() ?? '') ?? 0,
       label: json['label'] as String? ?? 'Rumah',
       recipientName: json['recipient_name'] as String? ?? '',
-      recipientPhone: json['recipient_phone'] as String? ?? '',
-      addressLine: json['address_line'] as String? ?? '',
+      recipientPhone:
+          (json['phone'] ?? json['recipient_phone']) as String? ?? '',
+      addressLine:
+          (json['full_address'] ?? json['address_line']) as String? ?? '',
       city: json['city'] as String?,
       postalCode: json['postal_code'] as String?,
       notes: json['notes'] as String?,
@@ -58,8 +60,8 @@ class AddressModel {
       'user_id': userId,
       'label': label,
       'recipient_name': recipientName,
-      'recipient_phone': recipientPhone,
-      'address_line': addressLine,
+      'phone': recipientPhone,
+      'full_address': addressLine,
       'city': city,
       'postal_code': postalCode,
       'notes': notes,

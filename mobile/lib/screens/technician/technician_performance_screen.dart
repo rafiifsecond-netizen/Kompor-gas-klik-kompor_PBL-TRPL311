@@ -3,20 +3,50 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../repositories/technician_repository.dart';
 
-class TechnicianPerformanceScreen extends StatelessWidget {
+class TechnicianPerformanceScreen extends StatefulWidget {
   final ValueChanged<int> onNavTap;
   const TechnicianPerformanceScreen({super.key, required this.onNavTap});
+
+  @override
+  State<TechnicianPerformanceScreen> createState() =>
+      _TechnicianPerformanceScreenState();
+}
+
+class _TechnicianPerformanceScreenState
+    extends State<TechnicianPerformanceScreen> {
+  final _repository = TechnicianRepository();
+  Future<List<Map<String, dynamic>>>? _reviewsFuture;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reviewsFuture ??= _loadReviews();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadReviews() async {
+    final user = context.read<AuthProvider>().user;
+    if (user == null) return const [];
+    try {
+      final detail = await _repository.getTechnicianDetail(user.id);
+      final rows = detail?['reviews_received'];
+      if (rows is List) {
+        return rows.whereType<Map>().map(Map<String, dynamic>.from).toList();
+      }
+    } catch (_) {}
+    return const [];
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final profile = user?.technicianProfile;
 
-    final double rating = profile?.ratingAverage ?? 4.9;
-    final int completedJobs = profile?.totalCompletedOrders ?? 24;
-    final int reviewCount = profile?.totalReviews ?? 18;
-    const String chatResponseRate = '98%';
+    final double rating = profile?.ratingAverage ?? 0;
+    final int completedJobs = profile?.totalCompletedOrders ?? 0;
+    final int reviewCount = profile?.totalReviews ?? 0;
+    final bool isVerified = profile?.isVerified ?? false;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -89,7 +119,10 @@ class TechnicianPerformanceScreen extends StatelessWidget {
                           decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8)),
-                          child: Text('Status: Aktif & Siap Melayani',
+                          child: Text(
+                              isVerified
+                                  ? 'Status: Terverifikasi'
+                                  : 'Status: Menunggu Verifikasi',
                               style: GoogleFonts.inter(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -118,7 +151,7 @@ class TechnicianPerformanceScreen extends StatelessWidget {
                     icon: Icons.star_rounded,
                     iconColor: Colors.amber,
                     title: 'Akumulasi Rating',
-                    value: '$rating ⭐',
+                    value: rating > 0 ? rating.toStringAsFixed(1) : '-',
                     subtitle: 'Dari $reviewCount ulasan pelanggan',
                   ),
                 ),
@@ -139,11 +172,11 @@ class TechnicianPerformanceScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: _buildStatCard(
-                    icon: Icons.chat_bubble_rounded,
+                    icon: Icons.rate_review_rounded,
                     iconColor: AppColors.primary,
-                    title: 'Respon Chat',
-                    value: chatResponseRate,
-                    subtitle: 'Persentase chat dibalas cepat',
+                    title: 'Total Ulasan',
+                    value: '$reviewCount Ulasan',
+                    subtitle: 'Ulasan pelanggan tercatat',
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -152,7 +185,7 @@ class TechnicianPerformanceScreen extends StatelessWidget {
                     icon: Icons.verified_rounded,
                     iconColor: Colors.blue,
                     title: 'Status Akun',
-                    value: 'Terverifikasi',
+                    value: isVerified ? 'Terverifikasi' : 'Belum Verifikasi',
                     subtitle: 'Mitra resmi terpercaya',
                   ),
                 ),
@@ -176,11 +209,46 @@ class TechnicianPerformanceScreen extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                           color: Colors.black)),
                   const SizedBox(height: 12),
-                  _buildReviewItem('Dewi Lestari', '5.0',
-                      'Teknisi sangat ramah dan kompor langsung menyala normal kembali.'),
-                  const Divider(height: 20),
-                  _buildReviewItem('Budi Santoso', '4.8',
-                      'Pekerjaan cepat, bersih, dan bergaransi.'),
+                  FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _reviewsFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                                color: AppColors.primary),
+                          ),
+                        );
+                      }
+                      final reviews = snapshot.data ?? const [];
+                      if (reviews.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Text('Belum ada ulasan dari pelanggan.',
+                              style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary)),
+                        );
+                      }
+                      return Column(
+                        children: [
+                          for (var i = 0; i < reviews.length; i++) ...[
+                            if (i > 0) const Divider(height: 20),
+                            _buildReviewItem(
+                              (reviews[i]['customer'] is Map
+                                      ? (reviews[i]['customer'] as Map)['name']
+                                      : null)
+                                      ?.toString() ??
+                                  'Pelanggan',
+                              (reviews[i]['rating'] ?? '-').toString(),
+                              (reviews[i]['comment'] ?? '').toString(),
+                            ),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ),
             ),

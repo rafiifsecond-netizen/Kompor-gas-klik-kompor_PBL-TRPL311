@@ -1,32 +1,28 @@
-import '../core/config/app_config.dart';
+import '../core/constants/api_endpoints.dart';
 import '../core/network/api_client.dart';
-import '../data/dummy/dummy_data.dart';
 
 class ReviewRepository {
   final ApiClient _api;
   ReviewRepository({ApiClient? api}) : _api = api ?? ApiClient();
-  static final _memory = [...dummyReviews];
-
   Future<List<Map<String, dynamic>>> getReviews(int technicianId) async {
-    if (AppConfig.useDummyData) return List<Map<String, dynamic>>.from(_memory);
-    final response = await _api.get('/technicians/$technicianId/reviews');
-    final rows = response is Map ? response['data'] : null;
+    final response = await _api.get(
+      ApiEndpoints.technicianDetail(technicianId),
+    );
+    final technician = response is Map ? response['data'] : null;
+    final rows = technician is Map ? technician['reviews_received'] : null;
     return rows is List
         ? rows.whereType<Map>().map(Map<String, dynamic>.from).toList()
         : [];
   }
 
-  Future<void> createReview(
-      {required int rating, required String comment}) async {
-    if (AppConfig.useDummyData) {
-      _memory.add({
-        'id': _memory.length + 1,
-        'customer': 'Anda',
-        'rating': rating,
-        'comment': comment
-      });
-      return;
-    }
-    await _api.post('/reviews', data: {'rating': rating, 'comment': comment});
+  Future<void> createReview({
+    required int orderId,
+    required int rating,
+    required String comment,
+  }) async {
+    await _api.post(
+      ApiEndpoints.reviewOrder(orderId),
+      data: {'rating': rating, 'comment': comment},
+    );
   }
 }

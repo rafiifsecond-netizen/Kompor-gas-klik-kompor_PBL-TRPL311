@@ -31,10 +31,22 @@ class _CustomerOrderTrackingScreenState
   bool _isLoading = true;
   OrderModel? _realOrder;
   String? _errorMessage;
+  bool _initialized = false;
   final _repository = OrderRepository();
 
-  final LatLng _customerPoint = const LatLng(1.1292, 104.0417);
-  final LatLng _technicianPoint = const LatLng(1.1350, 104.0500);
+  LatLng? get _customerPoint {
+    final order = _realOrder;
+    final lat = order?.latitude;
+    final lng = order?.longitude;
+    return lat != null && lng != null ? LatLng(lat, lng) : null;
+  }
+
+  LatLng? get _technicianPoint {
+    final profile = _realOrder?.technician?.technicianProfile;
+    final lat = profile?.currentLatitude;
+    final lng = profile?.currentLongitude;
+    return lat != null && lng != null ? LatLng(lat, lng) : null;
+  }
 
   @override
   void didChangeDependencies() {
@@ -42,7 +54,9 @@ class _CustomerOrderTrackingScreenState
     _initRealTracking();
   }
 
-  void _initRealTracking() {
+  void _initRealTracking() async {
+    if (_initialized) return;
+    _initialized = true;
     final rawArgs = RouteArgs.of<OrderModel>(context) ?? RouteArgs.map(context);
     if (rawArgs is OrderModel) {
       _realOrder = rawArgs;
@@ -52,13 +66,27 @@ class _CustomerOrderTrackingScreenState
       final id = int.tryParse(rawArgs['id'].toString()) ?? 1;
       _fetchRealOrderDetails(id);
     } else {
-      setState(() => _isLoading = false);
+      try {
+        final rows = await _repository.getOrders();
+        final orders = rows
+            .map((r) => OrderModel.fromJson(Map<String, dynamic>.from(r)))
+            .toList();
+        if (orders.isNotEmpty && mounted) {
+          setState(() {
+            _realOrder = orders.first;
+            _isLoading = false;
+          });
+          _fetchRealOrderDetails(orders.first.id);
+        }
+      } catch (_) {}
+      if (mounted) setState(() => _isLoading = false);
     }
 
     _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(const Duration(seconds: 8), (_) {
-      if (_realOrder != null && mounted) {
-        _fetchRealOrderDetails(_realOrder!.id, isBackground: true);
+      final current = _realOrder;
+      if (current != null && mounted) {
+        _fetchRealOrderDetails(current.id, isBackground: true);
       }
     });
   }
@@ -145,23 +173,34 @@ class _CustomerOrderTrackingScreenState
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary))
-          : _errorMessage != null && order == null
+          : order == null
               ? Center(
                   child: Padding(
                     padding: AppSpacing.allXxl,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline_rounded,
-                            size: 48, color: AppColors.danger),
+                        Icon(
+                            _errorMessage != null
+                                ? Icons.error_outline_rounded
+                                : Icons.inbox_outlined,
+                            size: 48,
+                            color: _errorMessage != null
+                                ? AppColors.danger
+                                : AppColors.textSecondary),
                         const SizedBox(height: 12),
-                        Text(_errorMessage!,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(
-                                fontSize: 13, color: AppColors.textSecondary)),
+                        Text(
+                          _errorMessage ?? 'Tidak ada data pesanan aktif untuk dilacak.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                              fontSize: 13, color: AppColors.textSecondary),
+                        ),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                            onPressed: () => _initRealTracking(),
+                            onPressed: () {
+                              _initialized = false;
+                              _initRealTracking();
+                            },
                             child: const Text('Coba Lagi')),
                       ],
                     ),
@@ -169,7 +208,7 @@ class _CustomerOrderTrackingScreenState
                 )
               : RefreshIndicator(
                   onRefresh: () async {
-                    if (order != null) await _fetchRealOrderDetails(order.id);
+                    await _fetchRealOrderDetails(order.id);
                   },
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -246,8 +285,7 @@ class _CustomerOrderTrackingScreenState
                             technicianPhone: technician?.phone,
                             hasTechnician: hasTechnician,
                             context: context),
-                        if (order != null &&
-                            !['completed', 'cancelled'].contains(statusStr)) ...[
+                        if (!['completed', 'cancelled'].contains(statusStr)) ...[
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
@@ -315,6 +353,20 @@ class _CustomerOrderTrackingScreenState
   }
 
   Widget _buildOpenStreetMapCard({required bool hasTechnician}) {
+    final customerPoint = _customerPoint;
+    final technicianPoint = _technicianPoint;
+    final center = customerPoint ?? technicianPoint;
+    if (center == null) {
+      return Container(
+        height: 240,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.trackingSoft,
+          borderRadius: AppRadius.large,
+        ),
+        child: const Text('Lokasi pesanan belum tersedia'),
+      );
+    }
     return Container(
       width: double.infinity,
       height: 240,
@@ -329,7 +381,7 @@ class _CustomerOrderTrackingScreenState
             FlutterMap(
               mapController: _mapController,
               options: MapOptions(
-                initialCenter: _customerPoint,
+                initialCenter: center,
                 initialZoom: 14,
                 interactionOptions: const InteractionOptions(
                   flags: InteractiveFlag.all,
@@ -340,11 +392,11 @@ class _CustomerOrderTrackingScreenState
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.klikkompor.mobile',
                 ),
-                if (hasTechnician)
+                if (technicianPoint != null && customerPoint != null)
                   PolylineLayer(
                     polylines: [
                       Polyline(
-                        points: [_technicianPoint, _customerPoint],
+                        points: [technicianPoint, customerPoint],
                         strokeWidth: 4,
                         color: AppColors.primary,
                       ),
@@ -352,9 +404,9 @@ class _CustomerOrderTrackingScreenState
                   ),
                 MarkerLayer(
                   markers: [
-                    if (hasTechnician)
+                    if (technicianPoint != null)
                       Marker(
-                        point: _technicianPoint,
+                        point: technicianPoint,
                         width: 48,
                         height: 48,
                         child: const DecoratedBox(
@@ -364,17 +416,18 @@ class _CustomerOrderTrackingScreenState
                               color: Colors.white, size: 24),
                         ),
                       ),
-                    Marker(
-                      point: _customerPoint,
-                      width: 48,
-                      height: 48,
-                      child: const DecoratedBox(
-                        decoration: BoxDecoration(
-                            color: Colors.blue, shape: BoxShape.circle),
-                        child: Icon(Icons.person_rounded,
-                            color: Colors.white, size: 24),
+                    if (customerPoint != null)
+                      Marker(
+                        point: customerPoint,
+                        width: 48,
+                        height: 48,
+                        child: const DecoratedBox(
+                          decoration: BoxDecoration(
+                              color: Colors.blue, shape: BoxShape.circle),
+                          child: Icon(Icons.person_rounded,
+                              color: Colors.white, size: 24),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ],
@@ -392,19 +445,21 @@ class _CustomerOrderTrackingScreenState
                 child: Row(
                   children: [
                     Icon(
-                      hasTechnician
+                      technicianPoint != null
                           ? Icons.radar_rounded
                           : Icons.search_rounded,
-                      color: hasTechnician
+                      color: technicianPoint != null
                           ? Colors.greenAccent
                           : Colors.orangeAccent,
                       size: 14,
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      hasTechnician
+                      technicianPoint != null
                           ? 'GPS Live Tracking (Zoom Enabled)'
-                          : 'Mencari Teknisi Terdekat...',
+                          : hasTechnician
+                              ? 'Lokasi Teknisi Menunggu Update GPS'
+                              : 'Mencari Teknisi Terdekat...',
                       style: GoogleFonts.inter(
                           fontSize: 11,
                           color: Colors.white,
@@ -424,9 +479,11 @@ class _CustomerOrderTrackingScreenState
                     backgroundColor: Colors.white,
                     child: const Icon(Icons.add, color: Colors.black),
                     onPressed: () {
-                      final zoom = _mapController.camera.zoom;
-                      _mapController.move(
-                          _mapController.camera.center, zoom + 1);
+                      try {
+                        final zoom = _mapController.camera.zoom;
+                        _mapController.move(
+                            _mapController.camera.center, zoom + 1);
+                      } catch (_) {}
                     },
                   ),
                   const SizedBox(height: 4),
@@ -435,9 +492,11 @@ class _CustomerOrderTrackingScreenState
                     backgroundColor: Colors.white,
                     child: const Icon(Icons.remove, color: Colors.black),
                     onPressed: () {
-                      final zoom = _mapController.camera.zoom;
-                      _mapController.move(
-                          _mapController.camera.center, zoom - 1);
+                      try {
+                        final zoom = _mapController.camera.zoom;
+                        _mapController.move(
+                            _mapController.camera.center, zoom - 1);
+                      } catch (_) {}
                     },
                   ),
                 ],
@@ -672,8 +731,20 @@ class _CustomerOrderTrackingScreenState
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline_rounded,
                 color: AppColors.primary),
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.customerChat),
+            onPressed: () {
+              if (_realOrder != null) {
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.customerChatDetail,
+                  arguments: {
+                    'orderId': _realOrder!.id,
+                    'technicianName': technicianName ?? 'Teknisi',
+                  },
+                );
+              } else {
+                Navigator.pushNamed(context, AppRoutes.customerChat);
+              }
+            },
             tooltip: 'Chat Teknisi',
           ),
           IconButton(

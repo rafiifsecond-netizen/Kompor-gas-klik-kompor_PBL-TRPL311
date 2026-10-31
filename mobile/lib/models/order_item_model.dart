@@ -47,9 +47,10 @@ class OrderItemModel {
               0.0)
           : 0.0,
       serviceName: json['service_name'] as String?,
-      service: json['service'] != null && json['service'] is Map
-          ? ServiceModel.fromJson(
-              Map<String, dynamic>.from(json['service'] as Map))
+      service: (json['service_item'] ?? json['service']) != null &&
+              (json['service_item'] ?? json['service']) is Map
+          ? ServiceModel.fromJson(Map<String, dynamic>.from(
+              (json['service_item'] ?? json['service']) as Map))
           : null,
     );
   }

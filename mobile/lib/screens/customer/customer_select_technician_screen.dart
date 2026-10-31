@@ -42,25 +42,43 @@ class _CustomerSelectTechnicianScreenState
         setState(() {
           _technicians = list.map((item) {
             final map = Map<String, dynamic>.from(item);
-            final userMap = map['user'] is Map
-                ? Map<String, dynamic>.from(map['user'] as Map)
-                : {};
+            // Backend /technicians returns users with a nested
+            // technician_profile object, not a flat profile row.
+            final profile = map['technician_profile'] is Map
+                ? Map<String, dynamic>.from(map['technician_profile'] as Map)
+                : map;
+            final userId = map['id'] is int
+                ? map['id'] as int
+                : int.tryParse(map['id']?.toString() ?? '') ??
+                    int.tryParse(profile['user_id']?.toString() ?? '') ??
+                    0;
             return {
-              'id': map['id'] ?? userMap['id'] ?? 1,
-              'user_id': userMap['id'] ?? map['user_id'] ?? 1,
-              'name': userMap['name'] ?? map['name'] ?? 'Teknisi Resmi',
-              'phone': userMap['phone'] ?? map['phone'] ?? '08123456789',
-              'rating':
-                  double.tryParse(map['rating_avg']?.toString() ?? '5.0') ??
-                      5.0,
-              'reviewCount': map['reviews_count'] ?? 12,
-              'distance': '${map['distance_km'] ?? 0} km',
-              'distance_km': (map['distance_km'] as num?)?.toDouble() ?? 0,
-              'price': (map['price'] as num?)?.toDouble() ?? 0,
-              'specialization': map['specialization'] ?? '',
-              'experience':
-                  '${map['jobs_completed_count'] ?? 5} Servis Selesai',
-              'is_available': map['is_available'] ?? true,
+              'id': profile['id'] ?? userId,
+              'user_id': userId,
+              'name': map['name'] ?? profile['name'] ?? 'Teknisi Resmi',
+              'phone': map['phone'] ?? profile['phone'] ?? '',
+              'rating': double.tryParse(
+                      (profile['rating_avg'] ?? profile['rating_average'])
+                              ?.toString() ??
+                          '') ??
+                  0.0,
+              'reviewCount':
+                  int.tryParse((profile['reviews_count'] ??
+                              profile['total_reviews'])
+                          ?.toString() ??
+                      '') ??
+                      0,
+              'distance': map['distance_km'] == null
+                  ? '-'
+                  : '${map['distance_km']} km',
+              'distance_km': (map['distance_km'] as num?)?.toDouble(),
+              'price': (profile['price'] as num?)?.toDouble() ?? 0,
+              'specialization': profile['specialization'] ??
+                  profile['bio'] ??
+                  '',
+              'experience': '${profile['jobs_completed_count'] ?? profile['total_completed_orders'] ?? 0} Servis Selesai',
+              'is_available': profile['is_available'] == true ||
+                  profile['is_available'] == 1,
             };
           }).toList();
           _isLoading = false;
@@ -340,14 +358,19 @@ class _SortChip {
 
 List<Map<String, dynamic>> sortTechnicians(
     List<Map<String, dynamic>> technicians, List<String> criteria) {
+  num distanceOf(Map<String, dynamic> row) =>
+      (row['distance_km'] as num?) ?? double.infinity;
+  num ratingOf(Map<String, dynamic> row) => (row['rating'] as num?) ?? 0;
+  num priceOf(Map<String, dynamic> row) => (row['price'] as num?) ?? 0;
+
   final result = List<Map<String, dynamic>>.from(technicians);
   result.sort((a, b) {
     for (final criterion in criteria) {
       final comparison = switch (criterion) {
-        'rating' => (b['rating'] as num).compareTo(a['rating'] as num),
-        'price_low' => (a['price'] as num).compareTo(b['price'] as num),
-        'price_high' => (b['price'] as num).compareTo(a['price'] as num),
-        _ => (a['distance_km'] as num).compareTo(b['distance_km'] as num),
+        'rating' => ratingOf(b).compareTo(ratingOf(a)),
+        'price_low' => priceOf(a).compareTo(priceOf(b)),
+        'price_high' => priceOf(b).compareTo(priceOf(a)),
+        _ => distanceOf(a).compareTo(distanceOf(b)),
       };
       if (comparison != 0) return comparison;
     }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/routes/route_args.dart';
+import '../../repositories/address_repository.dart';
 import '../../repositories/order_repository.dart';
 import '../../core/utils/validators.dart';
 import '../../core/utils/app_feedback.dart';
@@ -20,12 +22,72 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
   String _selectedMethod = 'cash'; // 'cash', 'bank', or 'qris'
   bool _isProcessing = false;
 
+  /// Extracts the numeric part of strings like "Rp 50.000".
+  double _parseRupiah(dynamic value) {
+    final digits = value?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+    return double.tryParse(digits) ?? 0;
+  }
+
+  /// Coordinates can come from the chosen address, the default address, or the
+  /// device GPS as a last resort. Without this the order is stored with
+  /// latitude/longitude = null and the tracking map stays empty.
+  Future<Map<String, double?>> _resolveCoordinates(
+      Map<String, dynamic> args) async {
+    var lat = double.tryParse(args['latitude']?.toString() ?? '');
+    var lng = double.tryParse(args['longitude']?.toString() ?? '');
+    if (lat != null && lng != null) {
+      return {'latitude': lat, 'longitude': lng};
+    }
+
+    try {
+      final rows = await AddressRepository().getAddresses();
+      if (rows.isNotEmpty) {
+        final preferred = rows.firstWhere(
+          (row) => row['is_default'] == true,
+          orElse: () => rows.first,
+        );
+        lat = double.tryParse(preferred['latitude']?.toString() ?? '');
+        lng = double.tryParse(preferred['longitude']?.toString() ?? '');
+        if (lat != null && lng != null) {
+          return {'latitude': lat, 'longitude': lng};
+        }
+      }
+    } catch (_) {}
+
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse) {
+        final position = await Geolocator.getCurrentPosition();
+        return {
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+        };
+      }
+    } catch (_) {}
+
+    return {'latitude': null, 'longitude': null};
+  }
+
   @override
   Widget build(BuildContext context) {
     final args = RouteArgs.map(context) ?? <String, dynamic>{};
     final String date = args['date'] as String? ?? 'Sab, 16 September 2026';
     final String time = args['time'] as String? ?? '09:00 - 12:00';
     final String address = args['address'] as String? ?? '';
+    final total = double.tryParse(args['total_amount']?.toString() ?? '') ??
+        double.tryParse(args['totalAmount']?.toString() ?? '') ??
+        0;
+    final basePrice = total > 0
+        ? total
+        : _parseRupiah(args['price'] ?? args['priceRange']);
+    final estimatedTotal = basePrice > 0 ? basePrice + 15000 : 0;
+    final totalLabel = estimatedTotal > 0
+        ? 'Rp ${estimatedTotal.toStringAsFixed(0)}'
+        : 'Dihitung otomatis';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -226,7 +288,7 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
                           ),
                         ),
                         Text(
-                          'Rp 90.000',
+                          totalLabel,
                           style: GoogleFonts.inter(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -260,6 +322,7 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
                                 Map<String, dynamic>? createdOrder;
 
                                 try {
+                                  final coords = await _resolveCoordinates(args);
                                   // Submit real order to Laravel API database
                                   final res = await _repository.createOrder({
                                     'scheduled_at': args['scheduled_at'] ??
@@ -267,6 +330,8 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
                                             .add(const Duration(days: 1))
                                             .toIso8601String(),
                                     'address': address,
+                                    'latitude': coords['latitude'],
+                                    'longitude': coords['longitude'],
                                     'problem_description':
                                         '${args['damageType'] ?? 'Permintaan service'}${(args['notes'] as String?)?.trim().isNotEmpty == true ? ': ${args['notes']}' : ''}',
                                     'payment_method': _selectedMethod == 'bank'

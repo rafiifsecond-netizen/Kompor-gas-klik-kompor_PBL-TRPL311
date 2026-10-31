@@ -164,7 +164,7 @@ class KlikKomporApiTest extends TestCase
 
         $response->assertOk()
             ->assertJsonFragment(['id' => $availableOrder->id])
-            ->assertJsonMissing(['id' => $otherOrder->id]);
+            ->assertJsonMissing(['order_number' => $otherOrder->order_number]);
     }
 
     public function test_admin_can_access_dashboard_metrics_and_logs(): void

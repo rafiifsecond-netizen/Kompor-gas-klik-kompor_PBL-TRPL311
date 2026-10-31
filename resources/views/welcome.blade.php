@@ -301,7 +301,7 @@
 
     <footer class="mt-20 border-t border-slate-800/80 py-8 bg-navy-950">
         <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
-            &copy; 2026 KlikKompor &bull; Dikembangkan dengan Laravel 12 & PostgreSQL/MySQL &bull; Solusi Layanan Kompor Gas Terpercaya
+            &copy; 2026 KlikKompor &bull; Dikembangkan dengan Laravel 12 & MySQL &bull; Solusi Layanan Kompor Gas Terpercaya
         </div>
     </footer>
 </body>

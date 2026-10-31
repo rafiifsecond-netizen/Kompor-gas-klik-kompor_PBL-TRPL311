@@ -86,8 +86,10 @@ class UserModel {
 
 class TechnicianProfileModel {
   final int id;
+  final String? bio;
   final int? experienceYears;
   final String? specialization;
+  final List<String> skills;
   final bool isVerified;
   final bool isAvailable;
   final double ratingAverage;
@@ -95,11 +97,14 @@ class TechnicianProfileModel {
   final int totalCompletedOrders;
   final double? currentLatitude;
   final double? currentLongitude;
+  final String? lastLocationUpdatedAt;
 
   TechnicianProfileModel({
     required this.id,
+    this.bio,
     this.experienceYears,
     this.specialization,
+    this.skills = const [],
     this.isVerified = false,
     this.isAvailable = true,
     this.ratingAverage = 0.0,
@@ -107,49 +112,71 @@ class TechnicianProfileModel {
     this.totalCompletedOrders = 0,
     this.currentLatitude,
     this.currentLongitude,
+    this.lastLocationUpdatedAt,
   });
 
+  /// Reads both the Laravel column names (years_of_experience, rating_avg,
+  /// reviews_count, jobs_completed_count) and the legacy camel/snake variants
+  /// so the UI never silently falls back to empty values.
   factory TechnicianProfileModel.fromJson(Map<String, dynamic> json) {
     return TechnicianProfileModel(
-      id: json['id'] is int
-          ? json['id']
-          : int.tryParse(json['id'].toString()) ?? 0,
-      experienceYears: json['experience_years'] is int
-          ? json['experience_years']
-          : int.tryParse(json['experience_years']?.toString() ?? ''),
+      id: _toInt(json['id']),
+      bio: json['bio'] as String?,
+      experienceYears:
+          _toIntOrNull(json['years_of_experience'] ?? json['experience_years']),
       specialization: json['specialization'] as String?,
-      isVerified: json['is_verified'] == true || json['is_verified'] == 1,
-      isAvailable: json['is_available'] == true || json['is_available'] == 1,
-      ratingAverage: (json['rating_average'] != null)
-          ? (double.tryParse(json['rating_average'].toString()) ?? 0.0)
-          : 0.0,
-      totalReviews: json['total_reviews'] is int
-          ? json['total_reviews']
-          : int.tryParse(json['total_reviews']?.toString() ?? '') ?? 0,
-      totalCompletedOrders: json['total_completed_orders'] is int
-          ? json['total_completed_orders']
-          : int.tryParse(json['total_completed_orders']?.toString() ?? '') ?? 0,
-      currentLatitude: json['current_latitude'] != null
-          ? double.tryParse(json['current_latitude'].toString())
-          : null,
-      currentLongitude: json['current_longitude'] != null
-          ? double.tryParse(json['current_longitude'].toString())
-          : null,
+      skills: json['skills'] is List
+          ? (json['skills'] as List).map((e) => e.toString()).toList()
+          : const [],
+      isVerified: _toBool(json['is_verified']),
+      isAvailable: _toBool(json['is_available']),
+      ratingAverage: _toDouble(json['rating_avg'] ?? json['rating_average']) ??
+          0.0,
+      totalReviews: _toInt(json['reviews_count'] ?? json['total_reviews']),
+      totalCompletedOrders: _toInt(
+          json['jobs_completed_count'] ?? json['total_completed_orders']),
+      currentLatitude: _toDouble(json['current_latitude']),
+      currentLongitude: _toDouble(json['current_longitude']),
+      lastLocationUpdatedAt: json['last_location_updated_at']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'experience_years': experienceYears,
+      'bio': bio,
+      'years_of_experience': experienceYears,
       'specialization': specialization,
+      'skills': skills,
       'is_verified': isVerified,
       'is_available': isAvailable,
-      'rating_average': ratingAverage,
-      'total_reviews': totalReviews,
-      'total_completed_orders': totalCompletedOrders,
+      'rating_avg': ratingAverage,
+      'reviews_count': totalReviews,
+      'jobs_completed_count': totalCompletedOrders,
       'current_latitude': currentLatitude,
       'current_longitude': currentLongitude,
+      'last_location_updated_at': lastLocationUpdatedAt,
     };
   }
+
+  static int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static int? _toIntOrNull(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+
+  static double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
+  }
+
+  static bool _toBool(dynamic value) => value == true || value == 1;
 }
