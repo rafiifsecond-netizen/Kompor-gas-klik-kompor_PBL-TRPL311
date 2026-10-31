@@ -28,7 +28,7 @@ class _TechnicianIncomeScreenState extends State<TechnicianIncomeScreen> {
     var lastPage = 1;
 
     do {
-      final response = await _repository.getCompletedOrders();
+      final response = await _repository.getCompletedOrders(page: pageNumber);
       if (response is! Map || response['success'] != true) {
         throw Exception('Data pendapatan tidak dapat dimuat.');
       }
@@ -44,8 +44,15 @@ class _TechnicianIncomeScreenState extends State<TechnicianIncomeScreen> {
           );
         }
         lastPage = int.tryParse(page['last_page']?.toString() ?? '') ?? 1;
+      } else if (page is List) {
+        orders.addAll(
+          page.whereType<Map>().map((row) => OrderModel.fromJson(
+                Map<String, dynamic>.from(row),
+              )),
+        );
+        lastPage = 1;
       }
-      pageNumber = lastPage + 1;
+      pageNumber++;
     } while (pageNumber <= lastPage);
 
     return orders.where((order) => order.isPaid).toList();

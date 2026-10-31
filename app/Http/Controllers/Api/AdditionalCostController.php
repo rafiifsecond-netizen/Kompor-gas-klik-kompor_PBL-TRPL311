@@ -84,17 +84,15 @@ class AdditionalCostController extends Controller
                 'unit_price' => $validated['unit_price'],
                 'subtotal' => $subtotal,
                 'photo_url' => $validated['photo_url'] ?? null,
-                'status' => AdditionalCost::STATUS_APPROVED,
+                'status' => AdditionalCost::STATUS_PENDING,
             ]);
 
-            $order->subtotal = (float) $order->subtotal + $subtotal;
-            $order->total_amount = (float) $order->total_amount + $subtotal;
-            $order->save();
+            // Order totals are only updated after the customer approves the cost.
 
             Notification::send($order->customer_id, [
                 'type' => Notification::TYPE_ORDER_UPDATE,
-                'title' => 'Biaya Tambahan Dicatat',
-                'message' => "Biaya tambahan {$cost->item_name} sebesar Rp ".number_format($subtotal, 0, ',', '.').' sudah dicatat sesuai kesepakatan dengan teknisi.',
+                'title' => 'Pengajuan Biaya Tambahan',
+                'message' => "Teknisi mengajukan biaya tambahan {$cost->item_name} sebesar Rp ".number_format($subtotal, 0, ',', '.').'. Mohon disetujui atau ditolak.',
                 'data' => [
                     'order_id' => $order->id,
                     'additional_cost_id' => $cost->id,
@@ -103,7 +101,7 @@ class AdditionalCostController extends Controller
 
             ActivityLog::logEvent(
                 eventName: 'order.additional_cost.added',
-                description: "Teknisi mencatat biaya tambahan: {$cost->item_name} (Rp ".number_format($subtotal, 0, ',', '.').") pada pesanan {$order->order_number}",
+                description: "Teknisi mengajukan biaya tambahan: {$cost->item_name} (Rp ".number_format($subtotal, 0, ',', '.').") pada pesanan {$order->order_number}",
                 entity: $cost,
                 newValues: $cost->toArray(),
                 request: $request,
@@ -112,11 +110,8 @@ class AdditionalCostController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Biaya tambahan langsung dicatat ke total pesanan.',
-                'data' => [
-                    'additional_cost' => $cost,
-                    'order' => $order->fresh(),
-                ],
+                'message' => 'Pengajuan biaya tambahan dikirim dan menunggu persetujuan pelanggan.',
+                'data' => $cost,
             ], 201);
         });
     }

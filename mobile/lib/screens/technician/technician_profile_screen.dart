@@ -28,20 +28,27 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final initial = _profileRepository.technicianProfile;
-    _profileUser = initial['user'] as UserModel;
-    _profileStatistics =
-        initial['statistics'] as Map<String, dynamic>;
+    _profileUser = context.read<AuthProvider>().user ??
+        UserModel(id: 0, name: 'Teknisi', email: '', role: 'technician');
+    _profileStatistics = <String, dynamic>{};
     _loadProfile();
   }
 
   Future<void> _loadProfile() async {
-    final profile = await _profileRepository.getTechnicianProfile();
-    if (!mounted) return;
-    setState(() {
-      _profileUser = profile['user'] as UserModel;
-      _profileStatistics = profile['statistics'] as Map<String, dynamic>;
-    });
+    try {
+      final profile = await _profileRepository.getTechnicianProfile();
+      if (!mounted) return;
+      setState(() {
+        final user = profile['user'];
+        if (user is UserModel) _profileUser = user;
+        final stats = profile['statistics'];
+        if (stats is Map) {
+          _profileStatistics = Map<String, dynamic>.from(stats);
+        }
+      });
+    } catch (_) {
+      // Keep the cached profile when the API is unreachable.
+    }
   }
   @override
   Widget build(BuildContext context) {
@@ -50,13 +57,18 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
       'statistics': _profileStatistics,
     };
     final user = _profileUser;
-    final profile = user.technicianProfile!;
+    final profile = user.technicianProfile ??
+        TechnicianProfileModel(
+          id: 0,
+          isVerified: false,
+          isAvailable: false,
+        );
 
     final double rating = profile.ratingAverage;
     final int completedJobs = profile.totalCompletedOrders;
     final int reviewCount = profile.totalReviews;
     final chatResponseRate =
-        profileData['statistics']['chat_response_rate'] as String;
+        profileData['statistics']['chat_response_rate'] as String? ?? '-';
 
     return Scaffold(
       backgroundColor: AppColors.background,

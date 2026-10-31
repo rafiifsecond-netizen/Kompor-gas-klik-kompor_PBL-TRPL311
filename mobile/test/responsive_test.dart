@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:klikkompor_mobile/core/config/app_config.dart';
 import 'package:klikkompor_mobile/core/routes/app_routes.dart';
 import 'package:klikkompor_mobile/core/routes/route_generator.dart';
 import 'package:klikkompor_mobile/core/theme/app_theme.dart';
@@ -67,7 +66,6 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    expect(AppConfig.useDummyData, isTrue);
     SharedPreferences.setMockInitialValues({});
     await StorageService.init();
   });

@@ -86,7 +86,14 @@ class _CustomerBookingSummaryScreenState
       AppRoutes.customerSelectAddress,
       arguments: 'select',
     );
-    if (selected is String && mounted) {
+    if (selected is Map && mounted) {
+      setState(() => _bookingArgs = {
+            ..._bookingArgs,
+            'address': selected['address']?.toString() ?? '',
+            'latitude': selected['latitude'],
+            'longitude': selected['longitude'],
+          });
+    } else if (selected is String && mounted) {
       setState(() => _bookingArgs = {..._bookingArgs, 'address': selected});
     }
   }
@@ -124,6 +131,8 @@ class _CustomerBookingSummaryScreenState
         'service_id': _bookingArgs['service_id'],
         'service_name': serviceName,
         'address': _bookingArgs['address'] ?? '',
+        'latitude': _bookingArgs['latitude'],
+        'longitude': _bookingArgs['longitude'],
         'date': _selectedDate,
         'time': _selectedTime,
         'scheduled_at': _scheduledAt(),

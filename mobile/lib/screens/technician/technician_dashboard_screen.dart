@@ -8,6 +8,7 @@ import '../../core/routes/app_routes.dart';
 import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../repositories/order_repository.dart';
+import '../../services/location_service.dart';
 import 'technician_chat_screen.dart';
 import 'technician_income_screen.dart';
 import 'technician_profile_screen.dart';
@@ -27,15 +28,36 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
   bool _isOnline = false;
   int _currentIndex = 0;
   final _repository = OrderRepository();
+  final _locationService = LocationService();
+  LatLng? _livePoint;
 
   @override
   void initState() {
     super.initState();
     _ordersFuture = _loadOrders();
+    final profile = context.read<AuthProvider>().user?.technicianProfile;
+    _isOnline = profile?.isAvailable ?? false;
+    if (_isOnline) {
+      _startTracking();
+    }
+  }
+
+  Future<void> _startTracking() async {
+    final position = await _locationService.currentPosition();
+    if (position != null && mounted) {
+      setState(() => _livePoint =
+          LatLng(position.latitude, position.longitude));
+    }
+    await _locationService.start(onPosition: (position) {
+      if (!mounted) return;
+      setState(() =>
+          _livePoint = LatLng(position.latitude, position.longitude));
+    });
   }
 
   @override
   void dispose() {
+    _locationService.stop();
     _mapController.dispose();
     super.dispose();
   }
@@ -55,10 +77,11 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
                   : _DashboardFuture(
                       future: _ordersFuture,
                       userName: user?.name ?? 'Teknisi',
-                      technicianPoint: _validPoint(
-                        user?.technicianProfile?.currentLatitude,
-                        user?.technicianProfile?.currentLongitude,
-                      ),
+                      technicianPoint: _livePoint ??
+                          _validPoint(
+                            user?.technicianProfile?.currentLatitude,
+                            user?.technicianProfile?.currentLongitude,
+                          ),
                       mapController: _mapController,
                       onMapTarget: _syncMapTarget,
                       onProfile: () => Navigator.pushNamed(
@@ -91,7 +114,14 @@ class _TechnicianDashboardScreenState extends State<TechnicianDashboardScreen> {
     setState(() => _isOnline = status);
     try {
       await _repository.updateTechnicianAvailability(status);
-    } catch (_) {}
+      if (status) {
+        await _startTracking();
+      } else {
+        await _locationService.stop();
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isOnline = !status);
+    }
   }
 
   void _syncMapTarget(

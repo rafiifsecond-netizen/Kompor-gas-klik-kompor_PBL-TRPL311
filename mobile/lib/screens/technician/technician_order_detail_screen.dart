@@ -6,6 +6,7 @@ import '../../core/routes/route_args.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/order_model.dart';
 import '../../repositories/order_repository.dart';
+import 'technician_chat_screen.dart';
 
 class TechnicianOrderDetailScreen extends StatefulWidget {
   const TechnicianOrderDetailScreen({super.key});
@@ -679,9 +680,24 @@ class _TechnicianOrderDetailScreenState
   }
 
   void _openChat() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Siap disambungkan saat halaman chat tersedia.')),
+    final orderId = _order['orderId'] ?? _order['id'];
+    final parsedId = orderId is int
+        ? orderId
+        : int.tryParse(orderId?.toString() ?? '') ?? 0;
+    if (parsedId == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pesanan belum memiliki ruang chat.')),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TechnicianChatDetailScreen(
+          orderId: parsedId,
+          customerName: _order['customerName'] as String? ?? 'Pelanggan',
+          orderDate: _order['orderDate'] as String? ?? '',
+        ),
+      ),
     );
   }
 

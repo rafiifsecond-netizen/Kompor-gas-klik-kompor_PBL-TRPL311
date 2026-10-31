@@ -122,7 +122,20 @@ class RouteGenerator {
         );
 
       case AppRoutes.customerReview:
-        return _fadeRoute(const CustomerReviewScreen(), settings);
+        final args = settings.arguments;
+        final orderId = args is Map
+            ? int.tryParse(args['orderId']?.toString() ?? '')
+            : null;
+        if (orderId == null || orderId <= 0) {
+          return _fadeRoute(
+            const MissingArgsScreen(message: 'Data pesanan tidak valid.'),
+            settings,
+          );
+        }
+        return _fadeRoute(
+          CustomerReviewScreen(orderId: orderId),
+          settings,
+        );
 
       case AppRoutes.customerProfile:
         return _fadeRoute(const CustomerProfileScreen(), settings);

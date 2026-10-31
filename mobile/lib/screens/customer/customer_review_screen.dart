@@ -6,7 +6,9 @@ import '../../repositories/review_repository.dart';
 import '../../core/utils/app_feedback.dart';
 
 class CustomerReviewScreen extends StatefulWidget {
-  const CustomerReviewScreen({super.key});
+  final int orderId;
+
+  const CustomerReviewScreen({super.key, required this.orderId});
   @override
   State<CustomerReviewScreen> createState() => _CustomerReviewScreenState();
 }
@@ -100,7 +102,10 @@ class _CustomerReviewScreenState extends State<CustomerReviewScreen> {
                     setState(() => _isSubmitting = true);
                     final navigator = Navigator.of(context);
                     await _repository.createReview(
-                        rating: _rating, comment: _commentCtrl.text.trim());
+                      orderId: widget.orderId,
+                      rating: _rating,
+                      comment: _commentCtrl.text.trim(),
+                    );
                     if (!mounted) return;
                     AppFeedback.success(
                         this.context, 'Ulasan berhasil dikirim! Terima kasih.');

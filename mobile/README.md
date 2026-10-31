@@ -49,7 +49,7 @@ mobile/
     ├── screens/
     │   ├── auth/
     │   │   ├── splash_screen.dart     # Auto-login & Routing sesuai Role
-    │   │   ├── login_screen.dart      # Login Form + Demo Credentials + Setting Host API
+    │   │   ├── login_screen.dart      # Login Form + Setting Host API
     │   │   └── register_screen.dart   # Pendaftaran Customer & Teknisi
     │   ├── customer/
     │   │   └── customer_home_screen.dart
@@ -88,8 +88,4 @@ mobile/
    flutter run
    ```
 
-## 🔑 Kredensial Uji Coba Demo
-
-Tersedia tombol preset sekali klik di Login Screen:
-- **Pelanggan**: `dewi@example.com` / `password123`
-- **Teknisi**: `agus.teknisi@klikkompor.com` / `password123`
+Login dan registrasi menggunakan akun yang tersimpan di backend Laravel.
