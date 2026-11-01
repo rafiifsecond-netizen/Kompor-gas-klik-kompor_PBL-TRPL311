@@ -80,6 +80,7 @@ class AuthService {
     String? name,
     String? phone,
     String? address,
+    String? avatarUrl,
   }) async {
     final response = await _apiClient.put(
       ApiEndpoints.updateProfile,
@@ -87,6 +88,7 @@ class AuthService {
         if (name != null) 'name': name,
         if (phone != null) 'phone': phone,
         if (address != null) 'address': address,
+        if (avatarUrl != null) 'avatar_url': avatarUrl,
       },
     );
     return ApiResponse<UserModel>.fromJson(

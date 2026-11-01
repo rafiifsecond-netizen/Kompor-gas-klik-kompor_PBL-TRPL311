@@ -24,19 +24,19 @@ import 'customer_service_detail_screen.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 const List<_BannerItem> _carouselItems = [
   _BannerItem(
-    assetPath: null, // → 'assets/images/banner1.jpg'
+    assetPath: null,
     title: 'Promo Servis Kompor',
     subtitle: 'Diskon 20% untuk servis pertama Anda!',
     gradient: [AppColors.primary, AppColors.bannerOrange],
   ),
   _BannerItem(
-    assetPath: null, // → 'assets/images/banner2.jpg'
+    imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
     title: 'Teknisi Berpengalaman',
     subtitle: 'Garansi pengerjaan hingga 30 hari',
     gradient: [AppColors.bannerNavy, AppColors.bannerBrown],
   ),
   _BannerItem(
-    assetPath: null, // → 'assets/images/banner3.jpg'
+    assetPath: null,
     title: 'Cek Kebocoran Gas',
     subtitle: 'Keamanan rumah Anda prioritas kami',
     gradient: [AppColors.bannerGreen, AppColors.bannerDarkGreen],
@@ -44,7 +44,6 @@ const List<_BannerItem> _carouselItems = [
 ];
 
 // Banner bawah (single, tidak carousel)
-// Ganti null → 'assets/images/banner_bawah.jpg'
 const String? _bannerBottomAsset = null;
 
 // ─── Warna & konstanta lokal ──────────────────────────────────────────────────
@@ -58,12 +57,14 @@ const _kPad = EdgeInsets.symmetric(horizontal: AppSpacing.xl);
 // ─────────────────────────────────────────────────────────────────────────────
 class _BannerItem {
   final String? assetPath;
+  final String? imageUrl;
   final String title;
   final String subtitle;
   final List<Color> gradient;
 
   const _BannerItem({
-    required this.assetPath,
+    this.assetPath,
+    this.imageUrl,
     required this.title,
     required this.subtitle,
     required this.gradient,
@@ -402,9 +403,23 @@ class _BannerSlide extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Background: gambar atau gradient
+        // Background: gambar asset, network URL, atau gradient
         if (item.assetPath != null)
           Image.asset(item.assetPath!, fit: BoxFit.cover)
+        else if (item.imageUrl != null)
+          Image.network(
+            item.imageUrl!,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: item.gradient,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+          )
         else
           DecoratedBox(
             decoration: BoxDecoration(
@@ -416,8 +431,8 @@ class _BannerSlide extends StatelessWidget {
             ),
           ),
 
-        // Decorative circles (hanya pada fallback)
-        if (item.assetPath == null) ...[
+        // Decorative circles (hanya jika tidak ada foto)
+        if (item.assetPath == null && item.imageUrl == null) ...[
           Positioned(
             right: -20,
             top: -20,

@@ -1,7 +1,7 @@
-// ignore_for_file: prefer_const_constructors
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_radius.dart';
@@ -15,6 +15,7 @@ import '../../widgets/custom_bottom_nav_bar.dart';
 
 class CustomerProfileScreen extends StatefulWidget {
   const CustomerProfileScreen({super.key});
+
   @override
   State<CustomerProfileScreen> createState() => _CustomerProfileScreenState();
 }
@@ -72,6 +73,46 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     }
   }
 
+  Widget _buildAvatarWidget(String? avatarUrl, {double size = 68}) {
+    if (avatarUrl == null || avatarUrl.isEmpty) {
+      return Icon(Icons.person_rounded, size: size * 0.55, color: AppColors.primary);
+    }
+    if (avatarUrl.startsWith('data:image')) {
+      try {
+        final base64Str = avatarUrl.split(',').last;
+        final bytes = base64Decode(base64Str);
+        return Image.memory(
+          bytes,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Icon(
+            Icons.person_rounded,
+            size: size * 0.55,
+            color: AppColors.primary,
+          ),
+        );
+      } catch (_) {
+        return Icon(
+          Icons.person_rounded,
+          size: size * 0.55,
+          color: AppColors.primary,
+        );
+      }
+    }
+    return Image.network(
+      avatarUrl,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Icon(
+        Icons.person_rounded,
+        size: size * 0.55,
+        color: AppColors.primary,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _profileUser;
@@ -79,12 +120,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-          title: const Text('Profil Saya'), backgroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Profil Saya'), backgroundColor: Colors.white),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Column(children: [
-          _buildHeader(user.name, user.email),
+          _buildHeader(user.name, user.email, user.avatarUrl),
           const SizedBox(height: 16),
           _buildCustomerStatistics(statistics),
           const SizedBox(height: 16),
@@ -94,14 +134,19 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
             _buildMenuItem(
               Icons.person_outline_rounded,
               'Edit Profil',
-              () => _showEditProfileSheet(context, user.name, user.phone ?? '',
-                  user.address ?? '', user),
+              () => _showEditProfileSheet(
+                context,
+                user.name,
+                user.phone ?? '',
+                user.address ?? '',
+                user.avatarUrl,
+                user,
+              ),
             ),
             _buildMenuItem(
               Icons.location_on_outlined,
               'Alamat Tersimpan',
-              () =>
-                  Navigator.pushNamed(context, AppRoutes.customerSelectAddress),
+              () => Navigator.pushNamed(context, AppRoutes.customerSelectAddress),
             ),
             _buildMenuItem(
               Icons.lock_outline_rounded,
@@ -112,27 +157,14 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
           const SizedBox(height: 12),
           _buildMenuSection('Pesanan', [
-            _buildMenuItem(
-                Icons.receipt_long_rounded,
-                'Riwayat Pesanan',
-                () => Navigator.pushNamed(
-                    context, AppRoutes.customerOrderHistory)),
-            _buildMenuItem(Icons.chat_bubble_outline_rounded, 'Pesan',
-                () => Navigator.pushNamed(context, AppRoutes.customerChat)),
+            _buildMenuItem(Icons.receipt_long_rounded, 'Riwayat Pesanan', () => Navigator.pushNamed(context, AppRoutes.customerOrderHistory)),
+            _buildMenuItem(Icons.chat_bubble_outline_rounded, 'Pesan', () => Navigator.pushNamed(context, AppRoutes.customerChat)),
           ]),
 
           const SizedBox(height: 12),
           _buildMenuSection('Lainnya', [
-            _buildMenuItem(
-                Icons.notifications_outlined,
-                'Notifikasi',
-                () => Navigator.pushNamed(
-                    context, AppRoutes.customerNotification)),
-            _buildMenuItem(
-                Icons.help_outline_rounded,
-                'Pusat Bantuan',
-                () =>
-                    Navigator.pushNamed(context, AppRoutes.customerHelpCenter)),
+            _buildMenuItem(Icons.notifications_outlined, 'Notifikasi', () => Navigator.pushNamed(context, AppRoutes.customerNotification)),
+            _buildMenuItem(Icons.help_outline_rounded, 'Pusat Bantuan', () => Navigator.pushNamed(context, AppRoutes.customerHelpCenter)),
             _buildMenuItem(
               Icons.info_outline_rounded,
               'Tentang Aplikasi',
@@ -140,11 +172,9 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                 context: context,
                 applicationName: 'KlikKompor',
                 applicationVersion: 'v1.0.0',
-                applicationIcon: const Icon(Icons.local_fire_department_rounded,
-                    size: 40, color: AppColors.primary),
+                applicationIcon: const Icon(Icons.local_fire_department_rounded, size: 40, color: AppColors.primary),
                 children: [
-                  const Text(
-                      'KlikKompor adalah platform pemesanan dan manajemen perbaikan kompor gas terpercaya.'),
+                  const Text('KlikKompor adalah platform pemesanan dan manajemen perbaikan kompor gas terpercaya.'),
                 ],
               ),
             ),
@@ -160,16 +190,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                 nav.pushNamedAndRemoveUntil(AppRoutes.login, (r) => false);
               },
               icon: const Icon(Icons.logout_rounded, color: AppColors.danger),
-              label: Text('Keluar',
-                  style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.danger)),
+              label: Text('Keluar', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.danger)),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
                 side: const BorderSide(color: AppColors.danger),
-                shape: const RoundedRectangleBorder(
-                    borderRadius: AppRadius.medium),
+                shape: const RoundedRectangleBorder(borderRadius: AppRadius.medium),
               ),
             ),
           ),
@@ -183,11 +208,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     );
   }
 
-  // ── Sheet 1: Edit Profil ──────────────────────────────────────────────────
   Future<bool> _saveProfile({
     required String name,
     required String phone,
     required String address,
+    required String? avatarUrl,
     required UserModel currentUser,
   }) async {
     try {
@@ -196,6 +221,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         name: name,
         phone: phone,
         address: address,
+        avatarUrl: avatarUrl,
       );
       if (mounted) setState(() => _profileUser = updated);
       return true;
@@ -204,27 +230,32 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     }
   }
 
-  void _showEditProfileSheet(BuildContext context, String currentName,
-      String currentPhone, String currentAddress, UserModel currentUser) {
+  // ── Sheet 1: Edit Profil ──────────────────────────────────────────────────
+  void _showEditProfileSheet(
+    BuildContext context,
+    String currentName,
+    String currentPhone,
+    String currentAddress,
+    String? currentAvatarUrl,
+    UserModel currentUser,
+  ) {
     final nameCtrl = TextEditingController(text: currentName);
     final phoneCtrl = TextEditingController(text: currentPhone);
     final addressCtrl = TextEditingController(text: currentAddress);
+    String? selectedAvatarUrl = currentAvatarUrl;
     final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) {
         bool isLoading = false;
         return StatefulBuilder(
           builder: (context, setStateModal) {
             return Padding(
               padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
+                left: 20, right: 20, top: 20,
                 bottom: MediaQuery.of(context).viewInsets.bottom + 20,
               ),
               child: Form(
@@ -236,35 +267,85 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Edit Profil Saya',
-                            style: GoogleFonts.inter(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
-                        IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(ctx)),
+                        Text('Edit Profil Saya', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                       ],
                     ),
                     const Divider(),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
+
+                    // ── Avatar Photo Picker ─────────────────────────────────
+                    Center(
+                      child: Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () => _showAvatarPickerModal(context, selectedAvatarUrl, (newUrl) {
+                              setStateModal(() => selectedAvatarUrl = newUrl);
+                            }),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  width: 88,
+                                  height: 88,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Color(0xFFFFEFE2),
+                                  ),
+                                  child: ClipOval(
+                                    child: _buildAvatarWidget(selectedAvatarUrl, size: 88),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 2),
+                                    ),
+                                    child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: () => _showAvatarPickerModal(context, selectedAvatarUrl, (newUrl) {
+                              setStateModal(() => selectedAvatarUrl = newUrl);
+                            }),
+                            child: Text(
+                              'Ganti Foto Profil',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: nameCtrl,
                       validator: (v) => Validators.required(v, label: 'Nama'),
                       decoration: InputDecoration(
                         labelText: 'Nama Lengkap',
-                        border: const OutlineInputBorder(
-                            borderRadius: AppRadius.medium),
+                        border: const OutlineInputBorder(borderRadius: AppRadius.medium),
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: phoneCtrl,
-                      validator: (v) =>
-                          Validators.required(v, label: 'Nomor telepon'),
+                      validator: (v) => Validators.required(v, label: 'Nomor telepon'),
                       keyboardType: TextInputType.phone,
                       decoration: InputDecoration(
                         labelText: 'Nomor Telepon (WhatsApp)',
-                        border: const OutlineInputBorder(
-                            borderRadius: AppRadius.medium),
+                        border: const OutlineInputBorder(borderRadius: AppRadius.medium),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -274,8 +355,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                       validator: (v) => Validators.required(v, label: 'Alamat'),
                       decoration: InputDecoration(
                         labelText: 'Alamat Lengkap',
-                        border: const OutlineInputBorder(
-                            borderRadius: AppRadius.medium),
+                        border: const OutlineInputBorder(borderRadius: AppRadius.medium),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -295,36 +375,26 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                                   name: nameCtrl.text.trim(),
                                   phone: phoneCtrl.text.trim(),
                                   address: addressCtrl.text.trim(),
+                                  avatarUrl: selectedAvatarUrl,
                                   currentUser: currentUser,
                                 );
                                 setStateModal(() => isLoading = false);
                                 if (ctx.mounted) {
                                   Navigator.pop(ctx);
                                   if (ok) {
-                                    AppFeedback.success(
-                                        ctx, 'Profil berhasil diperbarui.');
+                                    AppFeedback.success(ctx, 'Profil berhasil diperbarui.');
                                   } else {
-                                    AppFeedback.error(
-                                        ctx, 'Gagal memperbarui profil.');
+                                    AppFeedback.error(ctx, 'Gagal memperbarui profil.');
                                   }
                                 }
                               },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: AppRadius.medium),
+                          shape: const RoundedRectangleBorder(borderRadius: AppRadius.medium),
                         ),
                         child: isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2))
-                            : Text('Simpan Perubahan',
-                                style: GoogleFonts.inter(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white)),
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : Text('Simpan Perubahan', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
                     ),
                   ],
@@ -332,6 +402,154 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               ),
             );
           },
+        );
+      },
+    );
+  }
+
+  // ── Modal Pilih Foto Profil (Galeri / Kamera / Preset Avatar / Hapus) ─────
+  void _showAvatarPickerModal(
+    BuildContext context,
+    String? currentUrl,
+    ValueChanged<String?> onSelected,
+  ) {
+    Future<void> pickImageFromSource(ImageSource source) async {
+      try {
+        final ImagePicker picker = ImagePicker();
+        final XFile? image = await picker.pickImage(
+          source: source,
+          maxWidth: 800,
+          maxHeight: 800,
+          imageQuality: 85,
+        );
+        if (image != null) {
+          final bytes = await image.readAsBytes();
+          final base64Str = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+          onSelected(base64Str);
+          if (context.mounted) Navigator.pop(context);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal memilih foto: ${e.toString()}'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
+      }
+    }
+
+    final presetAvatars = [
+      'https://i.pravatar.cc/300?img=11',
+      'https://i.pravatar.cc/300?img=12',
+      'https://i.pravatar.cc/300?img=32',
+      'https://i.pravatar.cc/300?img=68',
+      'https://i.pravatar.cc/300?img=5',
+      'https://i.pravatar.cc/300?img=60',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20, right: 20, top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Pilih Foto Profil', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 8),
+
+              // ── Opsi 1: Pilih dari Galeri / File ───────────────────
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+                ),
+                title: Text('Pilih dari Galeri / File', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+                subtitle: Text('Ambil file foto dari galeri HP Anda', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
+                onTap: () => pickImageFromSource(ImageSource.gallery),
+              ),
+
+              // ── Opsi 2: Ambil dengan Kamera ─────────────────────────
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.camera_alt_rounded, color: Colors.blue),
+                ),
+                title: Text('Ambil dengan Kamera', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+                subtitle: Text('Foto langsung menggunakan kamera HP', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
+                onTap: () => pickImageFromSource(ImageSource.camera),
+              ),
+
+              const Divider(height: 24),
+              Text('Atau Pilih Avatar Karakter:', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+              const SizedBox(height: 12),
+
+              // ── Grid Preset Avatars ────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: presetAvatars.map((url) {
+                  final isSelected = currentUrl == url;
+                  return GestureDetector(
+                    onTap: () {
+                      onSelected(url);
+                      Navigator.pop(ctx);
+                    },
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? AppColors.primary : Colors.transparent,
+                          width: 2.5,
+                        ),
+                      ),
+                      child: ClipOval(
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.person),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+
+              const SizedBox(height: 16),
+
+              if (currentUrl != null && currentUrl.isNotEmpty) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      onSelected(null);
+                      Navigator.pop(ctx);
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+                    label: Text('Hapus Foto Profil', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.danger)),
+                  ),
+                ),
+              ],
+            ],
+          ),
         );
       },
     );
@@ -409,7 +627,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                               () => obscureCurrent = !obscureCurrent),
                         ),
                         border:
-                            OutlineInputBorder(borderRadius: AppRadius.medium),
+                            const OutlineInputBorder(borderRadius: AppRadius.medium),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -427,7 +645,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                               setStateModal(() => obscureNew = !obscureNew),
                         ),
                         border:
-                            OutlineInputBorder(borderRadius: AppRadius.medium),
+                            const OutlineInputBorder(borderRadius: AppRadius.medium),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -446,7 +664,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                               () => obscureConfirm = !obscureConfirm),
                         ),
                         border:
-                            OutlineInputBorder(borderRadius: AppRadius.medium),
+                            const OutlineInputBorder(borderRadius: AppRadius.medium),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -488,13 +706,13 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                                     errorMsg = auth.errorMessage ??
                                         'Gagal mengubah kata sandi.';
                                     AppFeedback.error(ctx, errorMsg!);
-                                    setStateModal(() {});
+                                    setStateModal({});
                                   }
                                 }
                               },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
+                          shape: const RoundedRectangleBorder(
                               borderRadius: AppRadius.medium),
                         ),
                         child: isLoading
@@ -520,7 +738,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     );
   }
 
-  Widget _buildHeader(String name, String email) {
+  Widget _buildHeader(String name, String email, String? avatarUrl) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.all(20),
@@ -529,29 +747,23 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
           width: 68,
           height: 68,
           decoration: const BoxDecoration(
-              shape: BoxShape.circle, color: Color(0xFFFFEFE2)),
-          child: const Icon(Icons.person_rounded,
-              size: 38, color: AppColors.primary),
+            shape: BoxShape.circle,
+            color: Color(0xFFFFEFE2),
+          ),
+          child: ClipOval(
+            child: _buildAvatarWidget(avatarUrl, size: 68),
+          ),
         ),
         const SizedBox(width: 16),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name,
-              style:
-                  GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700)),
+          Text(name, style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
-          Text(email,
-              style: GoogleFonts.inter(
-                  fontSize: 13, color: AppColors.textSecondary)),
+          Text(email, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
           const SizedBox(height: 6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-            decoration: BoxDecoration(
-                color: AppColors.primaryLight, borderRadius: AppRadius.small),
-            child: Text('Pelanggan',
-                style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary)),
+            decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: AppRadius.small),
+            child: Text('Pelanggan', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)),
           ),
         ]),
       ]),

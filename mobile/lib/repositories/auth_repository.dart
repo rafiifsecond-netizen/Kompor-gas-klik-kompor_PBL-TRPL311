@@ -88,11 +88,13 @@ class AuthRepository {
     String? name,
     String? phone,
     String? address,
+    String? avatarUrl,
   }) async {
     final response = await _authService.updateProfile(
       name: name,
       phone: phone,
       address: address,
+      avatarUrl: avatarUrl,
     );
     if (response.data != null) {
       await StorageService.saveUser(response.data!);

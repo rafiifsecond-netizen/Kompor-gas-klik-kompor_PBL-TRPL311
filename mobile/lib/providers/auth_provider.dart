@@ -151,6 +151,7 @@ class AuthProvider extends ChangeNotifier {
     String? name,
     String? phone,
     String? address,
+    String? avatarUrl,
   }) async {
     _status = AuthStatus.authenticating;
     _errorMessage = null;
@@ -162,6 +163,7 @@ class AuthProvider extends ChangeNotifier {
         name: name,
         phone: phone,
         address: address,
+        avatarUrl: avatarUrl,
       );
       _status = AuthStatus.authenticated;
       notifyListeners();

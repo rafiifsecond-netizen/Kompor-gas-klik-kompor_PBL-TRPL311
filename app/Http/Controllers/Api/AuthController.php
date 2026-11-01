@@ -172,10 +172,33 @@ class AuthController extends Controller
 
         $oldValues = $user->only(['name', 'phone', 'avatar_url', 'address']);
 
+        $avatarUrl = $user->avatar_url;
+        if (array_key_exists('avatar_url', $validated)) {
+            $avatarInput = $validated['avatar_url'];
+            if (!empty($avatarInput) && str_starts_with($avatarInput, 'data:image')) {
+                // Simpan berkas fisik di server
+                preg_match('/data:image\/(\w+);base64,(.*)/', $avatarInput, $matches);
+                if (count($matches) === 3) {
+                    $ext = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
+                    $imageData = base64_decode($matches[2]);
+                    $fileName = 'avatar_' . $user->id . '_' . time() . '.' . $ext;
+                    $uploadDir = public_path('uploads/avatars');
+                    if (!file_exists($uploadDir)) {
+                        mkdir($uploadDir, 0777, true);
+                    }
+                    file_put_contents($uploadDir . '/' . $fileName, $imageData);
+                }
+                // Simpan base64 data URI agar foto selalu tampil sempurna di Android/Web tanpa kendala host IP
+                $avatarUrl = $avatarInput;
+            } else {
+                $avatarUrl = $avatarInput;
+            }
+        }
+
         $user->update([
             'name' => $validated['name'] ?? $user->name,
             'phone' => $validated['phone'] ?? $user->phone,
-            'avatar_url' => $validated['avatar_url'] ?? $user->avatar_url,
+            'avatar_url' => $avatarUrl,
             'address' => $validated['address'] ?? $user->address,
         ]);
 
