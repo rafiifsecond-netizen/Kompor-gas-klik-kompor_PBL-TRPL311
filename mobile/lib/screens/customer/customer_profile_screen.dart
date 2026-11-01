@@ -706,7 +706,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                                     errorMsg = auth.errorMessage ??
                                         'Gagal mengubah kata sandi.';
                                     AppFeedback.error(ctx, errorMsg!);
-                                    setStateModal({});
+                                    setStateModal(() {});
                                   }
                                 }
                               },

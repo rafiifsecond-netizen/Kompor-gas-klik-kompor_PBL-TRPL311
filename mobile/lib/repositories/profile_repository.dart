@@ -21,10 +21,16 @@ class ProfileRepository {
     required String name,
     required String phone,
     required String address,
+    String? avatarUrl,
   }) async {
     final response = await _api.put(
       ApiEndpoints.updateProfile,
-      data: {'name': name, 'phone': phone, 'address': address},
+      data: {
+        'name': name,
+        'phone': phone,
+        'address': address,
+        if (avatarUrl != null) 'avatar_url': avatarUrl,
+      },
     );
     final profile = _profileResponse(response);
     return profile['user'] as UserModel;
