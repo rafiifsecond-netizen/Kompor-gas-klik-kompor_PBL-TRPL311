@@ -339,12 +339,14 @@ class _CustomerOrderTrackingScreenState
     final confirmed = await AppFeedback.confirm(
       context,
       title: 'Batalkan pesanan?',
-      message: 'Pesanan akan ditandai sebagai dibatalkan.',
-      confirmLabel: 'Batalkan pesanan',
+      message: 'Apakah Anda yakin ingin membatalkan pesanan ini?',
+      confirmLabel: 'Ya, Batalkan',
     );
     if (!confirmed || !mounted) return;
     try {
-      await _repository.updateStatus(orderId, {'status': 'cancelled'});
+      await _repository.cancelOrder(orderId, {
+        'reason': 'Dibatalkan oleh pelanggan melalui aplikasi.',
+      });
       await _fetchRealOrderDetails(orderId);
       if (mounted) AppFeedback.success(context, 'Pesanan berhasil dibatalkan.');
     } catch (error) {

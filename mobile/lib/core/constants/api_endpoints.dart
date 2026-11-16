@@ -45,6 +45,7 @@ class ApiEndpoints {
   // Orders
   static String get orders => '$baseUrl/orders';
   static String orderDetail(int id) => '$baseUrl/orders/$id';
+  static String cancelOrder(int id) => '$baseUrl/orders/$id/cancel';
   static String updateOrderServices(int id) => '$baseUrl/orders/$id/services';
   static String updateOrderStatus(int id) => '$baseUrl/orders/$id/status';
   static String payOrder(int id) => '$baseUrl/orders/$id/pay';
