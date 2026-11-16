@@ -487,6 +487,83 @@ class OrderController extends Controller
     }
 
     /**
+     * Cancel an active order (Customer, Technician, or Admin).
+     */
+    public function cancel(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $order = Order::findOrFail($id);
+
+        if ($user->isCustomer() && $order->customer_id !== $user->id) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+        }
+
+        if ($user->isTechnician() && $order->technician_id && $order->technician_id !== $user->id) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak. Anda bukan teknisi pesanan ini.'], 403);
+        }
+
+        if (in_array($order->status, [Order::STATUS_COMPLETED, Order::STATUS_CANCELLED], true)) {
+            return response()->json(['success' => false, 'message' => 'Pesanan sudah selesai atau telah dibatalkan sebelumnya.'], 422);
+        }
+
+        if ($user->isCustomer() && in_array($order->status, [Order::STATUS_IN_PROGRESS], true)) {
+            return response()->json(['success' => false, 'message' => 'Pesanan tidak dapat dibatalkan karena teknisi sedang mengerjakan servis.'], 422);
+        }
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $reason = $validated['reason'] ?? $validated['note'] ?? ($user->isCustomer() ? 'Dibatalkan oleh pelanggan.' : 'Dibatalkan oleh pihak penyedia jasa.');
+        $oldStatus = $order->status;
+
+        return DB::transaction(function () use ($order, $user, $reason, $oldStatus, $request) {
+            $order->update([
+                'status' => Order::STATUS_CANCELLED,
+                'cancellation_reason' => $reason,
+                'cancelled_by' => $user->id,
+            ]);
+
+            OrderStatusLog::create([
+                'order_id' => $order->id,
+                'actor_id' => $user->id,
+                'actor_role' => $user->role,
+                'status_from' => $oldStatus,
+                'status_to' => Order::STATUS_CANCELLED,
+                'note' => $reason,
+            ]);
+
+            ActivityLog::logEvent(
+                eventName: 'order.cancelled',
+                description: "Pesanan {$order->order_number} dibatalkan oleh {$user->name} ({$user->role})",
+                entity: $order,
+                oldValues: ['status' => $oldStatus],
+                newValues: ['status' => Order::STATUS_CANCELLED, 'reason' => $reason],
+                request: $request,
+                actor: $user
+            );
+
+            // Notify counterpart
+            $targetUserId = $user->id === $order->customer_id ? $order->technician_id : $order->customer_id;
+            if ($targetUserId) {
+                Notification::send($targetUserId, [
+                    'type' => Notification::TYPE_ORDER_UPDATE,
+                    'title' => 'Pesanan Dibatalkan',
+                    'message' => "Pesanan #{$order->order_number} telah dibatalkan. Alasan: {$reason}",
+                    'data' => ['order_id' => $order->id],
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pesanan berhasil dibatalkan.',
+                'data' => $order->fresh(),
+            ]);
+        });
+    }
+
+    /**
      * Reschedule visit (Fitur 7: Penjadwalan Kunjungan).
      */
     public function reschedule(Request $request, int $id): JsonResponse

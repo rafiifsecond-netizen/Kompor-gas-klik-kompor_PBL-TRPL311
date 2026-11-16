@@ -22,6 +22,10 @@ class OrderRepository {
     return _api.post(ApiEndpoints.orders, data: data);
   }
 
+  Future<dynamic> cancelOrder(int id, [Map<String, dynamic>? data]) async {
+    return _api.patch(ApiEndpoints.cancelOrder(id), data: data ?? {});
+  }
+
   Future<dynamic> updateStatus(int id, Map<String, dynamic> data) async {
     return _api.patch(ApiEndpoints.updateOrderStatus(id), data: data);
   }

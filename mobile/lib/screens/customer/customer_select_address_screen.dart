@@ -548,10 +548,13 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    isEdit ? 'Edit Alamat' : 'Tambah Alamat Baru',
-                    style: GoogleFonts.inter(
-                        fontSize: 18, fontWeight: FontWeight.w700),
+                  Expanded(
+                    child: Text(
+                      isEdit ? 'Edit Alamat' : 'Tambah Alamat Baru',
+                      style: GoogleFonts.inter(
+                          fontSize: 18, fontWeight: FontWeight.w700),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded),
@@ -646,21 +649,24 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
                 ),
               ),
               const SizedBox(height: 10),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _isDefault,
-                activeThumbColor: AppColors.primary,
-                activeTrackColor: AppColors.primaryLight,
-                onChanged: (val) => setState(() => _isDefault = val),
-                title: Text(
-                  'Jadikan Alamat Utama',
-                  style: GoogleFonts.inter(
-                      fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  'Alamat ini akan otomatis dipilih saat melakukan booking servis',
-                  style: GoogleFonts.inter(
-                      fontSize: 11.5, color: AppColors.textSecondary),
+              Material(
+                color: Colors.transparent,
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _isDefault,
+                  activeThumbColor: AppColors.primary,
+                  activeTrackColor: AppColors.primaryLight,
+                  onChanged: (val) => setState(() => _isDefault = val),
+                  title: Text(
+                    'Jadikan Alamat Utama',
+                    style: GoogleFonts.inter(
+                        fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Alamat ini akan otomatis dipilih saat melakukan booking servis',
+                    style: GoogleFonts.inter(
+                        fontSize: 11.5, color: AppColors.textSecondary),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
