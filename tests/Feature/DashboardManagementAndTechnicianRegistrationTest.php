@@ -201,6 +201,8 @@ class DashboardManagementAndTechnicianRegistrationTest extends TestCase
     public function test_prospective_technician_can_register_and_starts_as_pending()
     {
         $cert = UploadedFile::fake()->create('sertifikat.pdf', 500, 'application/pdf');
+        $ktpPhoto = UploadedFile::fake()->image('ktp.jpg');
+        $lamaran = UploadedFile::fake()->create('lamaran.pdf', 400, 'application/pdf');
 
         $payload = [
             'name' => 'Doni Teknisi',
@@ -215,6 +217,8 @@ class DashboardManagementAndTechnicianRegistrationTest extends TestCase
             'skills' => ['Kompor Gas Standar', 'Kompor Tanam', 'Kalibrasi Spuyer'],
             'ktp_number' => '3201123456780001',
             'certificate' => $cert,
+            'ktp_photo' => $ktpPhoto,
+            'application_letter' => $lamaran,
         ];
 
         $response = $this->postJson('/api/v1/auth/register', $payload);
@@ -231,6 +235,8 @@ class DashboardManagementAndTechnicianRegistrationTest extends TestCase
         $this->assertFalse($profile->is_verified);
         $this->assertFalse($profile->is_available);
         $this->assertNotNull($profile->certificate_url);
+        $this->assertNotNull($profile->ktp_photo_url);
+        $this->assertNotNull($profile->application_letter_url);
     }
 
     public function test_user_cannot_register_as_admin()

@@ -341,11 +341,23 @@
                                                 <span class="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-semibold text-slate-700">{{ $sk }}</span>
                                             @endforeach
                                         </div>
-                                        @if($pending->technicianProfile?->certificate_url)
-                                            <a href="{{ $pending->technicianProfile->certificate_url }}" target="_blank" class="text-[10px] text-orange-600 font-bold underline flex items-center gap-1">
-                                                <i data-lucide="file-text" class="w-3 h-3"></i> Lihat Berkas / Sertifikat
-                                            </a>
-                                        @endif
+                                        <div class="flex flex-col gap-1 mt-1.5">
+                                            @if($pending->technicianProfile?->ktp_photo_url)
+                                                <a href="{{ $pending->technicianProfile->ktp_photo_url }}" target="_blank" class="text-[10px] text-blue-600 font-bold hover:underline flex items-center gap-1">
+                                                    <i data-lucide="image" class="w-3 h-3"></i> Foto KTP
+                                                </a>
+                                            @endif
+                                            @if($pending->technicianProfile?->application_letter_url)
+                                                <a href="{{ $pending->technicianProfile->application_letter_url }}" target="_blank" class="text-[10px] text-indigo-600 font-bold hover:underline flex items-center gap-1">
+                                                    <i data-lucide="file-text" class="w-3 h-3"></i> Surat Lamaran / CV
+                                                </a>
+                                            @endif
+                                            @if($pending->technicianProfile?->supporting_document_url || $pending->technicianProfile?->certificate_url)
+                                                <a href="{{ $pending->technicianProfile->supporting_document_url ?? $pending->technicianProfile->certificate_url }}" target="_blank" class="text-[10px] text-orange-600 font-bold hover:underline flex items-center gap-1">
+                                                    <i data-lucide="award" class="w-3 h-3"></i> Berkas Pendukung / Sertifikat
+                                                </a>
+                                            @endif
+                                        </div>
                                     </td>
                                     <td class="py-3.5 px-4 text-slate-500">
                                         {{ $pending->created_at->format('d/m/Y H:i') }}

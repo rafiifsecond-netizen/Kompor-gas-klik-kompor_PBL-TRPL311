@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
 import '../core/constants/api_endpoints.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_response.dart';
@@ -53,22 +55,59 @@ class AuthService {
     int? yearsOfExperience,
     List<String>? skills,
     String? ktpNumber,
+    XFile? ktpPhoto,
+    XFile? applicationLetter,
+    XFile? supportingDocument,
   }) async {
+    final Map<String, dynamic> payload = {
+      'name': name,
+      'email': email,
+      'phone': phone,
+      'password': password,
+      'password_confirmation': passwordConfirmation,
+      'address': address,
+      'role': role,
+      if (bio != null) 'bio': bio,
+      if (yearsOfExperience != null) 'years_of_experience': yearsOfExperience,
+      if (skills != null) 'skills': skills,
+      if (ktpNumber != null) 'ktp_number': ktpNumber,
+    };
+
+    dynamic requestData = payload;
+
+    if (ktpPhoto != null || applicationLetter != null || supportingDocument != null) {
+      final map = Map<String, dynamic>.from(payload);
+      if (ktpPhoto != null) {
+        final bytes = await ktpPhoto.readAsBytes();
+        map['ktp_photo'] = MultipartFile.fromBytes(
+          bytes,
+          filename: ktpPhoto.name.isNotEmpty ? ktpPhoto.name : 'foto_ktp.jpg',
+        );
+      }
+      if (applicationLetter != null) {
+        final bytes = await applicationLetter.readAsBytes();
+        map['application_letter'] = MultipartFile.fromBytes(
+          bytes,
+          filename: applicationLetter.name.isNotEmpty ? applicationLetter.name : 'surat_lamaran.pdf',
+        );
+      }
+      if (supportingDocument != null) {
+        final bytes = await supportingDocument.readAsBytes();
+        map['supporting_document'] = MultipartFile.fromBytes(
+          bytes,
+          filename: supportingDocument.name.isNotEmpty ? supportingDocument.name : 'dokumen_pendukung.pdf',
+        );
+        map['certificate'] = MultipartFile.fromBytes(
+          bytes,
+          filename: supportingDocument.name.isNotEmpty ? supportingDocument.name : 'dokumen_pendukung.pdf',
+        );
+      }
+      requestData = FormData.fromMap(map);
+    }
+
     final response = await _apiClient.post(
       ApiEndpoints.register,
-      data: {
-        'name': name,
-        'email': email,
-        'phone': phone,
-        'password': password,
-        'password_confirmation': passwordConfirmation,
-        'address': address,
-        'role': role,
-        if (bio != null) 'bio': bio,
-        if (yearsOfExperience != null) 'years_of_experience': yearsOfExperience,
-        if (skills != null) 'skills': skills,
-        if (ktpNumber != null) 'ktp_number': ktpNumber,
-      },
+      data: requestData,
     );
     return ApiResponse<AuthResponseData>.fromJson(
       Map<String, dynamic>.from(response as Map),

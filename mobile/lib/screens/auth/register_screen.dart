@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
@@ -30,6 +31,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscureConfirm = true;
   String _selectedRole = 'customer';
 
+  XFile? _ktpPhotoFile;
+  XFile? _applicationLetterFile;
+  XFile? _supportingDocumentFile;
+
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -43,6 +48,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _skillsCtrl.dispose();
     _ktpCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDocument(String type) async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (file != null) {
+      setState(() {
+        if (type == 'ktp') {
+          _ktpPhotoFile = file;
+        } else if (type == 'application') {
+          _applicationLetterFile = file;
+        } else if (type == 'supporting') {
+          _supportingDocumentFile = file;
+        }
+      });
+    }
   }
 
   Future<void> _handleRegister() async {
@@ -68,6 +92,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ktpNumber: _selectedRole == 'technician' && _ktpCtrl.text.trim().isNotEmpty
           ? _ktpCtrl.text.trim()
           : null,
+      ktpPhoto: _selectedRole == 'technician' ? _ktpPhotoFile : null,
+      applicationLetter: _selectedRole == 'technician' ? _applicationLetterFile : null,
+      supportingDocument: _selectedRole == 'technician' ? _supportingDocumentFile : null,
     );
     if (!mounted) return;
     if (!ok) {
@@ -254,6 +281,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       hint: 'Nomor KTP (16 Digit)',
                       icon: Icons.badge_outlined,
                       keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 14),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Bukti Dokumen & Berkas Pendukung',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Lampirkan bukti dokumen identitas, lamaran kerja, atau keahlian:',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _DocumentUploadCard(
+                      title: 'Foto / Scan KTP',
+                      subtitle: 'Unggah foto kartu identitas KTP',
+                      icon: Icons.credit_card_rounded,
+                      file: _ktpPhotoFile,
+                      onPick: () => _pickDocument('ktp'),
+                      onRemove: () => setState(() => _ktpPhotoFile = null),
+                    ),
+                    _DocumentUploadCard(
+                      title: 'Surat Lamaran Pekerjaan / CV',
+                      subtitle: 'Unggah berkas lamaran atau portofolio',
+                      icon: Icons.description_outlined,
+                      file: _applicationLetterFile,
+                      onPick: () => _pickDocument('application'),
+                      onRemove: () => setState(() => _applicationLetterFile = null),
+                    ),
+                    _DocumentUploadCard(
+                      title: 'Sertifikat & Dokumen Pendukung',
+                      subtitle: 'Sertifikat keahlian, ijazah, atau pelatihan',
+                      icon: Icons.workspace_premium_outlined,
+                      file: _supportingDocumentFile,
+                      onPick: () => _pickDocument('supporting'),
+                      onRemove: () => setState(() => _supportingDocumentFile = null),
                     ),
                   ],
 
@@ -524,6 +599,98 @@ class _AuthButton extends StatelessWidget {
                   color: Colors.white,
                 ),
               ),
+      ),
+    );
+  }
+}
+
+class _DocumentUploadCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final XFile? file;
+  final VoidCallback onPick;
+  final VoidCallback onRemove;
+
+  const _DocumentUploadCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.file,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasFile = file != null;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9F9F9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: hasFile ? AppColors.success : const Color(0xFFCCCCCC),
+          width: hasFile ? 1.5 : 1.0,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: hasFile ? AppColors.successLight : const Color(0xFFE8E8E8),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              hasFile ? Icons.check_circle_rounded : icon,
+              size: 20,
+              color: hasFile ? AppColors.success : Colors.black54,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                Text(
+                  hasFile ? file!.name : subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: hasFile ? AppColors.success : Colors.black54,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (hasFile)
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.danger),
+              tooltip: 'Hapus berkas',
+              onPressed: onRemove,
+            )
+          else
+            TextButton.icon(
+              onPressed: onPick,
+              icon: const Icon(Icons.upload_file_rounded, size: 16),
+              label: const Text('Unggah', style: TextStyle(fontSize: 11)),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+        ],
       ),
     );
   }

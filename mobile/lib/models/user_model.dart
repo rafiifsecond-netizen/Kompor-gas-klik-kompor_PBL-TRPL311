@@ -93,6 +93,9 @@ class TechnicianProfileModel {
   final bool isVerified;
   final String status;
   final String? rejectionReason;
+  final String? ktpPhotoUrl;
+  final String? applicationLetterUrl;
+  final String? supportingDocumentUrl;
   final bool isAvailable;
   final double ratingAverage;
   final int totalReviews;
@@ -110,6 +113,9 @@ class TechnicianProfileModel {
     this.isVerified = false,
     this.status = 'pending',
     this.rejectionReason,
+    this.ktpPhotoUrl,
+    this.applicationLetterUrl,
+    this.supportingDocumentUrl,
     this.isAvailable = true,
     this.ratingAverage = 0.0,
     this.totalReviews = 0,
@@ -136,6 +142,9 @@ class TechnicianProfileModel {
       status: json['status']?.toString() ??
           (_toBool(json['is_verified']) ? 'approved' : 'pending'),
       rejectionReason: json['rejection_reason']?.toString(),
+      ktpPhotoUrl: json['ktp_photo_url']?.toString(),
+      applicationLetterUrl: json['application_letter_url']?.toString(),
+      supportingDocumentUrl: (json['supporting_document_url'] ?? json['certificate_url'])?.toString(),
       isAvailable: _toBool(json['is_available']),
       ratingAverage: _toDouble(json['rating_avg'] ?? json['rating_average']) ??
           0.0,

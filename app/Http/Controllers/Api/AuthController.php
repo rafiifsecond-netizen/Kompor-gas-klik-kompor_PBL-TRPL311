@@ -34,7 +34,10 @@ class AuthController extends Controller
             'years_of_experience' => ['nullable', 'integer', 'min:0'],
             'skills' => ['nullable'],
             'ktp_number' => ['nullable', 'string', 'max:30'],
-            'certificate' => ['nullable', 'file', 'mimes:pdf,jpeg,png,jpg,webp', 'max:3072'],
+            'ktp_photo' => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            'application_letter' => ['nullable', 'file', 'mimes:pdf,jpeg,png,jpg,webp,doc,docx', 'max:5120'],
+            'supporting_document' => ['nullable', 'file', 'mimes:pdf,jpeg,png,jpg,webp,doc,docx', 'max:5120'],
+            'certificate' => ['nullable', 'file', 'mimes:pdf,jpeg,png,jpg,webp,doc,docx', 'max:5120'],
         ]);
 
         $role = $validated['role'] ?? 'customer';
@@ -50,10 +53,31 @@ class AuthController extends Controller
         ]);
 
         if ($role === 'technician') {
+            $ktpPhotoUrl = null;
+            if ($request->hasFile('ktp_photo')) {
+                $path = $request->file('ktp_photo')->store('ktp_photos', 'public');
+                $ktpPhotoUrl = '/storage/'.$path;
+            }
+
+            $applicationLetterUrl = null;
+            if ($request->hasFile('application_letter')) {
+                $path = $request->file('application_letter')->store('application_letters', 'public');
+                $applicationLetterUrl = '/storage/'.$path;
+            }
+
+            $supportingDocUrl = null;
+            if ($request->hasFile('supporting_document')) {
+                $path = $request->file('supporting_document')->store('supporting_documents', 'public');
+                $supportingDocUrl = '/storage/'.$path;
+            }
+
             $certificateUrl = null;
             if ($request->hasFile('certificate')) {
                 $path = $request->file('certificate')->store('certificates', 'public');
                 $certificateUrl = '/storage/'.$path;
+                if (! $supportingDocUrl) {
+                    $supportingDocUrl = $certificateUrl;
+                }
             }
 
             $skills = $validated['skills'] ?? ['Kompor Gas Standar'];
@@ -67,7 +91,10 @@ class AuthController extends Controller
                 'years_of_experience' => $validated['years_of_experience'] ?? 0,
                 'skills' => ! empty($skills) ? $skills : ['Kompor Gas Standar'],
                 'ktp_number' => $validated['ktp_number'] ?? null,
-                'certificate_url' => $certificateUrl,
+                'ktp_photo_url' => $ktpPhotoUrl,
+                'application_letter_url' => $applicationLetterUrl,
+                'supporting_document_url' => $supportingDocUrl,
+                'certificate_url' => $certificateUrl ?? $supportingDocUrl,
                 'status' => TechnicianProfile::STATUS_PENDING,
                 'is_verified' => false,
                 'is_available' => false,
