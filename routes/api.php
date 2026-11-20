@@ -32,6 +32,7 @@ Route::prefix('v1')->group(function () {
     // Public catalog & technician discovery
     Route::get('/categories', [ServiceCatalogController::class, 'categories']);
     Route::get('/services', [ServiceCatalogController::class, 'services']);
+    Route::get('/services/{id}', [ServiceCatalogController::class, 'showServiceItem']);
     Route::get('/technicians', [TechnicianController::class, 'index']);
     Route::get('/technicians/{id}', [TechnicianController::class, 'show']);
 
@@ -52,6 +53,7 @@ Route::prefix('v1')->group(function () {
         Route::put('/auth/password', [AuthController::class, 'changePassword']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/technician/registration-status', [TechnicianController::class, 'registrationStatus']);
+        Route::get('/travel-estimate', [OrderController::class, 'travelEstimate']);
 
         // Saved Addresses (Customer Address Book)
         Route::get('/addresses', [AddressController::class, 'index']);

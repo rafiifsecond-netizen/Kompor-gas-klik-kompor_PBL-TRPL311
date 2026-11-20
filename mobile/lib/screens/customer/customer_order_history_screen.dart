@@ -6,6 +6,7 @@ import '../../models/order_model.dart';
 import '../../widgets/custom_bottom_nav_bar.dart';
 import '../../widgets/order_history_card_widget.dart';
 import '../../repositories/order_repository.dart';
+import '../../core/constants/app_constants.dart';
 
 class CustomerOrderHistoryScreen extends StatefulWidget {
   const CustomerOrderHistoryScreen({super.key});
@@ -146,7 +147,7 @@ class _CustomerOrderHistoryScreenState
                             title: title,
                             orderNumber: o.orderNumber,
                             date: o.bookingDate,
-                            price: 'Rp ${_fmt(o.totalAmount.toInt())}',
+                            price: AppConstants.formatCurrency(o.totalAmount),
                             status: statusLabel,
                             onTap: () => Navigator.pushNamed(
                                 context, AppRoutes.customerOrderTracking,
@@ -170,13 +171,4 @@ class _CustomerOrderHistoryScreenState
     );
   }
 
-  static String _fmt(int v) {
-    final s = v.toString();
-    final buf = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 }

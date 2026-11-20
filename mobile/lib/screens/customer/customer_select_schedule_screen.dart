@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
@@ -13,8 +14,9 @@ class CustomerSelectScheduleScreen extends StatefulWidget {
 
 class _CustomerSelectScheduleScreenState
     extends State<CustomerSelectScheduleScreen> {
-  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  DateTime _selectedDate = DateTime.now();
   String _selectedTime = '';
+  Timer? _slotTimer;
 
   List<String> get _timeSlots {
     final now = DateTime.now();
@@ -23,16 +25,64 @@ class _CustomerSelectScheduleScreenState
             _selectedDate.day == now.day
         ? (now.hour + 1).clamp(8, 20)
         : 8;
-    return [
-      for (var hour = start; hour <= 20; hour++)
-        '${hour.toString().padLeft(2, '0')}:00'
-    ];
+    final slots = <String>[];
+    var hour = start;
+    var minute = 0;
+    if (_selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day &&
+        now.minute >= 30) {
+      minute = 0;
+      hour = now.hour + 1;
+    } else if (_selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day) {
+      minute = now.minute < 30 ? 30 : 0;
+    }
+    var cursor = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      hour,
+      minute,
+    );
+    final end = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      20,
+      30,
+    );
+    if (cursor.isBefore(now)) {
+      cursor = cursor.add(const Duration(minutes: 30));
+    }
+    while (!cursor.isAfter(end)) {
+      slots.add(
+        '${cursor.hour.toString().padLeft(2, '0')}:${cursor.minute.toString().padLeft(2, '0')}',
+      );
+      cursor = cursor.add(const Duration(minutes: 30));
+    }
+    return slots;
   }
 
   @override
   void initState() {
     super.initState();
-    _selectedTime = _timeSlots.first;
+    _selectedTime = '';
+    _slotTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (!mounted) return;
+      setState(() {
+        if (_selectedTime.isNotEmpty && !_timeSlots.contains(_selectedTime)) {
+          _selectedTime = '';
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _slotTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -79,15 +129,18 @@ class _CustomerSelectScheduleScreenState
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: ElevatedButton(
-              onPressed: () {
-                final d = _selectedDate;
-                final newArgs = Map<String, dynamic>.from(args);
-                newArgs['bookingDate'] =
-                    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-                newArgs['bookingTime'] = _selectedTime;
-                Navigator.pushNamed(context, AppRoutes.customerSelectTechnician,
-                    arguments: newArgs);
-              },
+              onPressed: _selectedTime.isEmpty
+                  ? null
+                  : () {
+                      final d = _selectedDate;
+                      final newArgs = Map<String, dynamic>.from(args);
+                      newArgs['bookingDate'] =
+                          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+                      newArgs['bookingTime'] = _selectedTime;
+                      Navigator.pushNamed(
+                          context, AppRoutes.customerSelectTechnician,
+                          arguments: newArgs);
+                    },
               child: const Text('Lanjutkan'),
             ),
           ),
@@ -107,7 +160,7 @@ class _CustomerSelectScheduleScreenState
         lastDate: DateTime.now().add(const Duration(days: 30)),
         onDateChanged: (d) => setState(() {
           _selectedDate = d;
-          _selectedTime = _timeSlots.first;
+          _selectedTime = '';
         }),
       ),
     ]);
@@ -141,7 +194,7 @@ class _CustomerSelectScheduleScreenState
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: isSelected
-                            ? Colors.white
+                            ? Colors.black
                             : AppColors.textPrimary))),
           ),
         );

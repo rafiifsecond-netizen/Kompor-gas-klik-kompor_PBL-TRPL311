@@ -29,7 +29,7 @@ class PaymentController extends Controller
 
         $validated = $request->validate([
             'order_id' => ['required', 'exists:orders,id'],
-            'payment_method' => ['required', 'string', 'in:qris,transfer,cash'],
+            'payment_method' => ['required', 'string', 'in:qris,cash'],
             'promo_code' => ['nullable', 'string', 'max:30'],
             'sender_bank_name' => ['nullable', 'string', 'max:50'],
             'sender_account_name' => ['nullable', 'string', 'max:150'],
@@ -105,14 +105,18 @@ class PaymentController extends Controller
         $user = $request->user();
         $payment = Payment::with(['order'])->findOrFail($id);
 
-        if ($user->isCustomer() && $payment->customer_id !== $user->id) {
+        $canAccess = $user->isAdmin()
+            || $payment->customer_id === $user->id
+            || ($user->isTechnician() && $payment->order?->technician_id === $user->id);
+
+        if (! $canAccess) {
             return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
         }
 
         // Sinkronisasi status ke Midtrans Core API jika transaksi gateway pending
         if (in_array($payment->payment_method, ['qris', 'transfer'], true) && $payment->payment_status === Payment::STATUS_PENDING && $payment->gateway_order_id) {
             if ($payment->expires_at && now()->gt($payment->expires_at)) {
-                $payment->update(['payment_status' => Payment::STATUS_EXPIRED]);
+                $this->paymentService->markGatewayStatus($payment, 'expire');
             } else {
                 $statusData = $this->midtransService->checkStatus($payment->gateway_order_id);
                 $gwStatus = $statusData['transaction_status'] ?? null;
@@ -120,7 +124,7 @@ class PaymentController extends Controller
                     $this->paymentService->handleWebhook($statusData);
                     $payment->refresh();
                 } elseif (in_array($gwStatus, ['expire', 'cancel', 'deny'], true)) {
-                    $payment->update(['payment_status' => ($gwStatus === 'expire') ? Payment::STATUS_EXPIRED : Payment::STATUS_FAILED]);
+                    $this->paymentService->markGatewayStatus($payment, $gwStatus);
                 }
             }
         }
@@ -149,9 +153,9 @@ class PaymentController extends Controller
     public function uploadProof(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
-        $payment = Payment::findOrFail($id);
+        $payment = Payment::with('order')->findOrFail($id);
 
-        if ($user->isCustomer() && $payment->customer_id !== $user->id) {
+        if (! $user->isCustomer() || $payment->customer_id !== $user->id) {
             return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
         }
 
@@ -237,7 +241,7 @@ class PaymentController extends Controller
         }
 
         $validated = $request->validate([
-            'payment_method' => ['required', 'string', 'in:qris,transfer,cash'],
+            'payment_method' => ['required', 'string', 'in:qris,cash'],
             'promo_code' => ['nullable', 'string', 'max:30'],
         ]);
 

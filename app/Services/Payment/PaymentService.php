@@ -38,6 +38,10 @@ class PaymentService
         ?string $senderBankName = null,
         ?string $senderAccountName = null
     ): Payment {
+        if (! in_array($paymentMethod, ['qris', 'cash'], true)) {
+            throw new Exception('Metode pembayaran transfer bank tidak tersedia. Gunakan QRIS atau tunai.');
+        }
+
         return DB::transaction(function () use (
             $order,
             $paymentMethod,
@@ -61,6 +65,12 @@ class PaymentService
 
             if ($order->status === Order::STATUS_COMPLETED || $order->status === Order::STATUS_CANCELLED) {
                 throw new Exception('Pesanan sudah selesai atau dibatalkan, tidak dapat dibayar.');
+            }
+
+            if ($order->payment_status === 'paid' || Payment::where('order_id', $order->id)
+                ->where('payment_status', Payment::STATUS_PAID)
+                ->exists()) {
+                throw new Exception('Pesanan ini sudah memiliki pembayaran yang berhasil.');
             }
 
             // Batalkan attempt aktif sebelumnya jika ada (misal retry pembayaran baru)
@@ -483,6 +493,7 @@ class PaymentService
                     'message' => 'Duplicate webhook event ignored idempotently.',
                 ];
             }
+
         }
 
         // Catat raw webhook event
@@ -614,6 +625,29 @@ class PaymentService
     }
 
     /**
+     * Apply a terminal gateway status while releasing any reserved promo.
+     */
+    public function markGatewayStatus(Payment $payment, string $transactionStatus): void
+    {
+        DB::transaction(function () use ($payment, $transactionStatus): void {
+            $lockedPayment = Payment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            if ($lockedPayment->payment_status !== Payment::STATUS_PENDING) {
+                return;
+            }
+
+            $status = $transactionStatus === 'expire'
+                ? Payment::STATUS_EXPIRED
+                : Payment::STATUS_FAILED;
+            $lockedPayment->update(['payment_status' => $status]);
+
+            $order = Order::find($lockedPayment->order_id);
+            if ($order) {
+                $this->promoService->releasePromo($order);
+            }
+        });
+    }
+
+    /**
      * Refund Pembayaran (Hanya Admin).
      */
     public function refund(Payment $payment, User $admin, string $reason): Payment
@@ -626,6 +660,14 @@ class PaymentService
             }
 
             $order = Order::where('id', $payment->order_id)->lockForUpdate()->firstOrFail();
+
+            if ($payment->gateway_provider === 'midtrans' && $payment->gateway_order_id) {
+                $this->midtransService->refundTransaction(
+                    gatewayOrderId: $payment->gateway_order_id,
+                    amount: (int) $payment->amount,
+                    reason: $reason
+                );
+            }
 
             $payment->update([
                 'payment_status' => Payment::STATUS_REFUNDED,

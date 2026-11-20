@@ -163,29 +163,28 @@ class ComprehensivePaymentAuditTest extends TestCase
     }
 
     /**
-     * Skenario 2: Pelanggan berhasil membuat transaksi Virtual Account.
+     * Skenario 2: Pelanggan berhasil membuat transaksi QRIS.
      */
     public function test_scenario_2_customer_creates_virtual_account_transaction(): void
     {
         $response = $this->actingAs($this->customer)
             ->postJson('/api/v1/payments/checkout', [
                 'order_id' => $this->order->id,
-                'payment_method' => 'transfer',
-                'sender_bank_name' => 'BCA',
+                'payment_method' => 'qris',
             ]);
 
         $response->assertStatus(201)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.payment.payment_method', 'transfer')
+            ->assertJsonPath('data.payment.payment_method', 'qris')
             ->assertJsonStructure([
                 'data' => [
                     'payment' => ['id', 'amount', 'payment_status'],
-                    'va' => ['bank', 'va_number', 'expires_at'],
+                    'qris' => ['qr_string', 'expires_at'],
                 ],
             ]);
 
         $payment = Payment::where('order_id', $this->order->id)->first();
-        $this->assertNotNull($payment->va_number);
+        $this->assertNotNull($payment->qris_qr_string);
         $this->assertEquals(Payment::STATUS_PENDING, $payment->payment_status);
     }
 

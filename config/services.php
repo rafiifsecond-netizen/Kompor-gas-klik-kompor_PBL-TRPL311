@@ -42,4 +42,9 @@ return [
         'merchant_id' => env('MIDTRANS_MERCHANT_ID', ''),
     ],
 
+    'routing' => [
+        'osrm_url' => env('ROUTING_OSRM_URL', 'https://router.project-osrm.org/route/v1/driving'),
+        'timeout' => env('ROUTING_TIMEOUT', 5),
+    ],
+
 ];

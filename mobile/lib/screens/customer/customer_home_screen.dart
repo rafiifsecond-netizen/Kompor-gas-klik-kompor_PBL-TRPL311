@@ -782,7 +782,7 @@ class _ServiceGrid extends StatelessWidget {
         rating: 4.8,
         reviewCount: 9999,
         estimasi: '30 - 60 menit',
-        hargaMulai: 'Rp.75.000',
+        hargaMulai: 'Rp 75.000',
       ),
     ),
     const _ServiceDef(
@@ -795,7 +795,7 @@ class _ServiceGrid extends StatelessWidget {
         rating: 4.8,
         reviewCount: 9999,
         estimasi: '30 - 60 menit',
-        hargaMulai: 'Rp.75.000',
+        hargaMulai: 'Rp 75.000',
       ),
     ),
     const _ServiceDef(
@@ -808,7 +808,7 @@ class _ServiceGrid extends StatelessWidget {
         rating: 4.8,
         reviewCount: 9999,
         estimasi: '30 - 60 menit',
-        hargaMulai: 'Rp.75.000',
+        hargaMulai: 'Rp 75.000',
       ),
     ),
     const _ServiceDef(
@@ -821,7 +821,7 @@ class _ServiceGrid extends StatelessWidget {
         rating: 4.8,
         reviewCount: 9999,
         estimasi: '30 - 90 menit',
-        hargaMulai: 'Rp.75.000',
+        hargaMulai: 'Rp 75.000',
       ),
     ),
   ];
@@ -857,6 +857,7 @@ class _RealServiceGridState extends State<_RealServiceGrid> {
   final _repository = ServiceRepository();
   List<ServiceModel> _services = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -865,14 +866,23 @@ class _RealServiceGridState extends State<_RealServiceGrid> {
   }
 
   Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final rows = await _repository.getServices();
       if (mounted) {
         setState(
             () => _services = rows.map(ServiceModel.fromJson).take(4).toList());
       }
-    } catch (_) {
-      if (mounted) setState(() => _services = []);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _services = [];
+          _error = error.toString().replaceFirst('Exception: ', '');
+        });
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -883,6 +893,20 @@ class _RealServiceGridState extends State<_RealServiceGrid> {
     if (_loading) {
       return const SizedBox(
           height: 120, child: Center(child: CircularProgressIndicator()));
+    }
+    if (_error != null) {
+      return SizedBox(
+        height: 150,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Layanan gagal dimuat'),
+              TextButton(onPressed: _load, child: const Text('Coba lagi')),
+            ],
+          ),
+        ),
+      );
     }
     if (_services.isEmpty) {
       return const SizedBox(

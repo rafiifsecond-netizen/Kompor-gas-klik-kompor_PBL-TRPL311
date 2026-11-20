@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminReportController;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\Order;
+use App\Models\PlatformSetting;
 use App\Models\Review;
 use App\Models\ServiceCategory;
 use App\Models\ServiceItem;
@@ -550,10 +551,36 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
             'completed_orders' => Order::where('status', 'completed')->count(),
         ];
 
-        return view('admin.settings', compact('stats'));
+        $settings = [
+            'travel_base_fee' => PlatformSetting::get('travel_base_fee', 15000),
+            'travel_free_km' => PlatformSetting::get('travel_free_km', 2),
+            'travel_rate_per_km' => PlatformSetting::get('travel_rate_per_km', 0),
+            'platform_commission_percent' => PlatformSetting::get('platform_commission_percent', '5.00'),
+        ];
+
+        return view('admin.settings', compact('stats', 'settings'));
     })->name('admin.settings');
 
     Route::post('/admin/settings', function (Request $request) {
+        $validated = $request->validate([
+            'travel_base_fee' => ['required', 'integer', 'min:0'],
+            'travel_free_km' => ['required', 'numeric', 'min:0'],
+            'travel_rate_per_km' => ['required', 'integer', 'min:0'],
+            'platform_commission_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        foreach ($validated as $key => $value) {
+            PlatformSetting::set($key, $value, Auth::id());
+        }
+
+        ActivityLog::logEvent(
+            eventName: 'platform.settings.updated',
+            description: 'Admin memperbarui pengaturan tarif perjalanan dan komisi platform.',
+            newValues: $validated,
+            actor: Auth::user(),
+            request: $request
+        );
+
         return back()->with('success', 'Pengaturan sistem & tarif berhasil diperbarui.');
     })->middleware(['auth', 'role:admin'])->name('admin.settings.update');
 

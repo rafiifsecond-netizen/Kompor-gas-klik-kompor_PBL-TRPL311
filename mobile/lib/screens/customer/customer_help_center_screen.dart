@@ -31,7 +31,7 @@ class _CustomerHelpCenterScreenState extends State<CustomerHelpCenterScreen> {
     {
       'q': 'Metode pembayaran apa saja yang diterima?',
       'a':
-          'Kami menerima transfer bank, pembayaran tunai di tempat, dan dompet digital.'
+          'Kami menerima QRIS dan pembayaran tunai di tempat.'
     },
     {
       'q': 'Bagaimana jika teknisi tidak tersedia?',

@@ -19,7 +19,11 @@ class CommissionService
         string $paymentMethod,
         ?Payment $payment = null,
         ?int $discountAmount = null
-    ): CommissionRecord {
+    ): ?CommissionRecord {
+        if (! $order->technician_id) {
+            return null;
+        }
+
         $commissionPercent = PlatformSetting::get('platform_commission_percent', '5.00');
         $roundingMode = PlatformSetting::get('rounding_mode', 'round');
         $roundingUnit = (int) PlatformSetting::get('rounding_unit', 1);

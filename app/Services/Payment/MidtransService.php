@@ -72,9 +72,14 @@ class MidtransService
             ],
         ];
 
-        // Jika server key belum diset (misal di local/mock test), berikan respons simulasi
+        // Test doubles may exercise checkout without contacting Midtrans. Never
+        // expose simulated gateway identifiers in a non-testing environment.
         if (empty($this->serverKey)) {
-            Log::warning("Midtrans server key is empty. Generating mock QRIS response for {$gatewayOrderId}.");
+            if (! app()->environment('testing')) {
+                throw new Exception('MIDTRANS_SERVER_KEY belum dikonfigurasi. Pembayaran QRIS tidak dapat dibuat.');
+            }
+
+            Log::warning("Midtrans server key is empty in testing; using a test-only QRIS response for {$gatewayOrderId}.");
 
             return [
                 'status_code' => '201',
@@ -174,7 +179,11 @@ class MidtransService
 
         // Mock fallback jika server key belum dikonfigurasi (testing / local sandbox)
         if (empty($this->serverKey)) {
-            Log::warning("Midtrans server key is empty. Generating mock Bank Transfer response for {$gatewayOrderId} ({$bankCode}).");
+            if (! app()->environment('testing')) {
+                throw new Exception('MIDTRANS_SERVER_KEY belum dikonfigurasi. Pembayaran Virtual Account tidak dapat dibuat.');
+            }
+
+            Log::warning("Midtrans server key is empty in testing; using a test-only Bank Transfer response for {$gatewayOrderId} ({$bankCode}).");
 
             $mockVa = match ($bankCode) {
                 'mandiri' => null,
@@ -240,6 +249,10 @@ class MidtransService
     public function cancelTransaction(string $gatewayOrderId): array
     {
         if (empty($this->serverKey)) {
+            if (! app()->environment('testing')) {
+                throw new Exception('MIDTRANS_SERVER_KEY belum dikonfigurasi. Transaksi tidak dapat dibatalkan.');
+            }
+
             return [
                 'status_code' => '200',
                 'status_message' => 'Success, transaction is canceled (MOCK)',
@@ -263,6 +276,10 @@ class MidtransService
     public function checkStatus(string $gatewayOrderId): array
     {
         if (empty($this->serverKey)) {
+            if (! app()->environment('testing')) {
+                throw new Exception('MIDTRANS_SERVER_KEY belum dikonfigurasi. Status transaksi tidak dapat diverifikasi.');
+            }
+
             return [
                 'status_code' => '200',
                 'order_id' => $gatewayOrderId,
@@ -275,6 +292,40 @@ class MidtransService
         $response = Http::withBasicAuth($this->serverKey, '')
             ->acceptJson()
             ->get($endpoint);
+
+        return $response->json() ?? [];
+    }
+
+    /**
+     * Request a real Midtrans refund. Database status is changed only after
+     * the gateway accepts the refund request.
+     */
+    public function refundTransaction(string $gatewayOrderId, int $amount, string $reason): array
+    {
+        if (empty($this->serverKey)) {
+            if (! app()->environment('testing')) {
+                throw new Exception('MIDTRANS_SERVER_KEY belum dikonfigurasi. Refund tidak dapat diproses.');
+            }
+
+            return ['status_code' => '200', 'transaction_status' => 'refund'];
+        }
+
+        $response = Http::withBasicAuth($this->serverKey, '')
+            ->acceptJson()
+            ->asJson()
+            ->post("{$this->baseUrl}/v2/{$gatewayOrderId}/refund", [
+                'refund_key' => 'refund-'.bin2hex(random_bytes(8)),
+                'amount' => $amount,
+                'reason' => $reason,
+            ]);
+
+        if (! $response->successful()) {
+            Log::error("Midtrans refund failed for {$gatewayOrderId}", [
+                'status' => $response->status(),
+                'body' => $response->json(),
+            ]);
+            throw new Exception('Refund Midtrans gagal: '.($response->json('status_message') ?? 'HTTP '.$response->status()));
+        }
 
         return $response->json() ?? [];
     }

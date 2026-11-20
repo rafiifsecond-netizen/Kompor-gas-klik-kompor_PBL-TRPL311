@@ -46,6 +46,7 @@ class ApiEndpoints {
 
   // Orders
   static String get orders => '$baseUrl/orders';
+  static String get travelEstimate => '$baseUrl/travel-estimate';
   static String orderDetail(int id) => '$baseUrl/orders/$id';
   static String cancelOrder(int id) => '$baseUrl/orders/$id/cancel';
   static String updateOrderServices(int id) => '$baseUrl/orders/$id/services';

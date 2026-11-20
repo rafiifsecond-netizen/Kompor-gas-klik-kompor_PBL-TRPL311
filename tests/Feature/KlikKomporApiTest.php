@@ -32,6 +32,17 @@ class KlikKomporApiTest extends TestCase
             ]);
     }
 
+    public function test_can_retrieve_public_service_detail(): void
+    {
+        $service = ServiceItem::where('is_active', true)->firstOrFail();
+
+        $this->getJson("/api/v1/services/{$service->id}")
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.id', $service->id)
+            ->assertJsonPath('data.name', $service->name);
+    }
+
     public function test_can_search_verified_technicians(): void
     {
         $response = $this->getJson('/api/v1/technicians?search=Agus');

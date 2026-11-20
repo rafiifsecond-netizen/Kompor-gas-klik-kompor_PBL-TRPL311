@@ -8,6 +8,7 @@ use App\Models\Notification;
 use App\Models\Order;
 use App\Models\TechnicianProfile;
 use App\Models\User;
+use App\Models\CommissionRecord;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,8 @@ class AdminController extends Controller
         $completedOrders = Order::where('status', Order::STATUS_COMPLETED)->count();
         $inProgressOrders = Order::whereIn('status', [Order::STATUS_ACCEPTED, Order::STATUS_ON_THE_WAY, Order::STATUS_IN_PROGRESS])->count();
         $totalRevenue = Order::where('payment_status', 'paid')->sum('total_amount');
+        $totalPlatformCommission = CommissionRecord::where('settlement_status', CommissionRecord::STATUS_SETTLED)
+            ->sum('commission_amount');
 
         $totalCustomers = User::where('role', 'customer')->count();
         $totalTechnicians = User::where('role', 'technician')->count();
@@ -47,6 +50,7 @@ class AdminController extends Controller
                     'completed_orders' => $completedOrders,
                     'in_progress_orders' => $inProgressOrders,
                     'total_revenue' => (int) $totalRevenue,
+                    'total_platform_commission' => (int) $totalPlatformCommission,
                     'total_customers' => $totalCustomers,
                     'total_technicians' => $totalTechnicians,
                     'verified_technicians' => $verifiedTechnicians,

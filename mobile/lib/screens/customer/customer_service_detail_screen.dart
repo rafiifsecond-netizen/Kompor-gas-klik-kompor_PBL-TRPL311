@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/routes/route_args.dart';
+import '../../core/constants/app_constants.dart';
 import '../../models/service_model.dart';
 import '../../repositories/service_repository.dart';
 
@@ -59,15 +60,37 @@ class CustomerServiceDetailScreen extends StatelessWidget {
           return const Scaffold(
               body: Center(child: CircularProgressIndicator()));
         }
-        final data = snapshot.data ?? {
-          'id': id,
-          'name': 'Service Kompor Gas 2 Tungku',
-          'description': 'Perbaikan dan perawatan kompor gas profesional dan bergaransi.',
-          'base_price': 75000,
-          'estimated_duration_minutes': 45,
-          'rating': 4.9,
-          'review_count': 120,
-        };
+        if (snapshot.hasError || snapshot.data == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Detail Layanan')),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_off, size: 48),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Detail layanan gagal dimuat.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pushReplacementNamed(
+                        context,
+                        AppRoutes.customerServiceDetail,
+                        arguments: {'id': id},
+                      ),
+                      child: const Text('Coba Lagi'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        final data = snapshot.data!;
         final service = ServiceModel.fromJson(data);
         final args = ServiceDetailArgs(
           serviceId: service.id,
@@ -76,7 +99,7 @@ class CustomerServiceDetailScreen extends StatelessWidget {
           rating: (data['rating'] as num?)?.toDouble() ?? 0,
           reviewCount: (data['review_count'] as num?)?.toInt() ?? 0,
           estimasi: '${service.estimatedDurationMinutes} menit',
-          hargaMulai: 'Rp ${service.price.toStringAsFixed(0)}',
+          hargaMulai: AppConstants.formatCurrency(service.price),
           bannerAsset: service.imageUrl,
         );
 

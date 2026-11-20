@@ -100,6 +100,10 @@ class FinalPaymentSpecificationTest extends TestCase
                 'status_code' => '200',
                 'transaction_status' => 'pending',
             ], 200),
+            'https://api.sandbox.midtrans.com/v2/*/refund' => Http::response([
+                'status_code' => '200',
+                'transaction_status' => 'refund',
+            ], 200),
         ]);
     }
 
@@ -149,7 +153,7 @@ class FinalPaymentSpecificationTest extends TestCase
             ->withHeader('Idempotency-Key', $idempotencyKey)
             ->postJson('/api/v1/payments/checkout', [
                 'order_id' => $this->order->id,
-                'payment_method' => 'transfer',
+                'payment_method' => 'qris',
             ]);
 
         $res1->assertStatus(201);
@@ -160,7 +164,7 @@ class FinalPaymentSpecificationTest extends TestCase
             ->withHeader('Idempotency-Key', $idempotencyKey)
             ->postJson('/api/v1/payments/checkout', [
                 'order_id' => $this->order->id,
-                'payment_method' => 'transfer',
+                'payment_method' => 'qris',
             ]);
 
         $payId2 = $res2->json('data.payment.id') ?? $res2->json('data.id');
@@ -186,7 +190,7 @@ class FinalPaymentSpecificationTest extends TestCase
         $res2 = $this->actingAs($this->customer)
             ->postJson('/api/v1/payments/checkout', [
                 'order_id' => $this->order->id,
-                'payment_method' => 'transfer',
+                'payment_method' => 'qris',
             ]);
 
         $res2->assertStatus(201);
@@ -316,7 +320,7 @@ class FinalPaymentSpecificationTest extends TestCase
         $res2 = $this->actingAs($this->customer)
             ->postJson('/api/v1/payments/checkout', [
                 'order_id' => $this->order->id,
-                'payment_method' => 'transfer',
+                'payment_method' => 'qris',
             ]);
         $newPayment = Payment::find($res2->json('data.payment.id'));
         $newPayment->update(['payment_status' => Payment::STATUS_PAID, 'paid_at' => now()]);
@@ -344,96 +348,6 @@ class FinalPaymentSpecificationTest extends TestCase
         $event = WebhookEvent::where('payment_id', $oldPayment->id)->latest('id')->first();
         $this->assertNotNull($event);
         $this->assertTrue((bool) $event->flagged_for_manual_refund);
-    }
-
-    /**
-     * Test Transfer Manual: Upload Bukti, Verifikasi Admin, Signed URL 30 Menit.
-     */
-    public function test_manual_transfer_workflow_upload_and_admin_approval(): void
-    {
-        Storage::fake('local');
-
-        // 1. Checkout Transfer
-        $res = $this->actingAs($this->customer)
-            ->postJson('/api/v1/payments/checkout', [
-                'order_id' => $this->order->id,
-                'payment_method' => 'transfer',
-            ]);
-        $res->assertStatus(201);
-        $paymentId = $res->json('data.payment.id');
-
-        // 2. Upload Bukti Transfer (MIME jpg, size valid)
-        $file = UploadedFile::fake()->image('bukti_transfer.jpg', 600, 800)->size(500);
-
-        $uploadRes = $this->actingAs($this->customer)
-            ->postJson("/api/v1/payments/{$paymentId}/upload-proof", [
-                'proof' => $file,
-                'sender_bank_name' => 'BCA',
-                'sender_account_name' => 'Budi Santoso',
-            ]);
-
-        $uploadRes->assertStatus(200)
-            ->assertJsonPath('success', true);
-
-        $payment = Payment::find($paymentId);
-        $this->assertSame(Payment::STATUS_AWAITING_VERIFICATION, $payment->payment_status);
-        $this->assertNotNull($payment->proof_url);
-        Storage::disk('local')->assertExists($payment->proof_url);
-
-        // 3. Admin dapatkan Signed URL 30 menit
-        $signedResp = $this->actingAs($this->admin)
-            ->getJson("/api/v1/admin/payments/{$paymentId}/proof-url");
-
-        $signedResp->assertStatus(200)
-            ->assertJsonPath('success', true);
-        $signedUrl = $signedResp->json('data.signed_url');
-        $this->assertNotNull($signedUrl);
-
-        // 4. Admin Verifikasi Menyetujui Transfer
-        $approveResp = $this->actingAs($this->admin)
-            ->postJson("/api/v1/admin/payments/{$paymentId}/verify-transfer", [
-                'approved' => true,
-            ]);
-
-        $approveResp->assertStatus(200);
-        $payment->refresh();
-        $this->assertSame(Payment::STATUS_PAID, $payment->payment_status);
-        $this->assertSame($this->admin->id, $payment->verified_by);
-    }
-
-    /**
-     * Test Transfer Manual Ditolak Admin: Alasan wajib diisi.
-     */
-    public function test_manual_transfer_rejection_requires_reason(): void
-    {
-        Storage::fake('local');
-
-        $res = $this->actingAs($this->customer)
-            ->postJson('/api/v1/payments/checkout', [
-                'order_id' => $this->order->id,
-                'payment_method' => 'transfer',
-            ]);
-        $paymentId = $res->json('data.payment.id');
-
-        // Tolak tanpa alasan -> validation error
-        $rejectNoReason = $this->actingAs($this->admin)
-            ->postJson("/api/v1/admin/payments/{$paymentId}/verify-transfer", [
-                'approved' => false,
-            ]);
-        $rejectNoReason->assertStatus(422)
-            ->assertJsonValidationErrors(['rejection_reason']);
-
-        // Tolak dengan alasan valid
-        $rejectValid = $this->actingAs($this->admin)
-            ->postJson("/api/v1/admin/payments/{$paymentId}/verify-transfer", [
-                'approved' => false,
-                'rejection_reason' => 'Bukti mutasi tidak terbaca dan nominal tidak sesuai.',
-            ]);
-        $rejectValid->assertStatus(200);
-
-        $payment = Payment::find($paymentId);
-        $this->assertSame(Payment::STATUS_FAILED, $payment->payment_status);
-        $this->assertSame('Bukti mutasi tidak terbaca dan nominal tidak sesuai.', $payment->rejection_reason);
     }
 
     /**
@@ -563,7 +477,7 @@ class FinalPaymentSpecificationTest extends TestCase
         $this->actingAs($this->customer)
             ->postJson('/api/v1/payments/checkout', [
                 'order_id' => $this->order->id,
-                'payment_method' => 'transfer',
+                'payment_method' => 'qris',
                 'promo_code' => 'DISKON10K',
             ]);
 
@@ -770,7 +684,7 @@ class FinalPaymentSpecificationTest extends TestCase
         $res = $this->actingAs($this->customer)
             ->postJson('/api/v1/payments/checkout', [
                 'order_id' => $this->order->id,
-                'payment_method' => 'transfer',
+                'payment_method' => 'qris',
             ]);
         $paymentId = $res->json('data.payment.id');
 
@@ -897,7 +811,7 @@ class FinalPaymentSpecificationTest extends TestCase
             'transport_fee' => 20000,
             'discount' => 0,
             'total_amount' => 120000,
-            'payment_method' => 'transfer',
+            'payment_method' => 'qris',
             'payment_status' => 'unpaid',
         ]);
 
@@ -905,7 +819,7 @@ class FinalPaymentSpecificationTest extends TestCase
         $res1 = $this->actingAs($this->customer)
             ->postJson('/api/v1/payments/checkout', [
                 'order_id' => $this->order->id,
-                'payment_method' => 'transfer',
+                'payment_method' => 'qris',
                 'promo_code' => 'REBUTAN1',
             ]);
         $res1->assertStatus(201);
@@ -915,7 +829,7 @@ class FinalPaymentSpecificationTest extends TestCase
         $res2 = $this->actingAs($customer2)
             ->postJson('/api/v1/payments/checkout', [
                 'order_id' => $order2->id,
-                'payment_method' => 'transfer',
+                'payment_method' => 'qris',
                 'promo_code' => 'REBUTAN1',
             ]);
         $res2->assertStatus(422)
@@ -984,7 +898,7 @@ class FinalPaymentSpecificationTest extends TestCase
         $res = $this->actingAs($this->customer)
             ->postJson('/api/v1/payments/checkout', [
                 'order_id' => $this->order->id,
-                'payment_method' => 'transfer',
+                'payment_method' => 'qris',
             ]);
         $payment = Payment::find($res->json('data.payment.id'));
         $payment->update(['payment_status' => Payment::STATUS_PAID, 'paid_at' => now()]);
@@ -1022,7 +936,7 @@ class FinalPaymentSpecificationTest extends TestCase
         $res = $this->actingAs($this->customer)
             ->postJson('/api/v1/payments/checkout', [
                 'order_id' => $this->order->id,
-                'payment_method' => 'transfer',
+                'payment_method' => 'qris',
             ]);
         $payment = Payment::find($res->json('data.payment.id'));
         $payment->update(['payment_status' => Payment::STATUS_PAID, 'paid_at' => now()]);

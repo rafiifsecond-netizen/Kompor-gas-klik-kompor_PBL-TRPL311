@@ -67,6 +67,9 @@
                 <a href="{{ route('admin.reports') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="bar-chart-2" class="w-5 h-5"></i> Laporan
                 </a>
+                <a href="{{ route('admin.dashboard_management') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
+                    <i data-lucide="image" class="w-5 h-5"></i> Banner Dashboard
+                </a>
                 <a href="{{ route('admin.settings') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="settings" class="w-5 h-5"></i> Pengaturan
                 </a>

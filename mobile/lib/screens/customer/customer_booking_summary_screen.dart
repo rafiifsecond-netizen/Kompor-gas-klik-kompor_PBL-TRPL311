@@ -8,6 +8,8 @@ import '../../core/routes/app_routes.dart';
 import '../../core/routes/route_args.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../repositories/service_repository.dart';
+import '../../repositories/order_repository.dart';
+import '../../core/constants/app_constants.dart';
 
 class CustomerBookingSummaryScreen extends StatefulWidget {
   const CustomerBookingSummaryScreen({super.key});
@@ -26,7 +28,10 @@ class _CustomerBookingSummaryScreenState
   Map<String, dynamic> _bookingArgs = {};
   bool _argsInitialized = false;
   final _serviceRepository = ServiceRepository();
+  final _orderRepository = OrderRepository();
   List<String> _damageTypes = [];
+  Map<String, dynamic>? _travelEstimate;
+  bool _loadingEstimate = false;
   final TextEditingController _notesController = TextEditingController();
 
   @override
@@ -35,8 +40,8 @@ class _CustomerBookingSummaryScreenState
     final now = DateTime.now();
     _selectedDateValue = now;
     _selectedDate =
-        '${_getDayName(now.weekday)}, ${now.day} ${_getMonthName(now.month)} ${now.year}';
-    _selectedTime = _availableTimes(now).first;
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    _selectedTime = '';
   }
 
   @override
@@ -51,7 +56,16 @@ class _CustomerBookingSummaryScreenState
     if (!_argsInitialized && raw != null) {
       _bookingArgs = Map<String, dynamic>.from(raw);
       _argsInitialized = true;
+      final date = _bookingArgs['bookingDate']?.toString();
+      final time = _bookingArgs['bookingTime']?.toString();
+      if (date != null) _selectedDate = date;
+      if (time != null) _selectedTime = time;
+      if (date != null) {
+        final parsed = DateTime.tryParse(date);
+        if (parsed != null) _selectedDateValue = parsed;
+      }
       _loadDamageTypes();
+      _loadTravelEstimate();
     }
 
     final serviceName = _bookingArgs['name'] as String? ?? 'Layanan dipilih';
@@ -71,16 +85,19 @@ class _CustomerBookingSummaryScreenState
         price: _bookingArgs['price']?.toString(),
         notesController: _notesController,
         onAddressTap: () => _selectAddress(context),
-        onDateTap: _pickDate,
-        onTimeTap: _pickTime,
+        onDateTap: () => _pickDate(context),
+        onTimeTap: () => _pickTime(context),
         onDamageTypeChanged: (value) =>
             setState(() => _selectedDamageType = value),
         onContinue: () => _continueToPayment(context, serviceName),
+        travelEstimate: _travelEstimate,
+        loadingEstimate: _loadingEstimate,
       ),
     );
   }
 
   Future<void> _selectAddress(BuildContext context) async {
+    final nav = Navigator.of(context);
     final selected = await Navigator.pushNamed(
       context,
       AppRoutes.customerSelectAddress,
@@ -93,8 +110,192 @@ class _CustomerBookingSummaryScreenState
             'latitude': selected['latitude'],
             'longitude': selected['longitude'],
           });
+      if (!mounted) return;
+      nav.pushNamed(
+        AppRoutes.customerSelectSchedule,
+        arguments: _bookingArgs,
+      );
     } else if (selected is String && mounted) {
       setState(() => _bookingArgs = {..._bookingArgs, 'address': selected});
+    }
+  }
+
+  Future<void> _selectAddressAndSchedule(BuildContext context) async {
+    await _selectAddress(context);
+  }
+
+  Future<void> _loadTravelEstimate() async {
+    final lat = double.tryParse(_bookingArgs['latitude']?.toString() ?? '');
+    final lng = double.tryParse(_bookingArgs['longitude']?.toString() ?? '');
+    final techId =
+        int.tryParse(_bookingArgs['technician_id']?.toString() ?? '');
+    if (lat == null || lng == null) return;
+    if (!mounted) return;
+    setState(() => _loadingEstimate = true);
+    try {
+      final response = await _orderRepository.getTravelEstimate(
+        latitude: lat,
+        longitude: lng,
+        technicianId: techId,
+      );
+      if (!mounted) return;
+      if (response is Map && response['data'] is Map) {
+        setState(() {
+          _travelEstimate = Map<String, dynamic>.from(
+            response['data'] as Map,
+          );
+          _loadingEstimate = false;
+        });
+      } else {
+        setState(() => _loadingEstimate = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingEstimate = false);
+    }
+  }
+
+  Future<void> _pickDate(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDateValue,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _selectedDateValue = picked;
+        _selectedDate =
+            '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+        _bookingArgs['bookingDate'] = _selectedDate;
+        _selectedTime = '';
+        _bookingArgs.remove('bookingTime');
+      });
+    }
+  }
+
+  Future<void> _pickTime(BuildContext context) async {
+    final now = DateTime.now();
+    final startHour = _selectedDateValue.year == now.year &&
+            _selectedDateValue.month == now.month &&
+            _selectedDateValue.day == now.day
+        ? now.hour + (now.minute >= 30 ? 1 : 0)
+        : 8;
+    final slots = <String>[];
+    for (var hour = startHour < 8 ? 8 : startHour; hour <= 20; hour++) {
+      final firstMinute = _selectedDateValue.year == now.year &&
+              _selectedDateValue.month == now.month &&
+              _selectedDateValue.day == now.day &&
+              hour == now.hour + (now.minute >= 30 ? 1 : 0)
+          ? (now.minute < 30 ? 30 : 0)
+          : 0;
+      for (var minute = firstMinute; minute < 60; minute += 30) {
+        final slot = DateTime(
+          _selectedDateValue.year,
+          _selectedDateValue.month,
+          _selectedDateValue.day,
+          hour,
+          minute,
+        );
+        if (slot.isAfter(now) && slots.length < 24) {
+          slots.add(
+            '${slot.hour.toString().padLeft(2, '0')}:${slot.minute.toString().padLeft(2, '0')}',
+          );
+        }
+      }
+    }
+    if (slots.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content:
+                  Text('Tidak ada slot waktu tersedia untuk tanggal ini.')),
+        );
+      }
+      return;
+    }
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        constraints: const BoxConstraints(maxHeight: 420),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Pilih Waktu',
+              style:
+                  GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: GridView.builder(
+                shrinkWrap: true,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 2,
+                ),
+                itemCount: slots.length,
+                itemBuilder: (_, index) {
+                  final slot = slots[index];
+                  final isSelected = _selectedTime == slot;
+                  return InkWell(
+                    onTap: () => Navigator.pop(sheetContext, slot),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color:
+                            isSelected ? AppColors.primaryLight : Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.cardBorder,
+                        ),
+                      ),
+                      child: Text(
+                        slot,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedTime = selected;
+        _bookingArgs['bookingTime'] = selected;
+        _bookingArgs['bookingDate'] = _selectedDate;
+      });
     }
   }
 
@@ -124,12 +325,40 @@ class _CustomerBookingSummaryScreenState
       return;
     }
 
+    if (_bookingArgs['address'] == null ||
+        _bookingArgs['address'].toString().trim().isEmpty ||
+        _bookingArgs['latitude'] == null ||
+        _bookingArgs['longitude'] == null) {
+      _selectAddressAndSchedule(context);
+      return;
+    }
+
+    if (_bookingArgs['bookingDate'] == null ||
+        _bookingArgs['bookingTime'] == null) {
+      Navigator.pushNamed(
+        context,
+        AppRoutes.customerSelectSchedule,
+        arguments: _bookingArgs,
+      );
+      return;
+    }
+
+    if (_bookingArgs['technician_id'] == null) {
+      Navigator.pushNamed(
+        context,
+        AppRoutes.customerSelectTechnician,
+        arguments: _bookingArgs,
+      );
+      return;
+    }
+
     Navigator.pushNamed(
       context,
       AppRoutes.customerPayment,
       arguments: {
         'service_id': _bookingArgs['service_id'],
         'service_name': serviceName,
+        'technician_id': _bookingArgs['technician_id'],
         'address': _bookingArgs['address'] ?? '',
         'latitude': _bookingArgs['latitude'],
         'longitude': _bookingArgs['longitude'],
@@ -139,6 +368,9 @@ class _CustomerBookingSummaryScreenState
         'damageType': _selectedDamageType!,
         'notes': _notesController.text,
         'priceRange': _bookingArgs['price'] ?? '',
+        'transport_fee': _travelEstimate?['fee'] ?? 0,
+        'travel_distance_km': _travelEstimate?['distance_km'],
+        'travel_duration_minutes': _travelEstimate?['duration_minutes'],
       },
     );
   }
@@ -149,83 +381,17 @@ class _CustomerBookingSummaryScreenState
     if (mounted) setState(() => _damageTypes = types);
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedDateValue = picked;
-        _selectedDate =
-            '${_getDayName(picked.weekday)}, ${picked.day} ${_getMonthName(picked.month)} ${picked.year}';
-      });
-    }
-  }
-
-  Future<void> _pickTime() async {
-    final now = DateTime.now();
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => _TimePickerSheet(
-        times: _availableTimes(now),
-        onSelected: (time) => Navigator.pop(ctx, time),
-      ),
-    );
-    if (selected != null) setState(() => _selectedTime = selected);
-  }
-
   String _scheduledAt() {
-    final now = DateTime.now();
-    final hour = _selectedDateValue.year == now.year &&
-            _selectedDateValue.month == now.month &&
-            _selectedDateValue.day == now.day
-        ? now.hour + 1
-        : 8;
-    return DateTime(_selectedDateValue.year, _selectedDateValue.month,
-            _selectedDateValue.day, hour)
-        .toIso8601String();
-  }
-
-  List<String> _availableTimes(DateTime date) {
-    final now = DateTime.now();
-    final start =
-        date.year == now.year && date.month == now.month && date.day == now.day
-            ? (now.hour + 1).clamp(8, 20)
-            : 8;
-    return [
-      for (var hour = start; hour <= 20; hour++)
-        '${hour.toString().padLeft(2, '0')}:00 - ${(hour + 1).toString().padLeft(2, '0')}:00'
-    ];
-  }
-
-  String _getDayName(int day) {
-    const names = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-    return day >= 1 && day <= names.length ? names[day - 1] : '';
-  }
-
-  String _getMonthName(int month) {
-    const names = [
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
-    ];
-    return month >= 1 && month <= names.length ? names[month - 1] : '';
+    final parts = _selectedTime.split(':');
+    final hour = parts.isEmpty ? 8 : int.tryParse(parts[0]) ?? 8;
+    final minute = parts.length < 2 ? 0 : int.tryParse(parts[1]) ?? 0;
+    return DateTime(
+      _selectedDateValue.year,
+      _selectedDateValue.month,
+      _selectedDateValue.day,
+      hour,
+      minute,
+    ).toIso8601String();
   }
 }
 
@@ -280,6 +446,8 @@ class _BookingForm extends StatelessWidget {
   final VoidCallback onTimeTap;
   final ValueChanged<String?> onDamageTypeChanged;
   final VoidCallback onContinue;
+  final Map<String, dynamic>? travelEstimate;
+  final bool loadingEstimate;
 
   const _BookingForm({
     required this.address,
@@ -295,6 +463,8 @@ class _BookingForm extends StatelessWidget {
     required this.onTimeTap,
     required this.onDamageTypeChanged,
     required this.onContinue,
+    required this.travelEstimate,
+    required this.loadingEstimate,
   });
 
   @override
@@ -337,6 +507,8 @@ class _BookingForm extends StatelessWidget {
           _PriceAndAction(
             price: price,
             onContinue: onContinue,
+            travelEstimate: travelEstimate,
+            loadingEstimate: loadingEstimate,
           ),
           const SizedBox(height: 20),
         ],
@@ -503,7 +675,9 @@ class _ScheduleRow extends StatelessWidget {
                     style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textHint)),
+                        color: value.trim().isEmpty
+                            ? AppColors.textHint
+                            : Colors.black)),
               ),
               const Icon(Icons.arrow_forward_ios_rounded,
                   size: 16, color: Colors.black),
@@ -591,8 +765,15 @@ class _NotesField extends StatelessWidget {
 class _PriceAndAction extends StatelessWidget {
   final String? price;
   final VoidCallback onContinue;
+  final Map<String, dynamic>? travelEstimate;
+  final bool loadingEstimate;
 
-  const _PriceAndAction({required this.price, required this.onContinue});
+  const _PriceAndAction({
+    required this.price,
+    required this.onContinue,
+    required this.travelEstimate,
+    required this.loadingEstimate,
+  });
 
   @override
   Widget build(BuildContext context) => Column(
@@ -609,6 +790,35 @@ class _PriceAndAction extends StatelessWidget {
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: Colors.black)),
+          if (loadingEstimate)
+            const Padding(
+              padding: EdgeInsets.only(top: 10),
+              child: LinearProgressIndicator(),
+            )
+          else if (travelEstimate != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Jarak: ${travelEstimate!['distance_km']?.toString() ?? '-'} km',
+              style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87),
+            ),
+            Text(
+              'Estimasi tiba: ${travelEstimate!['duration_minutes']?.toString() ?? '-'} menit',
+              style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87),
+            ),
+            Text(
+              'Biaya perjalanan: ${AppConstants.formatCurrency(travelEstimate!['fee'] ?? 0)}',
+              style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black),
+            ),
+          ],
           const SizedBox(height: 36),
           SizedBox(
             width: double.infinity,
@@ -630,44 +840,5 @@ class _PriceAndAction extends StatelessWidget {
             ),
           ),
         ],
-      );
-}
-
-class _TimePickerSheet extends StatelessWidget {
-  final List<String> times;
-  final ValueChanged<String> onSelected;
-
-  const _TimePickerSheet({required this.times, required this.onSelected});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: SafeArea(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 520),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Pilih Waktu Kedatangan',
-                    style: GoogleFonts.inter(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: ListView(
-                    children: times
-                        .map((time) => ListTile(
-                              title: Text(time,
-                                  style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600)),
-                              onTap: () => onSelected(time),
-                            ))
-                        .toList(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       );
 }

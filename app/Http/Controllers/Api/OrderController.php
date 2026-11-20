@@ -13,17 +13,50 @@ use App\Models\Payment;
 use App\Models\ServiceItem;
 use App\Models\User;
 use App\Services\Payment\FinancialCalculator;
+use App\Services\Payment\PaymentService;
 use App\Services\Payment\PromoService;
 use App\Services\Payment\WalletService;
+use App\Services\TravelFeeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
+    public function __construct(
+        protected TravelFeeService $travelFeeService
+    ) {}
+
+    public function travelEstimate(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'technician_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        $technician = ! empty($validated['technician_id'])
+            ? User::with('technicianProfile')->find($validated['technician_id'])
+            : null;
+
+        $travel = $this->travelFeeService->calculate(
+            (float) $validated['latitude'],
+            (float) $validated['longitude'],
+            $technician?->technicianProfile?->current_latitude,
+            $technician?->technicianProfile?->current_longitude,
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => $travel,
+        ]);
+    }
+
     /**
      * List orders filtered by role (Fitur 6 & 12).
      */
@@ -86,12 +119,12 @@ class OrderController extends Controller
             ],
             'scheduled_at' => ['required', 'date', 'after:now'],
             'address' => ['required', 'string'],
-            'latitude' => ['nullable', 'numeric'],
-            'longitude' => ['nullable', 'numeric'],
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
             'stove_brand' => ['nullable', 'string', 'max:100'],
             'stove_type' => ['nullable', 'string', 'max:100'],
             'problem_description' => ['required', 'string'],
-            'payment_method' => ['required', 'string', 'in:cash,qris,transfer'],
+            'payment_method' => ['required', 'string', 'in:cash,qris'],
             'services' => ['required', 'array', 'min:1'],
             'services.*.service_item_id' => ['required', 'exists:service_items,id'],
             'services.*.quantity' => ['required', 'integer', 'min:1'],
@@ -122,12 +155,21 @@ class OrderController extends Controller
                 ];
             }
 
-            $transportFee = 15000; // Flat transport fee estimasi
+            $technician = ! empty($validated['technician_id'])
+                ? User::with('technicianProfile')->find($validated['technician_id'])
+                : null;
+            $travel = $this->travelFeeService->calculate(
+                isset($validated['latitude']) ? (float) $validated['latitude'] : null,
+                isset($validated['longitude']) ? (float) $validated['longitude'] : null,
+                $technician?->technicianProfile?->current_latitude,
+                $technician?->technicianProfile?->current_longitude,
+            );
+            $transportFee = $travel['fee'];
             $totalAmount = $subtotal + $transportFee;
 
             $orderNumber = 'KP-'.date('Ymd').'-'.strtoupper(Str::random(5));
 
-            $order = Order::create([
+            $orderData = [
                 'order_number' => $orderNumber,
                 'customer_id' => $user->id,
                 'technician_id' => $validated['technician_id'] ?? null,
@@ -147,7 +189,34 @@ class OrderController extends Controller
                 'total_amount' => $totalAmount,
                 'payment_method' => $validated['payment_method'],
                 'payment_status' => 'unpaid',
-            ]);
+            ];
+
+            $travelSnapshotColumns = [
+                'technician_latitude',
+                'technician_longitude',
+                'travel_distance_km',
+                'travel_duration_minutes',
+                'travel_fee_source',
+            ];
+            $hasTravelSnapshotColumns = collect($travelSnapshotColumns)
+                ->every(fn (string $column): bool => Schema::hasColumn('orders', $column));
+
+            if ($hasTravelSnapshotColumns) {
+                $orderData += [
+                    'technician_latitude' => $technician?->technicianProfile?->current_latitude,
+                    'technician_longitude' => $technician?->technicianProfile?->current_longitude,
+                    'travel_distance_km' => $travel['distance_km'],
+                    'travel_duration_minutes' => $travel['duration_minutes'],
+                    'travel_fee_source' => $travel['source'],
+                ];
+            } else {
+                Log::warning('Travel snapshot columns are unavailable; creating order without travel snapshot fields.', [
+                    'order_number' => $orderNumber,
+                    'migration' => '2026_11_21_020000_add_travel_pricing_snapshots',
+                ]);
+            }
+
+            $order = Order::create($orderData);
 
             foreach ($itemsData as $item) {
                 $order->items()->create($item);
@@ -434,6 +503,34 @@ class OrderController extends Controller
             if ($statusTo === 'accepted') {
                 $order->technician_id = $user->id;
 
+                $travel = $this->travelFeeService->calculate(
+                    $order->latitude !== null ? (float) $order->latitude : null,
+                    $order->longitude !== null ? (float) $order->longitude : null,
+                    $user->technicianProfile?->current_latitude,
+                    $user->technicianProfile?->current_longitude,
+                );
+                $transportFee = (int) $travel['fee'];
+                $orderData = [
+                    'transport_fee' => $transportFee,
+                    'total_amount' => max(0, (int) $order->subtotal - (int) $order->discount + $transportFee),
+                ];
+                if (Schema::hasColumns('orders', [
+                    'technician_latitude',
+                    'technician_longitude',
+                    'travel_distance_km',
+                    'travel_duration_minutes',
+                    'travel_fee_source',
+                ])) {
+                    $orderData += [
+                        'technician_latitude' => $user->technicianProfile?->current_latitude,
+                        'technician_longitude' => $user->technicianProfile?->current_longitude,
+                        'travel_distance_km' => $travel['distance_km'],
+                        'travel_duration_minutes' => $travel['duration_minutes'],
+                        'travel_fee_source' => $travel['source'],
+                    ];
+                }
+                $order->fill($orderData);
+
                 Chat::firstOrCreate(
                     ['order_id' => $order->id],
                     [
@@ -496,7 +593,7 @@ class OrderController extends Controller
 
                     // Rilis escrow ke dompet teknisi jika pembayaran non-cash sudah lunas
                     $activePayment = $order->activePayment;
-                    if ($techUser && $activePayment && $activePayment->payment_status === Payment::STATUS_PAID && in_array($activePayment->payment_method, ['qris', 'transfer'], true)) {
+                    if ($techUser && $activePayment && $activePayment->payment_status === Payment::STATUS_PAID && $activePayment->payment_method === 'qris') {
                         $commissionRecord = CommissionRecord::where('order_id', $order->id)->first();
                         $netIncome = $commissionRecord ? (int) $commissionRecord->technician_net_income : (int) $activePayment->amount;
                         app(WalletService::class)->releaseEscrowToBalance(
@@ -505,6 +602,12 @@ class OrderController extends Controller
                             technicianNetIncome: $netIncome,
                             escrowAmountToRelease: (int) $activePayment->amount
                         );
+                        if ($commissionRecord) {
+                            $commissionRecord->update([
+                                'settlement_status' => \App\Models\CommissionRecord::STATUS_SETTLED,
+                                'settled_at' => now(),
+                            ]);
+                        }
                     }
                 }
 
@@ -733,7 +836,7 @@ class OrderController extends Controller
         ]);
 
         try {
-            $paymentService = app(\App\Services\Payment\PaymentService::class);
+            $paymentService = app(PaymentService::class);
             $payment = $paymentService->checkout(
                 order: $order,
                 paymentMethod: $validated['payment_method'],

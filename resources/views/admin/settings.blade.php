@@ -65,6 +65,9 @@
                 <a href="{{ route('admin.reports') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="bar-chart-2" class="w-5 h-5"></i> Laporan
                 </a>
+                <a href="{{ route('admin.dashboard_management') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
+                    <i data-lucide="image" class="w-5 h-5"></i> Banner Dashboard
+                </a>
                 <a href="{{ route('admin.settings') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold transition shadow-lg shadow-orange-500/25">
                     <i data-lucide="settings" class="w-5 h-5"></i> Pengaturan
                 </a>
@@ -159,12 +162,20 @@
                         </h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Biaya Transportasi Teknisi Flat (Rp)</label>
-                                <input type="number" name="transport_fee" value="15000" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs outline-none focus:border-orange-500 font-bold text-slate-900" />
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Biaya Dasar Kunjungan (Rp)</label>
+                                <input type="number" name="travel_base_fee" value="{{ old('travel_base_fee', $settings['travel_base_fee']) }}" min="0" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs outline-none focus:border-orange-500 font-bold text-slate-900" />
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Biaya Layanan Aplikasi (Rp)</label>
-                                <input type="number" name="app_fee" value="5000" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs outline-none focus:border-orange-500 font-bold text-slate-900" />
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Jarak Gratis (km)</label>
+                                <input type="number" name="travel_free_km" value="{{ old('travel_free_km', $settings['travel_free_km']) }}" min="0" step="0.1" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs outline-none focus:border-orange-500 font-bold text-slate-900" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Tarif per km Tambahan (Rp)</label>
+                                <input type="number" name="travel_rate_per_km" value="{{ old('travel_rate_per_km', $settings['travel_rate_per_km']) }}" min="0" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs outline-none focus:border-orange-500 font-bold text-slate-900" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Komisi Platform (%)</label>
+                                <input type="number" name="platform_commission_percent" value="{{ old('platform_commission_percent', $settings['platform_commission_percent']) }}" min="0" max="100" step="0.01" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs outline-none focus:border-orange-500 font-bold text-slate-900" />
                             </div>
                         </div>
                     </div>

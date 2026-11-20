@@ -62,21 +62,21 @@ class _CustomerSelectTechnicianScreenState
                               ?.toString() ??
                           '') ??
                   0.0,
-              'reviewCount':
-                  int.tryParse((profile['reviews_count'] ??
-                              profile['total_reviews'])
-                          ?.toString() ??
-                      '') ??
-                      0,
-              'distance': map['distance_km'] == null
-                  ? '-'
-                  : '${map['distance_km']} km',
+              'reviewCount': int.tryParse(
+                      (profile['reviews_count'] ?? profile['total_reviews'])
+                              ?.toString() ??
+                          '') ??
+                  0,
+              'distance':
+                  map['distance_km'] == null ? '-' : '${map['distance_km']} km',
               'distance_km': (map['distance_km'] as num?)?.toDouble(),
               'price': (profile['price'] as num?)?.toDouble() ?? 0,
-              'specialization': profile['specialization'] ??
-                  profile['bio'] ??
-                  '',
-              'experience': '${profile['jobs_completed_count'] ?? profile['total_completed_orders'] ?? 0} Servis Selesai',
+              'specialization':
+                  profile['specialization'] ?? profile['bio'] ?? '',
+              'experience':
+                  '${profile['jobs_completed_count'] ?? profile['total_completed_orders'] ?? 0} Servis Selesai',
+              'current_latitude': profile['current_latitude'],
+              'current_longitude': profile['current_longitude'],
               'is_available': profile['is_available'] == true ||
                   profile['is_available'] == 1,
             };
@@ -173,7 +173,7 @@ class _CustomerSelectTechnicianScreenState
                                 newArgs['technician'] =
                                     null; // Auto-assign later
                                 Navigator.pushNamed(
-                                    context, AppRoutes.customerSelectSchedule,
+                                    context, AppRoutes.customerBookingSummary,
                                     arguments: newArgs);
                               },
                               style: ElevatedButton.styleFrom(
@@ -295,7 +295,7 @@ class _CustomerSelectTechnicianScreenState
                                         newArgs['technician_id'] =
                                             sel['user_id'];
                                         Navigator.pushNamed(context,
-                                            AppRoutes.customerSelectSchedule,
+                                            AppRoutes.customerBookingSummary,
                                             arguments: newArgs);
                                       },
                                 style: ElevatedButton.styleFrom(

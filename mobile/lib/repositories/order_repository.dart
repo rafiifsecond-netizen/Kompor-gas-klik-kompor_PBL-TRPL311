@@ -18,6 +18,21 @@ class OrderRepository {
     return _api.get(ApiEndpoints.orderDetail(id));
   }
 
+  Future<dynamic> getTravelEstimate({
+    required double latitude,
+    required double longitude,
+    int? technicianId,
+  }) async {
+    return _api.get(
+      ApiEndpoints.travelEstimate,
+      queryParameters: {
+        'latitude': latitude,
+        'longitude': longitude,
+        if (technicianId != null) 'technician_id': technicianId,
+      },
+    );
+  }
+
   Future<dynamic> createOrder(Map<String, dynamic> data) async {
     return _api.post(ApiEndpoints.orders, data: data);
   }
@@ -35,7 +50,8 @@ class OrderRepository {
         data: {'is_available': available});
   }
 
-  Future<dynamic> updateTechnicianLocation(double latitude, double longitude) async {
+  Future<dynamic> updateTechnicianLocation(
+      double latitude, double longitude) async {
     return _api.patch(ApiEndpoints.updateLocation,
         data: {'latitude': latitude, 'longitude': longitude});
   }

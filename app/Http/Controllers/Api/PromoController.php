@@ -26,10 +26,17 @@ class PromoController extends Controller
         $validated = $request->validate([
             'order_id' => ['required', 'exists:orders,id'],
             'promo_code' => ['required', 'string', 'max:30'],
-            'payment_method' => ['required', 'string', 'in:qris,transfer,cash'],
+            'payment_method' => ['required', 'string', 'in:qris,cash'],
         ]);
 
         $order = Order::findOrFail($validated['order_id']);
+
+        if ($request->user()->id !== $order->customer_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. Anda bukan pemilik pesanan ini.',
+            ], 403);
+        }
 
         try {
             $result = $this->promoService->validateAndCalculate(
@@ -124,7 +131,7 @@ class PromoController extends Controller
             'total_quota' => ['required', 'integer', 'min:1'],
             'quota_per_user' => ['required', 'integer', 'min:1'],
             'applicable_payment_methods' => ['nullable', 'array'],
-            'applicable_payment_methods.*' => ['string', 'in:qris,transfer,cash'],
+            'applicable_payment_methods.*' => ['string', 'in:qris,cash'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -178,7 +185,7 @@ class PromoController extends Controller
             'total_quota' => ['required', 'integer', 'min:1'],
             'quota_per_user' => ['required', 'integer', 'min:1'],
             'applicable_payment_methods' => ['nullable', 'array'],
-            'applicable_payment_methods.*' => ['string', 'in:qris,transfer,cash'],
+            'applicable_payment_methods.*' => ['string', 'in:qris,cash'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 

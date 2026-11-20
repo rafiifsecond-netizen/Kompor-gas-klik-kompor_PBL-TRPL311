@@ -54,6 +54,18 @@ class ServiceCatalogController extends Controller
         ]);
     }
 
+    public function showServiceItem(int $id): JsonResponse
+    {
+        $item = ServiceItem::with('category')
+            ->where('is_active', true)
+            ->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $item,
+        ]);
+    }
+
     /**
      * Create service item (Admin only - F017).
      */
