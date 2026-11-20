@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
-import '../../providers/auth_provider.dart';
-import '../../core/utils/validators.dart';
 import '../../core/utils/app_feedback.dart';
+import '../../providers/auth_provider.dart';
+import '../../widgets/custom_button.dart';
+import '../../widgets/custom_text_field.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,41 +17,42 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  bool _obscurePass = true;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  String _selectedRole = 'customer';
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
-    _passCtrl.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
+  }
+
+  void _fillPresetCredentials(String email, String role) {
+    setState(() {
+      _selectedRole = role;
+      _emailController.text = email;
+      _passwordController.text = 'password123';
+    });
   }
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
-    final auth = context.read<AuthProvider>();
-    final ok = await auth.login(
-      email: _emailCtrl.text.trim(),
-      password: _passCtrl.text,
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.login(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
     );
+
     if (!mounted) return;
-    if (ok) {
-      AppFeedback.success(context, 'Login berhasil.');
-      if (auth.user?.role == 'admin') {
-        await auth.logout();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Akun Admin hanya dapat login melalui Web Admin!'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-        return;
-      }
+
+    if (success) {
+      AppFeedback.success(context, 'Selamat datang, ${authProvider.user?.name}!');
+
       String route = AppRoutes.customerHome;
-      if (auth.isTechnician) {
-        final profile = auth.user?.technicianProfile;
+      if (authProvider.isTechnician) {
+        final profile = authProvider.user?.technicianProfile;
         if (profile != null && profile.isApproved) {
           route = AppRoutes.technicianDashboard;
         } else {
@@ -59,330 +61,326 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       Navigator.pushReplacementNamed(context, route);
     } else {
-      AppFeedback.error(context, auth.errorMessage ?? 'Login gagal.');
+      AppFeedback.error(context, authProvider.errorMessage ?? 'Login gagal.');
     }
   }
 
+  void _showApiSettingsDialog() {
+    final controller = TextEditingController(text: ApiEndpoints.baseUrl);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Host Backend API'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Sesuaikan host API jika tes menggunakan perangkat fisik / LAN:',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'http://10.0.2.2:8000/api/v1',
+                prefixIcon: Icon(Icons.link_rounded),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () {
+              context
+                  .read<AuthProvider>()
+                  .setCustomBaseUrl(controller.text.trim());
+              Navigator.pop(ctx);
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
+    final authProvider = context.watch<AuthProvider>();
 
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined,
+                color: AppColors.textSecondary),
+            tooltip: 'Host API',
+            onPressed: _showApiSettingsDialog,
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 36),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 32),
-
-                  // ── Logo with continuous floating animation ──
-                  const _KlikKomporLogo(),
-
-                  const SizedBox(height: 36),
-
-                  // ── Error banner ───────────────────────────────
-                  if (auth.errorMessage != null) ...[
-                    _ErrorBanner(message: auth.errorMessage!),
-                    const SizedBox(height: 14),
-                  ],
-
-                  // ── Field Email ────────────────────────────────
-                  _AuthField(
-                    controller: _emailCtrl,
-                    hint: 'Email atau nomor telepon',
-                    icon: Icons.mail_outline_rounded,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (v) => Validators.required(v, label: 'Email'),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // ── Field Kata Sandi ───────────────────────────
-                  _AuthField(
-                    controller: _passCtrl,
-                    hint: 'Kata Sandi',
-                    icon: Icons.lock_outline_rounded,
-                    obscureText: _obscurePass,
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscurePass
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined),
-                      onPressed: () =>
-                          setState(() => _obscurePass = !_obscurePass),
-                    ),
-                    validator: Validators.password,
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // ── Tombol Masuk ───────────────────────────────
-                  _AuthButton(
-                    label: 'Masuk',
-                    isLoading: auth.isLoading,
-                    onTap: _handleLogin,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // ── Link Daftar ────────────────────────────────
-                  GestureDetector(
-                    onTap: () {
-                      auth.clearErrors();
-                      Navigator.pushNamed(context, AppRoutes.register);
-                    },
-                    child: Text(
-                      'Belum punya akun? Daftar',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // ── Divider atau ───────────────────────────────
-                  const _OrDivider(),
-
-                  const SizedBox(height: 28),
-
-                  // ── Tombol Lupa Password ───────────────────────
-                  _AuthButton(
-                    label: 'Lupa Password?',
-                    isLoading: false,
-                    onTap: () {
-                      auth.clearErrors();
-                      Navigator.pushNamed(context, AppRoutes.forgotPassword);
-                    },
-                  ),
-
-                  const SizedBox(height: 40),
-                ],
-              ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 20),
+                _buildRoleTabs(),
+                const SizedBox(height: 14),
+                _buildDemoChips(),
+                const SizedBox(height: 16),
+                if (authProvider.errorMessage != null)
+                  _buildErrorBanner(authProvider.errorMessage!),
+                CustomTextField(
+                  label: 'Alamat Email',
+                  hint: 'contoh: dewi@example.com',
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  prefixIcon: Icons.email_outlined,
+                  errorText: authProvider.getFieldError('email'),
+                  validator: (v) => (v == null || !v.contains('@'))
+                      ? 'Email tidak valid'
+                      : null,
+                ),
+                const SizedBox(height: 14),
+                CustomTextField(
+                  label: 'Kata Sandi',
+                  hint: 'Masukkan kata sandi',
+                  controller: _passwordController,
+                  isPassword: true,
+                  textInputAction: TextInputAction.done,
+                  prefixIcon: Icons.lock_outline_rounded,
+                  errorText: authProvider.getFieldError('password'),
+                  validator: (v) =>
+                      (v == null || v.length < 6) ? 'Minimal 6 karakter' : null,
+                ),
+                const SizedBox(height: 22),
+                CustomButton(
+                  text: 'Masuk Sekarang',
+                  isLoading: authProvider.isLoading,
+                  backgroundColor: _selectedRole == 'technician'
+                      ? AppColors.secondary
+                      : AppColors.primary,
+                  onPressed: _handleLogin,
+                ),
+                const SizedBox(height: 18),
+                _buildRegisterLink(authProvider),
+              ],
             ),
           ),
         ),
       ),
     );
   }
-}
 
-// ═════════════════════════════════════════════════════════════════════════════
-// SHARED AUTH WIDGETS WITH ANIMATIONS
-// ═════════════════════════════════════════════════════════════════════════════
-
-class _KlikKomporLogo extends StatefulWidget {
-  const _KlikKomporLogo();
-
-  @override
-  State<_KlikKomporLogo> createState() => _KlikKomporLogoState();
-}
-
-class _KlikKomporLogoState extends State<_KlikKomporLogo>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.secondary],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.local_fire_department_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'KlikKompor',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        const Text(
+          'Masuk ke Akun',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Pilih peran dan masukkan kredensial untuk masuk.',
+          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
+      ],
     );
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _animation,
-      child: Image.asset(
-        'assets/images/logo.png',
-        width: 180,
-        height: 160,
-        fit: BoxFit.contain,
+  Widget _buildRoleTabs() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildRoleItem('customer', 'Pelanggan', Icons.person_rounded,
+                AppColors.primary),
+          ),
+          Expanded(
+            child: _buildRoleItem('technician', 'Teknisi',
+                Icons.handyman_rounded, AppColors.secondary),
+          ),
+        ],
       ),
     );
   }
-}
 
-class _ErrorBanner extends StatelessWidget {
-  final String message;
-  const _ErrorBanner({required this.message});
+  Widget _buildRoleItem(String role, String label, IconData icon, Color color) {
+    final isSelected = _selectedRole == role;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedRole = role),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 4)
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon,
+                size: 18, color: isSelected ? color : AppColors.textSecondary),
+            const SizedBox(width: 6),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? color : AppColors.textSecondary)),
+          ],
+        ),
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildDemoChips() {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        const Text(
+          'Demo:',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        ActionChip(
+          backgroundColor: AppColors.primaryLight,
+          side: BorderSide.none,
+          label: const Text(
+            'Dewi (Customer)',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
+            ),
+          ),
+          onPressed: () =>
+              _fillPresetCredentials('dewi@example.com', 'customer'),
+        ),
+        ActionChip(
+          backgroundColor: AppColors.secondaryLight,
+          side: BorderSide.none,
+          label: const Text(
+            'Agus (Teknisi)',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.secondary,
+            ),
+          ),
+          onPressed: () => _fillPresetCredentials(
+            'agus.teknisi@klikkompor.com',
+            'technician',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorBanner(String message) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.dangerLight,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         message,
-        style: GoogleFonts.inter(fontSize: 13, color: AppColors.danger),
-        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 12,
+          color: AppColors.danger,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
-}
 
-class _AuthField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-  final bool obscureText;
-  final TextInputType? keyboardType;
-  final String? Function(String?)? validator;
-  final Widget? suffixIcon;
-
-  const _AuthField({
-    required this.controller,
-    required this.hint,
-    required this.icon,
-    this.obscureText = false,
-    this.keyboardType,
-    this.validator,
-    this.suffixIcon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      style: GoogleFonts.inter(fontSize: 14, color: Colors.black87),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: const Color(0xFFE8E8E8),
-        hintText: hint,
-        hintStyle: GoogleFonts.inter(
-          fontSize: 14,
-          color: Colors.black54,
-          fontWeight: FontWeight.w400,
-        ),
-        prefixIcon: Icon(icon, size: 20, color: Colors.black54),
-        suffixIcon: suffixIcon,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFCCCCCC), width: 1),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFCCCCCC), width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.danger, width: 1),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
-        ),
-        errorStyle: GoogleFonts.inter(fontSize: 11, color: AppColors.danger),
-      ),
-      validator: validator,
-    );
-  }
-}
-
-class _AuthButton extends StatelessWidget {
-  final String label;
-  final bool isLoading;
-  final VoidCallback onTap;
-
-  const _AuthButton({
-    required this.label,
-    required this.isLoading,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 1.0, end: 1.0),
-      duration: const Duration(milliseconds: 100),
-      builder: (context, scale, child) {
-        return SizedBox(
-          width: double.infinity,
-          height: 46,
-          child: ElevatedButton(
-            onPressed: isLoading ? null : onTap,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: isLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.5),
-                  )
-                : Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _OrDivider extends StatelessWidget {
-  const _OrDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
+  Widget _buildRegisterLink(AuthProvider authProvider) {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Expanded(
-          child: Container(height: 1, color: Colors.black26),
+        const Text(
+          'Belum punya akun? ',
+          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+        GestureDetector(
+          onTap: () {
+            authProvider.clearErrors();
+            Navigator.pushNamed(context, AppRoutes.register);
+          },
           child: Text(
-            'atau',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: Colors.black54,
+            'Daftar Sekarang',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: _selectedRole == 'technician'
+                  ? AppColors.secondary
+                  : AppColors.primary,
             ),
           ),
-        ),
-        Expanded(
-          child: Container(height: 1, color: Colors.black26),
         ),
       ],
     );
