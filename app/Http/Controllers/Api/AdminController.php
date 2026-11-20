@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\TechnicianProfile;
 use App\Models\User;
@@ -187,6 +188,158 @@ class AdminController extends Controller
         return response()->json([
             'success' => true,
             'data' => $logs,
+        ]);
+    }
+
+    /**
+     * List pending technician registrations (Bagian B - REST API).
+     */
+    public function pendingTechnicians(Request $request): JsonResponse
+    {
+        $technicians = User::where('role', 'technician')
+            ->whereHas('technicianProfile', function ($q) {
+                $q->where('status', TechnicianProfile::STATUS_PENDING)
+                    ->orWhere('is_verified', false);
+            })
+            ->with('technicianProfile')
+            ->latest()
+            ->paginate(15);
+
+        return response()->json([
+            'success' => true,
+            'data' => $technicians,
+        ]);
+    }
+
+    /**
+     * Approve technician registration (Bagian B - REST API).
+     */
+    public function approveTechnicianRegistration(Request $request, int $id): JsonResponse
+    {
+        $admin = $request->user();
+        $user = User::where('role', 'technician')->findOrFail($id);
+        $profile = $user->technicianProfile ?? TechnicianProfile::create(['user_id' => $user->id]);
+
+        if ($profile->status === TechnicianProfile::STATUS_APPROVED && $profile->is_verified) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Teknisi sudah disetujui sebelumnya.',
+                'data' => $user->load('technicianProfile'),
+            ]);
+        }
+
+        $oldValues = $profile->toArray();
+
+        $profile->update([
+            'status' => TechnicianProfile::STATUS_APPROVED,
+            'is_verified' => true,
+            'verified_at' => now(),
+            'verified_by' => $admin->id,
+            'is_available' => true,
+            'rejection_reason' => null,
+        ]);
+
+        $user->update(['is_active' => true]);
+
+        Notification::create([
+            'user_id' => $user->id,
+            'title' => 'Pendaftaran Akun Teknisi Disetujui!',
+            'message' => 'Selamat, akun teknisi Anda telah diverifikasi dan disetujui oleh Admin.',
+            'type' => 'account_approved',
+            'data' => ['technician_id' => $user->id, 'status' => 'approved'],
+        ]);
+
+        ActivityLog::logEvent(
+            eventName: 'technician.registration.approved',
+            description: "Admin {$admin->name} menyetujui pendaftaran teknisi {$user->name}",
+            entity: $profile,
+            oldValues: $oldValues,
+            newValues: $profile->toArray(),
+            request: $request,
+            actor: $admin
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pendaftaran teknisi berhasil disetujui.',
+            'data' => $user->load('technicianProfile'),
+        ]);
+    }
+
+    /**
+     * Reject technician registration with reason (Bagian B - REST API).
+     */
+    public function rejectTechnicianRegistration(Request $request, int $id): JsonResponse
+    {
+        $admin = $request->user();
+        $user = User::where('role', 'technician')->findOrFail($id);
+        $profile = $user->technicianProfile ?? TechnicianProfile::create(['user_id' => $user->id]);
+
+        $validated = $request->validate([
+            'rejection_reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $oldValues = $profile->toArray();
+
+        $profile->update([
+            'status' => TechnicianProfile::STATUS_REJECTED,
+            'is_verified' => false,
+            'rejection_reason' => $validated['rejection_reason'],
+            'verified_by' => $admin->id,
+            'verified_at' => now(),
+        ]);
+
+        Notification::create([
+            'user_id' => $user->id,
+            'title' => 'Pendaftaran Akun Teknisi Ditolak',
+            'message' => "Mohon maaf, pendaftaran akun teknisi Anda ditolak: {$validated['rejection_reason']}",
+            'type' => 'account_rejected',
+            'data' => ['technician_id' => $user->id, 'status' => 'rejected', 'rejection_reason' => $validated['rejection_reason']],
+        ]);
+
+        ActivityLog::logEvent(
+            eventName: 'technician.registration.rejected',
+            description: "Admin {$admin->name} menolak pendaftaran teknisi {$user->name}",
+            entity: $profile,
+            oldValues: $oldValues,
+            newValues: $profile->toArray(),
+            request: $request,
+            actor: $admin
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pendaftaran teknisi telah ditolak.',
+            'data' => $user->load('technicianProfile'),
+        ]);
+    }
+
+    /**
+     * Toggle technician account active/inactive (Bagian B - REST API).
+     */
+    public function toggleTechnicianActive(Request $request, int $id): JsonResponse
+    {
+        $admin = $request->user();
+        $user = User::where('role', 'technician')->findOrFail($id);
+        $oldState = $user->is_active;
+
+        $user->is_active = ! $oldState;
+        $user->save();
+
+        ActivityLog::logEvent(
+            eventName: 'technician.toggled_active',
+            description: "Admin {$admin->name} mengubah status aktif teknisi {$user->name} menjadi: ".($user->is_active ? 'Aktif' : 'Nonaktif'),
+            entity: $user,
+            oldValues: ['is_active' => $oldState],
+            newValues: ['is_active' => $user->is_active],
+            request: $request,
+            actor: $admin
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => "Akun teknisi berhasil ".($user->is_active ? 'diaktifkan' : 'dinonaktifkan').".",
+            'data' => $user->load('technicianProfile'),
         ]);
     }
 }

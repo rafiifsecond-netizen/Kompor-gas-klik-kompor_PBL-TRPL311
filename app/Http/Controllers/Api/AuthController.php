@@ -32,8 +32,9 @@ class AuthController extends Controller
             // Specific for technician registration
             'bio' => ['nullable', 'string'],
             'years_of_experience' => ['nullable', 'integer', 'min:0'],
-            'skills' => ['nullable', 'array'],
+            'skills' => ['nullable'],
             'ktp_number' => ['nullable', 'string', 'max:30'],
+            'certificate' => ['nullable', 'file', 'mimes:pdf,jpeg,png,jpg,webp', 'max:3072'],
         ]);
 
         $role = $validated['role'] ?? 'customer';
@@ -49,14 +50,27 @@ class AuthController extends Controller
         ]);
 
         if ($role === 'technician') {
+            $certificateUrl = null;
+            if ($request->hasFile('certificate')) {
+                $path = $request->file('certificate')->store('certificates', 'public');
+                $certificateUrl = '/storage/'.$path;
+            }
+
+            $skills = $validated['skills'] ?? ['Kompor Gas Standar'];
+            if (is_string($skills)) {
+                $skills = array_filter(array_map('trim', explode(',', $skills)));
+            }
+
             TechnicianProfile::create([
                 'user_id' => $user->id,
                 'bio' => $validated['bio'] ?? null,
                 'years_of_experience' => $validated['years_of_experience'] ?? 0,
-                'skills' => $validated['skills'] ?? ['Kompor Gas Standar'],
+                'skills' => ! empty($skills) ? $skills : ['Kompor Gas Standar'],
                 'ktp_number' => $validated['ktp_number'] ?? null,
+                'certificate_url' => $certificateUrl,
+                'status' => TechnicianProfile::STATUS_PENDING,
                 'is_verified' => false,
-                'is_available' => true,
+                'is_available' => false,
             ]);
         }
 
@@ -70,9 +84,13 @@ class AuthController extends Controller
             actor: $user
         );
 
+        $message = $role === 'technician'
+            ? 'Pendaftaran akun teknisi berhasil diajukan dan sedang menunggu persetujuan Admin.'
+            : 'Registrasi berhasil.';
+
         return response()->json([
             'success' => true,
-            'message' => 'Registrasi berhasil.',
+            'message' => $message,
             'data' => [
                 'user' => $user->load('technicianProfile'),
                 'token' => $token,
@@ -113,6 +131,19 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Akun dinonaktifkan. Silakan hubungi admin.',
             ], 403);
+        }
+
+        // Jika teknisi berstatus ditolak, kembalikan pesan penolakan
+        if ($user->isTechnician()) {
+            $profile = $user->technicianProfile;
+            if ($profile && $profile->status === 'rejected') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pendaftaran teknisi ditolak: '.($profile->rejection_reason ?? 'Persyaratan belum terpenuhi.'),
+                    'status' => 'rejected',
+                    'rejection_reason' => $profile->rejection_reason,
+                ], 403);
+            }
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;

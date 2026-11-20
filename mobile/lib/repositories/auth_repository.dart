@@ -44,6 +44,10 @@ class AuthRepository {
     required String passwordConfirmation,
     String? address,
     String role = 'customer',
+    String? bio,
+    int? yearsOfExperience,
+    List<String>? skills,
+    String? ktpNumber,
   }) async {
     final response = await _authService.register(
       name: name,
@@ -53,6 +57,10 @@ class AuthRepository {
       passwordConfirmation: passwordConfirmation,
       address: address,
       role: role,
+      bio: bio,
+      yearsOfExperience: yearsOfExperience,
+      skills: skills,
+      ktpNumber: ktpNumber,
     );
 
     if (response.data == null) {

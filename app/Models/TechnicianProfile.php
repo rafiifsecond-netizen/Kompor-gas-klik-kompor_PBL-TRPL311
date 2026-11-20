@@ -11,6 +11,10 @@ class TechnicianProfile extends Model
 {
     use HasFactory;
 
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_REJECTED = 'rejected';
+
     protected $fillable = [
         'user_id',
         'bio',
@@ -19,6 +23,8 @@ class TechnicianProfile extends Model
         'ktp_number',
         'certificate_url',
         'is_verified',
+        'status',
+        'rejection_reason',
         'verified_at',
         'verified_by',
         'is_available',

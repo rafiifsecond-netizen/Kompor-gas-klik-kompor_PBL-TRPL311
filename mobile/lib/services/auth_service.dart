@@ -49,6 +49,10 @@ class AuthService {
     required String passwordConfirmation,
     String? address,
     String role = 'customer',
+    String? bio,
+    int? yearsOfExperience,
+    List<String>? skills,
+    String? ktpNumber,
   }) async {
     final response = await _apiClient.post(
       ApiEndpoints.register,
@@ -60,6 +64,10 @@ class AuthService {
         'password_confirmation': passwordConfirmation,
         'address': address,
         'role': role,
+        if (bio != null) 'bio': bio,
+        if (yearsOfExperience != null) 'years_of_experience': yearsOfExperience,
+        if (skills != null) 'skills': skills,
+        if (ktpNumber != null) 'ktp_number': ktpNumber,
       },
     );
     return ApiResponse<AuthResponseData>.fromJson(

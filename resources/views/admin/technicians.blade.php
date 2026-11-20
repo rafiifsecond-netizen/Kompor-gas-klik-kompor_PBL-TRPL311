@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Teknisi - Admin KlikKompor</title>
+    <title>Kelola Teknisi & Pengajuan Pendaftaran - Admin KlikKompor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -28,7 +28,7 @@
 </head>
 <body class="flex h-screen overflow-hidden bg-[#090b27]">
 
-    <!-- Sidebar (Dark #090b27 with Active Teknisi) -->
+    <!-- Sidebar -->
     <aside class="w-68 bg-[#090b27] text-white flex flex-col justify-between hidden md:flex shrink-0 relative overflow-hidden border-r border-slate-800">
         <div class="absolute -top-24 -left-24 w-64 h-64 bg-orange-500/20 rounded-full blur-3xl animate-glow pointer-events-none"></div>
 
@@ -65,6 +65,9 @@
                 <a href="{{ route('admin.reports') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="bar-chart-2" class="w-5 h-5"></i> Laporan
                 </a>
+                <a href="{{ route('admin.dashboard_management') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
+                    <i data-lucide="image" class="w-5 h-5"></i> Banner Dashboard
+                </a>
                 <a href="{{ route('admin.settings') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="settings" class="w-5 h-5"></i> Pengaturan
                 </a>
@@ -77,7 +80,7 @@
                 <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping shrink-0"></div>
                 <div>
                     <span class="font-bold block text-white text-xs">Server Online</span>
-                    <span class="text-[10px] text-slate-400">Laravel v12 • PHP 8.4</span>
+                    <span class="text-[10px] text-slate-400">Laravel v11 • Approval System</span>
                 </div>
             </div>
             <form method="POST" action="{{ route('admin.logout') }}">
@@ -102,13 +105,12 @@
                 <a href="{{ route('admin.dashboard') }}" class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 hover:text-black hover:bg-slate-200 transition shadow-sm transform hover:-translate-x-0.5">
                     <i data-lucide="arrow-left" class="w-6 h-6"></i>
                 </a>
+                <div>
+                    <h1 class="text-xl font-extrabold text-slate-900">Manajemen Teknisi & Pendaftaran (Bagian B)</h1>
+                    <p class="text-xs text-slate-500">Kelola akun teknisi, verifikasi pengajuan pendaftaran, dan kontrol status aktif</p>
+                </div>
             </div>
             <div class="flex items-center gap-8">
-                <!-- Search -->
-                <div class="relative w-96">
-                    <input type="text" placeholder="Cari teknisi..." class="w-full bg-slate-100 border border-slate-200 rounded-full py-3 pl-5 pr-12 text-sm outline-none focus:border-orange-500 focus:bg-white transition shadow-sm" />
-                    <i data-lucide="search" class="w-5 h-5 text-slate-400 absolute right-4 top-3.5"></i>
-                </div>
                 <!-- Notification Bell -->
                 @php
                     $unreadCount = \App\Models\Notification::where('user_id', auth()->id())->whereNull('read_at')->count();
@@ -143,182 +145,296 @@
                 </div>
             @endif
 
-            <!-- Page Title -->
-            <div>
-                <h1 class="text-3xl font-extrabold text-slate-900">Teknisi</h1>
-            </div>
+            @if($errors->any())
+                <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold space-y-1 shadow-sm">
+                    <div class="font-bold flex items-center gap-2 text-sm text-rose-700">
+                        <i data-lucide="alert-circle" class="w-4 h-4"></i> Terjadi kesalahan:
+                    </div>
+                    <ul class="list-disc pl-5">
+                        @foreach($errors->all() as $err)
+                            <li>{{ $err }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
 
-            <!-- Top 4 Metric Cards -->
+            <!-- 4 Metric Cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <!-- Card 1 -->
-                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border border-orange-100 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-bl-full group-hover:scale-125 transition-transform"></div>
-                    <div class="relative z-10 flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Total pengguna</p>
-                            <h3 class="text-3xl font-extrabold text-slate-900 mt-1">{{ number_format($stats['total_users']) }}</h3>
-                            <div class="flex items-center gap-1 mt-2 text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-md w-fit">
-                                <i data-lucide="arrow-up" class="w-3 h-3"></i> +12% <span class="text-slate-500 font-normal">Dari Bulan Lalu</span>
-                            </div>
-                        </div>
-                        <div class="w-14 h-14 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-inner group-hover:rotate-6 transition-transform">
-                            <i data-lucide="users" class="w-7 h-7"></i>
-                        </div>
-                    </div>
+                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border border-orange-100 shadow-sm">
+                    <p class="text-xs font-bold text-slate-500 uppercase">Total Pengguna</p>
+                    <h3 class="text-3xl font-extrabold text-slate-900 mt-1">{{ number_format($stats['total_users']) }}</h3>
+                    <span class="text-[10px] text-slate-400">Akun pelanggan terdaftar</span>
                 </div>
-
-                <!-- Card 2 -->
-                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border border-orange-100 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-bl-full group-hover:scale-125 transition-transform"></div>
-                    <div class="relative z-10 flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Teknisi</p>
-                            <h3 class="text-3xl font-extrabold text-slate-900 mt-1">{{ number_format($stats['total_technicians']) }}</h3>
-                            <div class="flex items-center gap-1 mt-2 text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-md w-fit">
-                                <i data-lucide="arrow-up" class="w-3 h-3"></i> +5% <span class="text-slate-500 font-normal">Dari Bulan Lalu</span>
-                            </div>
-                        </div>
-                        <div class="w-14 h-14 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-inner group-hover:rotate-6 transition-transform">
-                            <i data-lucide="wrench" class="w-7 h-7"></i>
-                        </div>
-                    </div>
+                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border border-orange-100 shadow-sm">
+                    <p class="text-xs font-bold text-emerald-600 uppercase">Teknisi Disetujui</p>
+                    <h3 class="text-3xl font-extrabold text-emerald-700 mt-1">{{ number_format($stats['total_technicians']) }}</h3>
+                    <span class="text-[10px] text-slate-400">Akun terverifikasi aktif</span>
                 </div>
-
-                <!-- Card 3 -->
-                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border border-orange-100 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-bl-full group-hover:scale-125 transition-transform"></div>
-                    <div class="relative z-10 flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Pesanan Hari Ini</p>
-                            <h3 class="text-3xl font-extrabold text-slate-900 mt-1">{{ number_format($stats['today_orders']) }}</h3>
-                            <div class="flex items-center gap-1 mt-2 text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-md w-fit">
-                                <i data-lucide="arrow-up" class="w-3 h-3"></i> +18% <span class="text-slate-500 font-normal">Dari Bulan Lalu</span>
-                            </div>
-                        </div>
-                        <div class="w-14 h-14 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-inner group-hover:rotate-6 transition-transform">
-                            <i data-lucide="clipboard" class="w-7 h-7"></i>
-                        </div>
-                    </div>
+                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border border-orange-100 shadow-sm">
+                    <p class="text-xs font-bold text-amber-600 uppercase">Pengajuan Pending</p>
+                    <h3 class="text-3xl font-extrabold text-amber-700 mt-1">{{ number_format($stats['pending_technicians']) }}</h3>
+                    <span class="text-[10px] text-slate-400">Menunggu persetujuan Admin</span>
                 </div>
-
-                <!-- Card 4 -->
-                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border border-orange-100 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-bl-full group-hover:scale-125 transition-transform"></div>
-                    <div class="relative z-10 flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Layanan Selesai</p>
-                            <h3 class="text-3xl font-extrabold text-slate-900 mt-1">{{ number_format($stats['completed_orders']) }}</h3>
-                            <div class="flex items-center gap-1 mt-2 text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-md w-fit">
-                                <i data-lucide="arrow-up" class="w-3 h-3"></i> +28% <span class="text-slate-500 font-normal">Dari Bulan Lalu</span>
-                            </div>
-                        </div>
-                        <div class="w-14 h-14 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center shadow-inner group-hover:rotate-6 transition-transform">
-                            <i data-lucide="check-circle" class="w-7 h-7"></i>
-                        </div>
-                    </div>
+                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border border-orange-100 shadow-sm">
+                    <p class="text-xs font-bold text-purple-600 uppercase">Layanan Selesai</p>
+                    <h3 class="text-3xl font-extrabold text-purple-700 mt-1">{{ number_format($stats['completed_orders']) }}</h3>
+                    <span class="text-[10px] text-slate-400">Total pekerjaan kompor selesai</span>
                 </div>
             </div>
 
-            <!-- Kelola Teknisi Section -->
-            <div class="bg-white/90 backdrop-blur-md rounded-3xl border border-orange-100 shadow-sm p-8 space-y-6 hover:shadow-md transition">
+            <!-- Tab Buttons -->
+            <div class="flex items-center gap-3 border-b border-slate-200 pb-3">
+                <button onclick="switchTab('approved')" id="tabBtnApproved" class="px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 bg-orange-500 text-white shadow-md shadow-orange-500/25">
+                    <i data-lucide="check-circle-2" class="w-4 h-4"></i> Teknisi Aktif (Disetujui)
+                    <span class="px-2 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-extrabold">{{ $technicians->count() }}</span>
+                </button>
+                <button onclick="switchTab('pending')" id="tabBtnPending" class="px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 bg-white text-slate-700 border border-slate-200 hover:bg-slate-50">
+                    <i data-lucide="clock" class="w-4 h-4"></i> Pengajuan Pendaftaran
+                    @if($pendingTechnicians->count() > 0)
+                        <span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-500 text-white font-extrabold animate-pulse">{{ $pendingTechnicians->count() }}</span>
+                    @else
+                        <span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-200 text-slate-600 font-extrabold">0</span>
+                    @endif
+                </button>
+            </div>
 
+            <!-- TAB 1: Teknisi Aktif Section -->
+            <div id="tabContentApproved" class="bg-white/90 backdrop-blur-md rounded-3xl border border-orange-100 shadow-sm p-8 space-y-6 hover:shadow-md transition">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h2 class="text-xl font-extrabold text-slate-900">Kelola Teknisi</h2>
-                        <p class="text-xs text-slate-500 mt-0.5">{{ $technicians->count() }} Teknisi Terdaftar</p>
+                        <h2 class="text-xl font-extrabold text-slate-900">Daftar Teknisi Terverifikasi</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ $technicians->count() }} Teknisi Aktif & Siap Menerima Order</p>
                     </div>
 
                     <div class="flex items-center gap-4">
-                        <!-- Search Bar -->
-                        <div class="relative w-72">
-                            <input type="text" placeholder="Cari..." class="w-full bg-slate-100 border border-slate-200 rounded-xl py-2.5 pl-4 pr-10 text-xs outline-none focus:border-orange-500 focus:bg-white transition" />
-                            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute right-3.5 top-3 transition-all duration-300"></i>
-                        </div>
-                        <!-- Button Tambah -->
-                        <button onclick="openModal()" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-orange-500/25 transition">
-                            <i data-lucide="plus" class="w-4 h-4"></i> Tambah Teknisi
+                        <button onclick="openAddModal()" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-orange-500/25 transition">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Tambah Teknisi Langsung
                         </button>
                     </div>
                 </div>
 
-                <!-- Technicians Table -->
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm border-collapse">
+                    <table class="w-full text-left text-xs border-collapse">
                         <thead>
-                            <tr class="bg-orange-500 text-white font-bold rounded-xl overflow-hidden text-xs">
-                                <th class="py-4 px-6 rounded-l-xl">No</th>
-                                <th class="py-4 px-6">Nama Teknisi</th>
-                                <th class="py-4 px-6">Email</th>
-                                <th class="py-4 px-6">No. Telepon</th>
-                                <th class="py-4 px-6">Alamat</th>
-                                <th class="py-4 px-6">Jumlah Orderan</th>
-                                <th class="py-4 px-6 rounded-r-xl">Aksi</th>
+                            <tr class="bg-slate-800 text-white font-bold rounded-xl text-[11px] uppercase tracking-wider">
+                                <th class="py-3.5 px-4 rounded-l-xl">No</th>
+                                <th class="py-3.5 px-4">Nama Teknisi</th>
+                                <th class="py-3.5 px-4">Kontak</th>
+                                <th class="py-3.5 px-4">Alamat</th>
+                                <th class="py-3.5 px-4">Keahlian</th>
+                                <th class="py-3.5 px-4 text-center">Status Akun</th>
+                                <th class="py-3.5 px-4 text-center">Order Selesai</th>
+                                <th class="py-3.5 px-4 rounded-r-xl text-center">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100 text-xs">
+                        <tbody class="divide-y divide-slate-100 text-slate-700">
                             @forelse($technicians as $index => $tech)
                                 <tr class="hover:bg-slate-50 transition">
-                                    <td class="py-4 px-6 font-bold text-slate-900">{{ $index + 1 }}</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold">{{ $tech->name }}</td>
-                                    <td class="py-4 px-6 text-blue-600 underline font-medium">{{ $tech->email }}</td>
-                                    <td class="py-4 px-6 text-slate-800 font-semibold">{{ $tech->phone ?? '-' }}</td>
-                                    <td class="py-4 px-6 text-slate-700">{{ $tech->address ?? 'Jl. Bunga' }}</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold text-center">{{ $tech->technician_orders_count ?? 0 }}</td>
-                                    <td class="py-4 px-6">
-                                        <form method="POST" action="{{ route('admin.technicians.destroy', $tech->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus teknisi ini?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-500 hover:text-red-700 font-bold transition flex items-center gap-1">
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i> Hapus
-                                            </button>
-                                        </form>
+                                    <td class="py-3.5 px-4 font-bold text-slate-900">{{ $index + 1 }}</td>
+                                    <td class="py-3.5 px-4">
+                                        <div class="font-bold text-slate-900">{{ $tech->name }}</div>
+                                        <span class="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                                            <i data-lucide="badge-check" class="w-3 h-3"></i> Terverifikasi
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        <div class="text-blue-600 font-medium">{{ $tech->email }}</div>
+                                        <div class="text-slate-500 text-[11px]">{{ $tech->phone }}</div>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-600 max-w-xs truncate">{{ $tech->address ?? '-' }}</td>
+                                    <td class="py-3.5 px-4">
+                                        @php
+                                            $skills = is_array($tech->technicianProfile?->skills) ? $tech->technicianProfile->skills : [];
+                                        @endphp
+                                        <div class="flex flex-wrap gap-1">
+                                            @foreach(array_slice($skills, 0, 2) as $sk)
+                                                <span class="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-semibold text-slate-700">{{ $sk }}</span>
+                                            @endforeach
+                                        </div>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        @if($tech->is_active)
+                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">AKTIF</span>
+                                        @else
+                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">NONAKTIF</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4 font-bold text-slate-900 text-center">{{ $tech->technician_orders_count ?? 0 }}</td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <!-- Toggle Active -->
+                                            <form method="POST" action="{{ route('admin.technicians.toggle_active', $tech->id) }}">
+                                                @csrf
+                                                <button type="submit" class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition {{ $tech->is_active ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' }}">
+                                                    {{ $tech->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
+                                                </button>
+                                            </form>
+                                            <!-- Hapus -->
+                                            <form method="POST" action="{{ route('admin.technicians.destroy', $tech->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus teknisi ini?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="p-1 rounded text-red-500 hover:bg-red-50 transition" title="Hapus Teknisi">
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
-                                <tr class="hover:bg-slate-50">
-                                    <td colspan="7" class="py-6 text-center text-slate-400">Belum ada data teknisi.</td>
+                                <tr>
+                                    <td colspan="8" class="py-8 text-center text-slate-400">Belum ada data teknisi yang disetujui.</td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
+            </div>
 
+            <!-- TAB 2: Pengajuan Pending Section -->
+            <div id="tabContentPending" class="bg-white/90 backdrop-blur-md rounded-3xl border border-orange-100 shadow-sm p-8 space-y-6 hover:shadow-md transition hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-extrabold text-slate-900">Pengajuan Pendaftaran Teknisi Baru</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Tinjau kelengkapan berkas calon teknisi sebelum menyetujui atau menolak pendaftaran</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-amber-500 text-white font-bold rounded-xl text-[11px] uppercase tracking-wider">
+                                <th class="py-3.5 px-4 rounded-l-xl">No</th>
+                                <th class="py-3.5 px-4">Calon Teknisi</th>
+                                <th class="py-3.5 px-4">Kontak</th>
+                                <th class="py-3.5 px-4">Alamat & Pengalaman</th>
+                                <th class="py-3.5 px-4">Keahlian & Sertifikat</th>
+                                <th class="py-3.5 px-4">Waktu Daftar</th>
+                                <th class="py-3.5 px-4 rounded-r-xl text-center">Keputusan Admin</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-slate-700">
+                            @forelse($pendingTechnicians as $index => $pending)
+                                <tr class="hover:bg-amber-50/20 transition">
+                                    <td class="py-3.5 px-4 font-bold text-slate-900">{{ $index + 1 }}</td>
+                                    <td class="py-3.5 px-4">
+                                        <div class="font-bold text-slate-900">{{ $pending->name }}</div>
+                                        <span class="text-[10px] text-amber-600 font-bold px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-md inline-block mt-0.5">
+                                            Menunggu Persetujuan
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        <div class="text-blue-600 font-medium">{{ $pending->email }}</div>
+                                        <div class="text-slate-500 text-[11px]">{{ $pending->phone }}</div>
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        <div class="text-slate-800 font-medium">{{ $pending->address ?? '-' }}</div>
+                                        <div class="text-[10px] text-slate-400 mt-0.5 font-semibold">
+                                            Pengalaman: {{ $pending->technicianProfile?->years_of_experience ?? 0 }} Tahun
+                                        </div>
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        @php
+                                            $skills = is_array($pending->technicianProfile?->skills) ? $pending->technicianProfile->skills : [];
+                                        @endphp
+                                        <div class="flex flex-wrap gap-1 mb-1">
+                                            @foreach($skills as $sk)
+                                                <span class="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-semibold text-slate-700">{{ $sk }}</span>
+                                            @endforeach
+                                        </div>
+                                        @if($pending->technicianProfile?->certificate_url)
+                                            <a href="{{ $pending->technicianProfile->certificate_url }}" target="_blank" class="text-[10px] text-orange-600 font-bold underline flex items-center gap-1">
+                                                <i data-lucide="file-text" class="w-3 h-3"></i> Lihat Berkas / Sertifikat
+                                            </a>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-500">
+                                        {{ $pending->created_at->format('d/m/Y H:i') }}
+                                    </td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <!-- Tombol Setujui -->
+                                            <form method="POST" action="{{ route('admin.technicians.approve', $pending->id) }}" onsubmit="return confirm('Setujui pendaftaran teknisi {{ $pending->name }}?');">
+                                                @csrf
+                                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition">
+                                                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Setujui
+                                                </button>
+                                            </form>
+                                            <!-- Tombol Tolak -->
+                                            <button onclick="openRejectModal({{ $pending->id }}, '{{ addslashes($pending->name) }}')" class="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1 transition">
+                                                <i data-lucide="x" class="w-3.5 h-3.5"></i> Tolak
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="py-8 text-center text-slate-400">Tidak ada pengajuan pendaftaran teknisi baru yang pending.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
         </div>
     </main>
 
-    <!-- Modal Tambah Teknisi -->
+    <!-- Modal Tolak Pendaftaran -->
+    <div id="rejectModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 space-y-6 shadow-2xl relative animate-fade-in">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div>
+                    <h3 class="text-lg font-extrabold text-slate-900">Tolak Pendaftaran Teknisi</h3>
+                    <p id="rejectTechName" class="text-xs text-slate-500 mt-0.5">Nama Calon Teknisi</p>
+                </div>
+                <button onclick="closeRejectModal()" class="text-slate-400 hover:text-black text-xl font-bold">&times;</button>
+            </div>
+            <form id="rejectForm" method="POST" action="" class="space-y-4">
+                @csrf
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Alasan Penolakan Pendaftaran *</label>
+                    <textarea name="rejection_reason" required rows="3" placeholder="Contoh: Nomor telepon tidak dapat dihubungi atau sertifikat kompetensi tidak valid..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-rose-500"></textarea>
+                    <span class="text-[10px] text-slate-400 block mt-1">Alasan ini akan dikirimkan kepada calon teknisi sebagai informasi.</span>
+                </div>
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeRejectModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/25">Tolak Pendaftaran</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Tambah Teknisi Langsung -->
     <div id="addModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl max-w-md w-full p-8 space-y-6 shadow-2xl relative animate-fade-in">
             <div class="flex items-center justify-between border-b border-slate-100 pb-4">
-                <h3 class="text-lg font-extrabold text-slate-900">Tambah Teknisi Baru</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-black text-xl font-bold">&times;</button>
+                <h3 class="text-lg font-extrabold text-slate-900">Tambah Teknisi Baru (Oleh Admin)</h3>
+                <button onclick="closeAddModal()" class="text-slate-400 hover:text-black text-xl font-bold">&times;</button>
             </div>
             <form method="POST" action="{{ route('admin.technicians.store') }}" class="space-y-4">
                 @csrf
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Teknisi</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Teknisi *</label>
                     <input type="text" name="name" required placeholder="Contoh: Setiawan Ade" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Email</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Email *</label>
                     <input type="email" name="email" required placeholder="ade123@gmail.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">No. Telepon (WhatsApp)</label>
-                    <input type="text" name="phone" required placeholder="0867276565" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
+                    <label class="block text-xs font-bold text-slate-700 mb-1">No. Telepon (WhatsApp) *</label>
+                    <input type="text" name="phone" required placeholder="081234567890" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Alamat Lengkap</label>
                     <input type="text" name="address" placeholder="Jl. Bunga No. 12" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Kata Sandi</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Kata Sandi Akun *</label>
                     <input type="password" name="password" required placeholder="Minimal 6 karakter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
                 </div>
                 <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>
+                    <button type="button" onclick="closeAddModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>
                     <button type="submit" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-md shadow-orange-500/25">Simpan Data</button>
                 </div>
             </form>
@@ -328,43 +444,42 @@
     <script>
         lucide.createIcons();
 
-        function openModal() {
+        function switchTab(tab) {
+            const btnApproved = document.getElementById('tabBtnApproved');
+            const btnPending = document.getElementById('tabBtnPending');
+            const contentApproved = document.getElementById('tabContentApproved');
+            const contentPending = document.getElementById('tabContentPending');
+
+            if (tab === 'approved') {
+                btnApproved.className = 'px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 bg-orange-500 text-white shadow-md shadow-orange-500/25';
+                btnPending.className = 'px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 bg-white text-slate-700 border border-slate-200 hover:bg-slate-50';
+                contentApproved.classList.remove('hidden');
+                contentPending.classList.add('hidden');
+            } else {
+                btnPending.className = 'px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 bg-amber-500 text-white shadow-md shadow-amber-500/25';
+                btnApproved.className = 'px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 bg-white text-slate-700 border border-slate-200 hover:bg-slate-50';
+                contentPending.classList.remove('hidden');
+                contentApproved.classList.add('hidden');
+            }
+        }
+
+        function openAddModal() {
             document.getElementById('addModal').classList.remove('hidden');
         }
-        function closeModal() {
+
+        function closeAddModal() {
             document.getElementById('addModal').classList.add('hidden');
         }
 
-        // Live Search & Icon Switch
-        document.querySelectorAll('input[type="text"]').forEach(input => {
-            const iconContainer = input.parentElement.querySelector('i');
-            input.addEventListener('focus', () => {
-                if(iconContainer) {
-                    iconContainer.setAttribute('data-lucide', 'corner-down-left');
-                    lucide.createIcons();
-                }
-            });
-            input.addEventListener('blur', () => {
-                if(iconContainer && input.value === '') {
-                    iconContainer.setAttribute('data-lucide', 'search');
-                    lucide.createIcons();
-                }
-            });
-            input.addEventListener('input', (e) => {
-                const query = e.target.value.toLowerCase();
-                const container = input.closest('.bg-white\\/90, .bg-white');
-                if(container) {
-                    const table = container.querySelector('tbody');
-                    if(table) {
-                        const rows = table.querySelectorAll('tr');
-                        rows.forEach(row => {
-                            const text = row.textContent.toLowerCase();
-                            row.style.display = text.includes(query) ? '' : 'none';
-                        });
-                    }
-                }
-            });
-        });
+        function openRejectModal(techId, techName) {
+            document.getElementById('rejectTechName').innerText = 'Calon Teknisi: ' + techName;
+            document.getElementById('rejectForm').action = '/admin/technicians/' + techId + '/reject';
+            document.getElementById('rejectModal').classList.remove('hidden');
+        }
+
+        function closeRejectModal() {
+            document.getElementById('rejectModal').classList.add('hidden');
+        }
     </script>
 </body>
 </html>

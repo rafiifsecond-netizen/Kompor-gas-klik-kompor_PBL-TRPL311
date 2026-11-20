@@ -21,6 +21,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+  final _bioCtrl = TextEditingController();
+  final _experienceCtrl = TextEditingController();
+  final _skillsCtrl = TextEditingController();
+  final _ktpCtrl = TextEditingController();
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   String _selectedRole = 'customer';
@@ -32,6 +37,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneCtrl.dispose();
     _passCtrl.dispose();
     _confirmCtrl.dispose();
+    _addressCtrl.dispose();
+    _bioCtrl.dispose();
+    _experienceCtrl.dispose();
+    _skillsCtrl.dispose();
+    _ktpCtrl.dispose();
     super.dispose();
   }
 
@@ -45,17 +55,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
       password: _passCtrl.text,
       passwordConfirmation: _confirmCtrl.text,
       role: _selectedRole,
+      address: _addressCtrl.text.trim().isNotEmpty ? _addressCtrl.text.trim() : null,
+      bio: _selectedRole == 'technician' && _bioCtrl.text.trim().isNotEmpty
+          ? _bioCtrl.text.trim()
+          : null,
+      yearsOfExperience: _selectedRole == 'technician'
+          ? int.tryParse(_experienceCtrl.text.trim())
+          : null,
+      skills: _selectedRole == 'technician' && _skillsCtrl.text.trim().isNotEmpty
+          ? _skillsCtrl.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList()
+          : null,
+      ktpNumber: _selectedRole == 'technician' && _ktpCtrl.text.trim().isNotEmpty
+          ? _ktpCtrl.text.trim()
+          : null,
     );
     if (!mounted) return;
     if (!ok) {
       AppFeedback.error(context, auth.errorMessage ?? 'Registrasi gagal.');
       return;
     }
-    AppFeedback.success(context, 'Registrasi berhasil.');
-    final route = auth.isTechnician
-        ? AppRoutes.technicianDashboard
-        : AppRoutes.customerHome;
-    Navigator.pushNamedAndRemoveUntil(context, route, (r) => false);
+    if (auth.isTechnician) {
+      AppFeedback.success(context, 'Pengajuan pendaftaran teknisi berhasil dikirim.');
+      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.technicianPending, (r) => false);
+    } else {
+      AppFeedback.success(context, 'Registrasi berhasil.');
+      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.customerHome, (r) => false);
+    }
   }
 
   @override
@@ -198,6 +223,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     validator: (v) =>
                         Validators.confirmPassword(v, _passCtrl.text),
                   ),
+
+                  // ── Field Khusus Teknisi ───────────────────────
+                  if (_selectedRole == 'technician') ...[
+                    const SizedBox(height: 12),
+                    _AuthField(
+                      controller: _addressCtrl,
+                      hint: 'Alamat Domisili',
+                      icon: Icons.location_on_outlined,
+                      validator: (v) => Validators.required(v, label: 'Alamat'),
+                    ),
+                    const SizedBox(height: 12),
+                    _AuthField(
+                      controller: _experienceCtrl,
+                      hint: 'Pengalaman Servis (Tahun)',
+                      icon: Icons.work_outline_rounded,
+                      keyboardType: TextInputType.number,
+                      validator: (v) =>
+                          Validators.required(v, label: 'Pengalaman'),
+                    ),
+                    const SizedBox(height: 12),
+                    _AuthField(
+                      controller: _skillsCtrl,
+                      hint: 'Keahlian (Contoh: Kompor Gas, Kompor Tanam)',
+                      icon: Icons.build_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                    _AuthField(
+                      controller: _ktpCtrl,
+                      hint: 'Nomor KTP (16 Digit)',
+                      icon: Icons.badge_outlined,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ],
 
                   const SizedBox(height: 18),
 

@@ -28,6 +28,7 @@ class ApiEndpoints {
   static String get resetPassword => '$baseUrl/auth/reset-password';
 
   // Catalog & Services
+  static String get banners => '$baseUrl/dashboard/banners';
   static String get services => '$baseUrl/services';
   static String get categories => '$baseUrl/categories';
 
@@ -36,6 +37,7 @@ class ApiEndpoints {
   static String technicianDetail(int id) => '$baseUrl/technicians/$id';
   static String get updateAvailability => '$baseUrl/technician/availability';
   static String get updateLocation => '$baseUrl/technician/location';
+  static String get technicianRegistrationStatus => '$baseUrl/technician/registration-status';
 
   // Addresses
   static String get addresses => '$baseUrl/addresses';

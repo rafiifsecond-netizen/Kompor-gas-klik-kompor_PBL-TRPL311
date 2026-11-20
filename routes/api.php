@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AdditionalCostController;
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
@@ -34,8 +35,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/technicians', [TechnicianController::class, 'index']);
     Route::get('/technicians/{id}', [TechnicianController::class, 'show']);
 
-    // Public promo list & payment webhook
+    // Public promo list, dashboard banners & payment webhook
     Route::get('/promos', [PromoController::class, 'index']);
+    Route::get('/dashboard/banners', [BannerController::class, 'index']);
     Route::post('/payments/webhook', [PaymentController::class, 'webhook']);
 
     /*
@@ -49,6 +51,7 @@ Route::prefix('v1')->group(function () {
         Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
         Route::put('/auth/password', [AuthController::class, 'changePassword']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
+        Route::get('/technician/registration-status', [TechnicianController::class, 'registrationStatus']);
 
         // Saved Addresses (Customer Address Book)
         Route::get('/addresses', [AddressController::class, 'index']);
@@ -151,6 +154,19 @@ Route::prefix('v1')->group(function () {
             Route::post('/payouts/{id}/approve', [AdminPaymentController::class, 'approvePayout']);
             Route::post('/payouts/{id}/reject', [AdminPaymentController::class, 'rejectPayout']);
             Route::post('/settings', [AdminPaymentController::class, 'updateSetting']);
+
+            // Dashboard Management - Banners (Bagian A)
+            Route::get('/banners', [BannerController::class, 'adminIndex']);
+            Route::post('/banners', [BannerController::class, 'store']);
+            Route::put('/banners/{id}', [BannerController::class, 'update']);
+            Route::patch('/banners/{id}/toggle-active', [BannerController::class, 'toggleActive']);
+            Route::delete('/banners/{id}', [BannerController::class, 'destroy']);
+
+            // Technician Approval & Management (Bagian B)
+            Route::get('/technicians/pending', [AdminController::class, 'pendingTechnicians']);
+            Route::post('/technicians/{id}/approve', [AdminController::class, 'approveTechnicianRegistration']);
+            Route::post('/technicians/{id}/reject', [AdminController::class, 'rejectTechnicianRegistration']);
+            Route::patch('/technicians/{id}/toggle-active', [AdminController::class, 'toggleTechnicianActive']);
         });
     });
 });

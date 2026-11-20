@@ -314,20 +314,42 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         return back()->with('success', 'Pelanggan berhasil dihapus.');
     })->middleware(['auth', 'role:admin'])->name('admin.customers.destroy');
 
-    // ── Technicians CRUD ────────────────────────────────────────────────────────
+    // ── Technicians CRUD & Registration Approvals ──────────────────────────────
     Route::get('/admin/technicians', function () {
         $user = Auth::user();
         $stats = [
             'total_users' => User::where('role', 'customer')->count(),
-            'total_technicians' => TechnicianProfile::count(),
+            'total_technicians' => TechnicianProfile::where('status', 'approved')->count(),
+            'pending_technicians' => TechnicianProfile::where('status', 'pending')->count(),
             'today_orders' => Order::whereDate('created_at', today())->count(),
             'completed_orders' => Order::where('status', 'completed')->count(),
         ];
 
-        $technicians = User::where('role', 'technician')->withCount('technicianOrders')->latest()->get();
+        // Teknisi aktif / disetujui
+        $technicians = User::where('role', 'technician')
+            ->whereHas('technicianProfile', function ($q) {
+                $q->where('status', 'approved');
+            })
+            ->withCount('technicianOrders')
+            ->with('technicianProfile')
+            ->latest()
+            ->get();
 
-        return view('admin.technicians', compact('stats', 'technicians'));
+        // Pengajuan pendaftaran calon teknisi (pending)
+        $pendingTechnicians = User::where('role', 'technician')
+            ->whereHas('technicianProfile', function ($q) {
+                $q->where('status', 'pending');
+            })
+            ->with('technicianProfile')
+            ->latest()
+            ->get();
+
+        return view('admin.technicians', compact('stats', 'technicians', 'pendingTechnicians'));
     })->name('admin.technicians');
+
+    Route::post('/admin/technicians/{id}/approve', [App\Http\Controllers\Admin\AdminTechnicianApprovalController::class, 'approve'])->middleware(['auth', 'role:admin'])->name('admin.technicians.approve');
+    Route::post('/admin/technicians/{id}/reject', [App\Http\Controllers\Admin\AdminTechnicianApprovalController::class, 'reject'])->middleware(['auth', 'role:admin'])->name('admin.technicians.reject');
+    Route::post('/admin/technicians/{id}/toggle-active', [App\Http\Controllers\Admin\AdminTechnicianApprovalController::class, 'toggleActive'])->middleware(['auth', 'role:admin'])->name('admin.technicians.toggle_active');
 
     Route::post('/admin/technicians', function (Request $request) {
         $validated = $request->validate([
@@ -350,6 +372,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
         TechnicianProfile::create([
             'user_id' => $user->id,
+            'status' => 'approved',
             'is_verified' => true,
             'is_available' => true,
             'rating_avg' => 5.0,
@@ -363,6 +386,13 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
         return back()->with('success', 'Teknisi berhasil dihapus.');
     })->middleware(['auth', 'role:admin'])->name('admin.technicians.destroy');
+
+    // ── Dashboard Management (Banners) ──────────────────────────────────────────
+    Route::get('/admin/dashboard-management', [App\Http\Controllers\Admin\AdminBannerController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.dashboard_management');
+    Route::post('/admin/banners', [App\Http\Controllers\Admin\AdminBannerController::class, 'store'])->middleware(['auth', 'role:admin'])->name('admin.banners.store');
+    Route::post('/admin/banners/{id}/update', [App\Http\Controllers\Admin\AdminBannerController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.banners.update');
+    Route::post('/admin/banners/{id}/toggle-active', [App\Http\Controllers\Admin\AdminBannerController::class, 'toggleActive'])->middleware(['auth', 'role:admin'])->name('admin.banners.toggle_active');
+    Route::delete('/admin/banners/{id}', [App\Http\Controllers\Admin\AdminBannerController::class, 'destroy'])->middleware(['auth', 'role:admin'])->name('admin.banners.destroy');
 
     // ── Services CRUD ───────────────────────────────────────────────────────────
     Route::get('/admin/services', function () {

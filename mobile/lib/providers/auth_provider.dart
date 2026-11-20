@@ -113,6 +113,10 @@ class AuthProvider extends ChangeNotifier {
     required String passwordConfirmation,
     String? address,
     String role = 'customer',
+    String? bio,
+    int? yearsOfExperience,
+    List<String>? skills,
+    String? ktpNumber,
   }) async {
     _status = AuthStatus.authenticating;
     _errorMessage = null;
@@ -128,6 +132,10 @@ class AuthProvider extends ChangeNotifier {
         passwordConfirmation: passwordConfirmation,
         address: address,
         role: role,
+        bio: bio,
+        yearsOfExperience: yearsOfExperience,
+        skills: skills,
+        ktpNumber: ktpNumber,
       );
       _status = AuthStatus.authenticated;
       notifyListeners();

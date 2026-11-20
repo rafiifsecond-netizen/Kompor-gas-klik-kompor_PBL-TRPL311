@@ -21,6 +21,7 @@ import '../../screens/customer/customer_profile_screen.dart';
 import '../../screens/customer/customer_notification_screen.dart';
 import '../../screens/customer/customer_help_center_screen.dart';
 import '../../screens/technician/technician_performance_screen.dart';
+import '../../screens/technician/technician_pending_screen.dart';
 import '../../screens/technician/technician_dashboard_screen.dart';
 import '../../screens/technician/technician_profile_screen.dart';
 import '../../screens/technician/technician_incoming_orders_screen.dart';
@@ -152,6 +153,9 @@ class RouteGenerator {
         return _fadeRoute(AddressFormScreen(address: address), settings);
 
       // Technician
+      case AppRoutes.technicianPending:
+        return _fadeRoute(const TechnicianPendingScreen(), settings);
+
       case AppRoutes.technicianDashboard:
         return _fadeRoute(const TechnicianDashboardScreen(), settings);
 

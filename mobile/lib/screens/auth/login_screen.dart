@@ -48,9 +48,15 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         return;
       }
-      final route = auth.isTechnician
-          ? AppRoutes.technicianDashboard
-          : AppRoutes.customerHome;
+      String route = AppRoutes.customerHome;
+      if (auth.isTechnician) {
+        final profile = auth.user?.technicianProfile;
+        if (profile != null && profile.isApproved) {
+          route = AppRoutes.technicianDashboard;
+        } else {
+          route = AppRoutes.technicianPending;
+        }
+      }
       Navigator.pushReplacementNamed(context, route);
     } else {
       AppFeedback.error(context, auth.errorMessage ?? 'Login gagal.');
