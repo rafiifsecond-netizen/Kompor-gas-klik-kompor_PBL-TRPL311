@@ -52,6 +52,15 @@ class ApiEndpoints {
   static String rescheduleOrder(int id) => '$baseUrl/orders/$id/reschedule';
   static String reviewOrder(int id) => '$baseUrl/orders/$id/review';
 
+  // Payments & Financial Specification
+  static String get paymentCheckout => '$baseUrl/payments/checkout';
+  static String paymentStatus(int paymentId) => '$baseUrl/payments/$paymentId/status';
+  static String uploadPaymentProof(int paymentId) => '$baseUrl/payments/$paymentId/upload-proof';
+  static String confirmCashPayment(int paymentId) => '$baseUrl/payments/$paymentId/confirm-cash';
+  static String get validatePromo => '$baseUrl/promos/validate';
+  static String get technicianWallet => '$baseUrl/wallet/me';
+  static String get requestPayout => '$baseUrl/wallet/payout';
+
   // Order Chat
   static String get technicianChats => '$baseUrl/chats';
   static String orderChat(int orderId) => '$baseUrl/orders/$orderId/chat';
