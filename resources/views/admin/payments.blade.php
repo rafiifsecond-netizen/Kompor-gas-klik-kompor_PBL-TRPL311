@@ -273,13 +273,21 @@
                                     </td>
                                     <td class="py-4 px-6 text-slate-600 font-medium">{{ $payment->created_at->format('d/m/Y H:i') }}</td>
                                     <td class="py-4 px-6 text-center">
-                                        <div class="flex items-center justify-center gap-3">
-                                            <button class="text-slate-600 hover:text-orange-600 transition" title="Cetak Resi">
-                                                <i data-lucide="printer" class="w-4 h-4"></i>
-                                            </button>
-                                            <button class="text-slate-600 hover:text-red-600 transition" title="Hapus">
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                            </button>
+                                        <div class="flex items-center justify-center gap-2">
+                                            @if($payment->payment_method === 'transfer' && $payment->proof_url)
+                                                <a href="{{ route('admin.payments.proof', $payment->id) }}" target="_blank" class="px-2.5 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 font-bold text-[11px] transition" title="Lihat Bukti Transfer">
+                                                    Bukti
+                                                </a>
+                                            @endif
+                                            @if($payment->payment_status === 'awaiting_verification')
+                                                <button onclick="openVerifyModal({{ $payment->id }})" class="px-2.5 py-1 rounded bg-emerald-500 text-white hover:bg-emerald-600 font-bold text-[11px] transition">
+                                                    Verifikasi
+                                                </button>
+                                            @elseif($payment->payment_status === 'paid')
+                                                <button onclick="openRefundModal({{ $payment->id }}, '{{ $payment->payment_number }}')" class="px-2.5 py-1 rounded bg-red-100 text-red-600 hover:bg-red-200 font-bold text-[11px] transition">
+                                                    Refund
+                                                </button>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
@@ -291,11 +299,8 @@
                                     <td class="py-4 px-6 text-slate-900 font-bold">Rp.90.000</td>
                                     <td class="py-4 px-6"><span class="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500 text-white">Lunas</span></td>
                                     <td class="py-4 px-6 text-slate-600 font-medium">16/09/2026 12:00</td>
-                                    <td class="py-4 px-6 text-center">
-                                        <div class="flex items-center justify-center gap-3">
-                                            <button class="text-slate-600 hover:text-orange-600"><i data-lucide="printer" class="w-4 h-4"></i></button>
-                                            <button class="text-slate-600 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                                        </div>
+                                    <td class="py-4 px-6 text-center text-slate-400">
+                                        -
                                     </td>
                                 </tr>
                             @endforelse

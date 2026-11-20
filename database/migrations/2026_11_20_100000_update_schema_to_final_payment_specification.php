@@ -299,13 +299,40 @@ return new class extends Migration
             Schema::create('webhook_events', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('payment_id')->nullable()->constrained('payments')->nullOnDelete();
+                $table->foreignId('order_id')->nullable()->constrained('orders')->nullOnDelete();
+                $table->string('gateway_provider', 30)->default('midtrans');
                 $table->string('gateway_order_id', 100);
                 $table->string('gateway_transaction_id', 100);
                 $table->string('transaction_status', 50);
+                $table->boolean('signature_valid')->default(true);
+                $table->boolean('is_processed')->default(false);
+                $table->boolean('flagged_for_manual_refund')->default(false);
                 $table->json('payload');
-                $table->timestamp('processed_at')->useCurrent();
+                $table->timestamp('processed_at')->nullable();
+                $table->timestamp('created_at')->useCurrent();
 
                 $table->unique(['gateway_transaction_id', 'transaction_status'], 'uq_webhook_tx_status');
+            });
+        } else {
+            Schema::table('webhook_events', function (Blueprint $table) {
+                if (!Schema::hasColumn('webhook_events', 'order_id')) {
+                    $table->foreignId('order_id')->nullable()->constrained('orders')->nullOnDelete()->after('payment_id');
+                }
+                if (!Schema::hasColumn('webhook_events', 'gateway_provider')) {
+                    $table->string('gateway_provider', 30)->default('midtrans')->after('order_id');
+                }
+                if (!Schema::hasColumn('webhook_events', 'signature_valid')) {
+                    $table->boolean('signature_valid')->default(true)->after('transaction_status');
+                }
+                if (!Schema::hasColumn('webhook_events', 'is_processed')) {
+                    $table->boolean('is_processed')->default(false)->after('signature_valid');
+                }
+                if (!Schema::hasColumn('webhook_events', 'flagged_for_manual_refund')) {
+                    $table->boolean('flagged_for_manual_refund')->default(false)->after('is_processed');
+                }
+                if (!Schema::hasColumn('webhook_events', 'created_at')) {
+                    $table->timestamp('created_at')->useCurrent()->after('processed_at');
+                }
             });
         }
     }

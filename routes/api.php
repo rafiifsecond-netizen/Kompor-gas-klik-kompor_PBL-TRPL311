@@ -7,9 +7,13 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PromoController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ServiceCatalogController;
 use App\Http\Controllers\Api\TechnicianController;
+use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\Admin\AdminPaymentController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -29,6 +33,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/services', [ServiceCatalogController::class, 'services']);
     Route::get('/technicians', [TechnicianController::class, 'index']);
     Route::get('/technicians/{id}', [TechnicianController::class, 'show']);
+
+    // Public promo list & payment webhook
+    Route::get('/promos', [PromoController::class, 'index']);
+    Route::post('/payments/webhook', [PaymentController::class, 'webhook']);
 
     /*
     |--------------------------------------------------------------------------
@@ -65,6 +73,13 @@ Route::prefix('v1')->group(function () {
         Route::post('/orders/{id}/pay', [OrderController::class, 'pay']);
         Route::post('/orders/{id}/review', [ReviewController::class, 'store']);
 
+        // Final Payment Specification Endpoints
+        Route::post('/payments/checkout', [PaymentController::class, 'checkout']);
+        Route::get('/payments/{id}/status', [PaymentController::class, 'status']);
+        Route::post('/payments/{id}/upload-proof', [PaymentController::class, 'uploadProof']);
+        Route::post('/payments/{id}/retry', [PaymentController::class, 'retry']);
+        Route::post('/promos/validate', [PromoController::class, 'validateCode']);
+
         // Order In-App Chat
         Route::get('/chats', [ChatController::class, 'index']);
         Route::get('/orders/{id}/chat', [ChatController::class, 'show']);
@@ -94,11 +109,15 @@ Route::prefix('v1')->group(function () {
         Route::middleware('role:technician')->group(function () {
             Route::patch('/technician/availability', [TechnicianController::class, 'updateAvailability']);
             Route::patch('/technician/location', [TechnicianController::class, 'updateLocation']);
+            Route::post('/payments/{id}/confirm-cash', [PaymentController::class, 'confirmCash']);
+            Route::get('/wallet', [WalletController::class, 'getWallet']);
+            Route::post('/wallet/payout', [WalletController::class, 'requestPayout']);
+            Route::get('/wallet/transactions', [WalletController::class, 'getTransactions']);
         });
 
         /*
         |--------------------------------------------------------------------------
-        | Admin Only (Web Dashboard)
+        | Admin Only (Web Dashboard & Management)
         |--------------------------------------------------------------------------
         */
         Route::middleware('role:admin')->prefix('admin')->group(function () {
@@ -111,6 +130,23 @@ Route::prefix('v1')->group(function () {
             // Tariff & Catalog management
             Route::post('/services', [ServiceCatalogController::class, 'storeServiceItem']);
             Route::patch('/services/{id}/tariff', [ServiceCatalogController::class, 'updateTariff']);
+
+            // Promo Management CRUD
+            Route::get('/promos', [PromoController::class, 'adminIndex']);
+            Route::post('/promos', [PromoController::class, 'adminStore']);
+            Route::put('/promos/{id}', [PromoController::class, 'adminUpdate']);
+            Route::delete('/promos/{id}', [PromoController::class, 'adminDestroy']);
+
+            // Payment & Financial Management
+            Route::get('/payments', [AdminPaymentController::class, 'index']);
+            Route::get('/payments/{id}/proof-url', [AdminPaymentController::class, 'getProofSignedUrl']);
+            Route::post('/payments/{id}/verify-transfer', [AdminPaymentController::class, 'verifyTransfer']);
+            Route::post('/payments/{id}/refund', [AdminPaymentController::class, 'refund']);
+            Route::get('/payments/flagged-refunds', [AdminPaymentController::class, 'flaggedRefunds']);
+            Route::get('/payments/export', [AdminPaymentController::class, 'exportCsv']);
+            Route::post('/payouts/{id}/approve', [AdminPaymentController::class, 'approvePayout']);
+            Route::post('/payouts/{id}/reject', [AdminPaymentController::class, 'rejectPayout']);
+            Route::post('/settings', [AdminPaymentController::class, 'updateSetting']);
         });
     });
 });

@@ -90,7 +90,32 @@ class Order extends Model
 
     public function payment(): HasOne
     {
-        return $this->hasOne(Payment::class);
+        return $this->hasOne(Payment::class)->latestOfMany();
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function activePayment(): HasOne
+    {
+        return $this->hasOne(Payment::class)
+            ->whereIn('payment_status', [
+                Payment::STATUS_PENDING,
+                Payment::STATUS_AWAITING_VERIFICATION,
+                Payment::STATUS_PAID,
+            ]);
+    }
+
+    public function commissionRecord(): HasOne
+    {
+        return $this->hasOne(CommissionRecord::class);
+    }
+
+    public function promoUsage(): HasOne
+    {
+        return $this->hasOne(PromoUsage::class);
     }
 
     public function review(): HasOne

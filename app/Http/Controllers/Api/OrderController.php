@@ -451,7 +451,21 @@ class OrderController extends Controller
             $order->completed_at = now();
             // Increment technician jobs completed count
             if ($order->technician_id) {
-                User::find($order->technician_id)?->technicianProfile()?->increment('jobs_completed_count');
+                $techUser = User::find($order->technician_id);
+                $techUser?->technicianProfile()?->increment('jobs_completed_count');
+
+                // Rilis escrow ke dompet teknisi jika pembayaran non-cash sudah lunas
+                $activePayment = $order->activePayment;
+                if ($techUser && $activePayment && $activePayment->payment_status === Payment::STATUS_PAID && in_array($activePayment->payment_method, ['qris', 'transfer'], true)) {
+                    $commissionRecord = \App\Models\CommissionRecord::where('order_id', $order->id)->first();
+                    $netIncome = $commissionRecord ? (int) $commissionRecord->technician_net_income : (int) $activePayment->amount;
+                    app(\App\Services\Payment\WalletService::class)->releaseEscrowToBalance(
+                        technician: $techUser,
+                        order: $order,
+                        technicianNetIncome: $netIncome,
+                        escrowAmountToRelease: (int) $activePayment->amount
+                    );
+                }
             }
 
             Notification::send($order->customer_id, [
@@ -541,6 +555,16 @@ class OrderController extends Controller
                 'status_to' => Order::STATUS_CANCELLED,
                 'note' => $reason,
             ]);
+
+            // Reversal escrow & release promo
+            if ($order->technician_id) {
+                $techUser = User::find($order->technician_id);
+                $activePayment = $order->activePayment;
+                if ($techUser && $activePayment && $activePayment->payment_status === Payment::STATUS_PAID) {
+                    app(\App\Services\Payment\WalletService::class)->reverseEscrow($techUser, (int) $activePayment->amount);
+                }
+            }
+            app(\App\Services\Payment\PromoService::class)->releasePromo($order);
 
             ActivityLog::logEvent(
                 eventName: 'order.cancelled',

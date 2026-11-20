@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminPaymentController;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\Order;
@@ -397,25 +398,18 @@ Route::delete('/admin/services/{id}', function ($id) {
     return back()->with('success', 'Layanan berhasil dihapus.');
 })->middleware(['auth', 'role:admin'])->name('admin.services.destroy');
 
-// ── Payments CRUD ───────────────────────────────────────────────────────────
-Route::get('/admin/payments', function () {
-    $user = Auth::user();
-    $stats = [
-        'total_users' => User::where('role', 'customer')->count(),
-        'total_technicians' => TechnicianProfile::count(),
-        'today_orders' => Order::whereDate('created_at', today())->count(),
-        'completed_orders' => Order::where('status', 'completed')->count(),
-    ];
+// ── Payments Management ─────────────────────────────────────────────────────
+Route::get('/admin/payments', [AdminPaymentController::class, 'index'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.payments');
 
-    $payments = Payment::with(['order.customer', 'customer'])->latest()->get();
+Route::get('/admin/payments/{id}/proof', [AdminPaymentController::class, 'viewProof'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.payments.proof');
 
-    return view('admin.payments', compact('stats', 'payments'));
-})->name('admin.payments');
-
-Route::delete('/admin/payments/{id}', function ($id) {
-    Payment::findOrFail($id)->delete();
-    return back()->with('success', 'Transaksi pembayaran berhasil dihapus.');
-})->middleware(['auth', 'role:admin'])->name('admin.payments.destroy');
+Route::get('/admin/payments/{id}/view-proof-signed', [AdminPaymentController::class, 'viewProof'])
+    ->middleware('signed')
+    ->name('admin.payments.view_proof_signed');
 
 // ── Reviews ─────────────────────────────────────────────────────────────────
 Route::get('/admin/reviews', function () {
