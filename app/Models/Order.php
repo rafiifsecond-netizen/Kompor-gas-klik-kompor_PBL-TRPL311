@@ -56,10 +56,10 @@ class Order extends Model
             'completed_at' => 'datetime',
             'latitude' => 'float',
             'longitude' => 'float',
-            'subtotal' => 'decimal:2',
-            'transport_fee' => 'decimal:2',
-            'discount' => 'decimal:2',
-            'total_amount' => 'decimal:2',
+            'subtotal' => 'integer',
+            'transport_fee' => 'integer',
+            'discount' => 'integer',
+            'total_amount' => 'integer',
         ];
     }
 

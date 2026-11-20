@@ -11,6 +11,7 @@ use App\Models\OrderStatusLog;
 use App\Models\Payment;
 use App\Models\ServiceItem;
 use App\Models\User;
+use App\Services\Payment\FinancialCalculator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -262,27 +263,34 @@ class OrderController extends Controller
             foreach ($validated['services'] as $serviceData) {
                 $serviceItem = ServiceItem::where('is_active', true)
                     ->findOrFail($serviceData['service_item_id']);
-                $quantity = $serviceData['quantity'];
-                $lineTotal = (float) $serviceItem->base_price * $quantity;
+                $quantity = (int) $serviceData['quantity'];
+                $lineTotal = (int) $serviceItem->base_price * $quantity;
                 $serviceSubtotal += $lineTotal;
                 $replacementItems[] = [
                     'service_item_id' => $serviceItem->id,
                     'service_name' => $serviceItem->name,
-                    'unit_price' => $serviceItem->base_price,
+                    'unit_price' => (int) $serviceItem->base_price,
                     'quantity' => $quantity,
                     'total_price' => $lineTotal,
                 ];
             }
 
-            $approvedAdditionalCosts = (float) $order->additionalCosts()
+            $approvedAdditionalCosts = (int) $order->additionalCosts()
                 ->where('status', 'approved')
                 ->sum('subtotal');
 
             $order->items()->delete();
             $order->items()->createMany($replacementItems);
             $order->subtotal = $serviceSubtotal + $approvedAdditionalCosts;
-            $order->discount = round($serviceSubtotal * 0.10, 2);
-            $order->total_amount = $order->subtotal + (float) $order->transport_fee - $order->discount;
+
+            // Hitung ulang diskon & total dengan FinancialCalculator (integer rupiah)
+            $calculation = FinancialCalculator::calculate(
+                serviceSubtotal: (int) $order->subtotal,
+                transportFee: (int) $order->transport_fee,
+                discountAmount: (int) ($order->discount ?? 0)
+            );
+            $order->discount = $calculation->discountAmount;
+            $order->total_amount = $calculation->paymentAmount;
             $order->save();
 
             ActivityLog::logEvent(

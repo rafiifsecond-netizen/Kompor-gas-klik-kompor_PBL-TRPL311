@@ -45,7 +45,7 @@ class AdminController extends Controller
                     'total_orders' => $totalOrders,
                     'completed_orders' => $completedOrders,
                     'in_progress_orders' => $inProgressOrders,
-                    'total_revenue' => (float) $totalRevenue,
+                    'total_revenue' => (int) $totalRevenue,
                     'total_customers' => $totalCustomers,
                     'total_technicians' => $totalTechnicians,
                     'verified_technicians' => $verifiedTechnicians,
