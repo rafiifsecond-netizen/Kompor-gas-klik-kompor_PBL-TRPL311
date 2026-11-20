@@ -546,10 +546,17 @@ class PaymentService
             $order->update(['payment_status' => 'refunded']);
 
             // Jika order belum selesai (belum completed), tarik kembali escrow dari pending_balance
-            if ($order->status !== Order::STATUS_COMPLETED && $order->technician_id) {
+            // Jika order sudah selesai (completed), tarik kembali hak teknisi dari saldo aktif (saldo minus jadi utang)
+            if ($order->technician_id) {
                 $technician = User::find($order->technician_id);
                 if ($technician) {
-                    $this->walletService->reverseEscrow($technician, (int) $payment->amount);
+                    if ($order->status !== Order::STATUS_COMPLETED) {
+                        $this->walletService->reverseEscrow($technician, (int) $payment->amount);
+                    } else {
+                        $commissionRecord = CommissionRecord::where('order_id', $order->id)->first();
+                        $techNet = $commissionRecord ? (int) $commissionRecord->technician_net_income : (int) $payment->amount;
+                        $this->walletService->reverseCompletedSettlement($technician, $order, $techNet, $reason);
+                    }
                 }
             }
 

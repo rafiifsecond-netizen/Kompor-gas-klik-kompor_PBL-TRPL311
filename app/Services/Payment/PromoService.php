@@ -134,21 +134,20 @@ class PromoService
                 maxDiscount: $promo->max_discount
             );
 
-            // Jika pesanan ini sebelumnya sudah reserve promo lain, release dulu
+            // Jika pesanan ini sebelumnya sudah memiliki catatan promo (misal pernah reserve lalu released saat expire)
             $existing = PromoUsage::where('order_id', $order->id)->first();
             if ($existing) {
-                if ($existing->promo_id === $promo->id && $existing->status === PromoUsage::STATUS_RESERVED) {
-                    $existing->update([
-                        'discount_applied' => $discount,
-                        'reserved_at' => now(),
-                    ]);
-
-                    return $existing;
-                }
                 $existing->update([
-                    'status' => PromoUsage::STATUS_RELEASED,
-                    'released_at' => now(),
+                    'promo_id' => $promo->id,
+                    'user_id' => $order->customer_id,
+                    'discount_applied' => $discount,
+                    'status' => PromoUsage::STATUS_RESERVED,
+                    'reserved_at' => now(),
+                    'released_at' => null,
+                    'used_at' => null,
                 ]);
+
+                return $existing;
             }
 
             return PromoUsage::create([

@@ -12,6 +12,7 @@ use App\Models\TechnicianWallet;
 use App\Models\User;
 use App\Models\WalletTransaction;
 use App\Models\WebhookEvent;
+use App\Services\Payment\PaymentService;
 use App\Services\Payment\WalletService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -805,5 +806,251 @@ class FinalPaymentSpecificationTest extends TestCase
 
         $response->assertStatus(200)
             ->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+    }
+
+    /**
+     * Skenario E2E 1: Cash dengan Promo (Platform bayar subsidi selisih diskon ke teknisi).
+     */
+    public function test_cash_with_promo_where_platform_pays_technician(): void
+    {
+        // Buat promo voucher 30.000
+        $promo = Promo::create([
+            'code' => 'PROMO30K',
+            'name' => 'Voucher 30 Ribu',
+            'type' => 'fixed',
+            'discount_amount' => 30000,
+            'min_order_amount' => 50000,
+            'start_date' => now()->subDay(),
+            'end_date' => now()->addDays(5),
+            'total_quota' => 10,
+            'quota_per_user' => 1,
+            'is_active' => true,
+        ]);
+
+        // Checkout cash dengan promo:
+        // S = 100.000, T = 20.000, D = 30.000
+        // S - D = 70.000. Komisi 5% x 70.000 = 3.500
+        // Customer bayar tunai: P = (100.000 - 30.000) + 20.000 = 90.000
+        // Hak teknisi: N = 100.000 + 20.000 - 3.500 = 116.500
+        // Delta = C - D = 3.500 - 30.000 = -26.500 (platform bayar ke teknisi)
+        $res = $this->actingAs($this->customer)
+            ->postJson('/api/v1/payments/checkout', [
+                'order_id' => $this->order->id,
+                'payment_method' => 'cash',
+                'promo_code' => 'PROMO30K',
+            ]);
+
+        $res->assertStatus(201);
+        $paymentId = $res->json('data.payment.id');
+        $this->assertSame(90000, $this->order->fresh()->total_amount);
+
+        // Teknisi konfirmasi penerimaan uang tunai 90.000
+        $confirm = $this->actingAs($this->technician)
+            ->postJson("/api/v1/payments/{$paymentId}/confirm-cash", [
+                'amount_received' => 90000,
+            ]);
+
+        $confirm->assertStatus(200);
+
+        // Dompet teknisi harus menerima kredit subsidi sebesar 26.500
+        $wallet = TechnicianWallet::where('technician_id', $this->technician->id)->first();
+        $this->assertSame(26500, $wallet->balance);
+
+        $tx = WalletTransaction::where('wallet_id', $wallet->id)->latest('id')->first();
+        $this->assertSame(WalletTransaction::TYPE_CREDIT, $tx->type);
+        $this->assertSame(26500, $tx->amount);
+    }
+
+    /**
+     * Skenario E2E 2: Concurrency Kuota Promo (Dua user berebut kuota terakhir).
+     */
+    public function test_two_users_compete_for_last_promo_quota(): void
+    {
+        $promo = Promo::create([
+            'code' => 'REBUTAN1',
+            'name' => 'Promo Terbatas 1 Pemakai',
+            'type' => 'fixed',
+            'discount_amount' => 15000,
+            'min_order_amount' => 50000,
+            'start_date' => now()->subDay(),
+            'end_date' => now()->addDays(5),
+            'total_quota' => 1,
+            'quota_per_user' => 1,
+            'is_active' => true,
+        ]);
+
+        $customer2 = User::factory()->create(['role' => 'customer']);
+        $order2 = Order::create([
+            'order_number' => 'KP-ORDER-2',
+            'customer_id' => $customer2->id,
+            'technician_id' => $this->technician->id,
+            'status' => Order::STATUS_ACCEPTED,
+            'scheduled_at' => now()->addDay(),
+            'customer_name' => $customer2->name,
+            'customer_phone' => '08999999999',
+            'address' => 'Jl. Merdeka No. 45',
+            'problem_description' => 'Servis kompor',
+            'subtotal' => 100000,
+            'transport_fee' => 20000,
+            'discount' => 0,
+            'total_amount' => 120000,
+            'payment_method' => 'transfer',
+            'payment_status' => 'unpaid',
+        ]);
+
+        // User 1 checkout berhasil mengambil kuota terakhir
+        $res1 = $this->actingAs($this->customer)
+            ->postJson('/api/v1/payments/checkout', [
+                'order_id' => $this->order->id,
+                'payment_method' => 'transfer',
+                'promo_code' => 'REBUTAN1',
+            ]);
+        $res1->assertStatus(201);
+        $this->assertSame(0, $promo->remainingQuota());
+
+        // User 2 checkout gagal karena kuota telah habis
+        $res2 = $this->actingAs($customer2)
+            ->postJson('/api/v1/payments/checkout', [
+                'order_id' => $order2->id,
+                'payment_method' => 'transfer',
+                'promo_code' => 'REBUTAN1',
+            ]);
+        $res2->assertStatus(422)
+            ->assertJsonValidationErrors(['promo_code']);
+    }
+
+    /**
+     * Skenario E2E 3: QRIS Expired via Scheduler & Retry Pembayaran Baru.
+     */
+    public function test_qris_expired_via_scheduler_and_retry_new_payment(): void
+    {
+        $promo = Promo::create([
+            'code' => 'EXPPROMO',
+            'name' => 'Promo Expire Test',
+            'type' => 'fixed',
+            'discount_amount' => 10000,
+            'min_order_amount' => 50000,
+            'start_date' => now()->subDay(),
+            'end_date' => now()->addDays(5),
+            'total_quota' => 1,
+            'quota_per_user' => 1,
+            'is_active' => true,
+        ]);
+
+        // Checkout QRIS dengan promo
+        $res = $this->actingAs($this->customer)
+            ->postJson('/api/v1/payments/checkout', [
+                'order_id' => $this->order->id,
+                'payment_method' => 'qris',
+                'promo_code' => 'EXPPROMO',
+            ]);
+        $res->assertStatus(201);
+        $payment = Payment::find($res->json('data.payment.id'));
+        $this->assertSame(0, $promo->remainingQuota());
+
+        // Mundurkan expires_at menjadi 5 menit yang lalu
+        $payment->update(['expires_at' => now()->subMinutes(5)]);
+
+        // Jalankan scheduler expire
+        $expiredCount = app(PaymentService::class)->expirePendingPayments();
+        $this->assertSame(1, $expiredCount);
+
+        // Status payment menjadi expired dan kuota promo kembali
+        $payment->refresh();
+        $this->assertSame(Payment::STATUS_EXPIRED, $payment->payment_status);
+        $this->assertSame(1, $promo->remainingQuota());
+
+        // Customer retry checkout pembayaran baru
+        $retryRes = $this->actingAs($this->customer)
+            ->postJson('/api/v1/payments/checkout', [
+                'order_id' => $this->order->id,
+                'payment_method' => 'qris',
+                'promo_code' => 'EXPPROMO',
+            ]);
+
+        $retryRes->assertStatus(201);
+        $newPaymentId = $retryRes->json('data.payment.id');
+        $this->assertNotSame($payment->id, $newPaymentId);
+    }
+
+    /**
+     * Skenario E2E 4: Refund Sebelum Completed (Reversal Escrow di pending_balance).
+     */
+    public function test_refund_before_completed_reverses_escrow(): void
+    {
+        $res = $this->actingAs($this->customer)
+            ->postJson('/api/v1/payments/checkout', [
+                'order_id' => $this->order->id,
+                'payment_method' => 'transfer',
+            ]);
+        $payment = Payment::find($res->json('data.payment.id'));
+        $payment->update(['payment_status' => Payment::STATUS_PAID, 'paid_at' => now()]);
+        $this->order->update(['payment_status' => 'paid']);
+
+        // Hold escrow ke dompet teknisi
+        app(WalletService::class)->holdEscrow($this->technician, 120000, $this->order);
+        $wallet = TechnicianWallet::where('technician_id', $this->technician->id)->first();
+        $this->assertSame(120000, $wallet->pending_balance);
+
+        // Admin melakukan refund sebelum order completed
+        $refundRes = $this->actingAs($this->admin)
+            ->postJson("/api/v1/admin/payments/{$payment->id}/refund", [
+                'reason' => 'Permintaan pembatalan dan pengembalian dana pelanggan',
+            ]);
+
+        $refundRes->assertStatus(200);
+
+        // Escrow ditarik kembali dari pending_balance menjadi 0
+        $wallet->refresh();
+        $this->assertSame(0, $wallet->pending_balance);
+        $this->assertSame(0, $wallet->balance);
+
+        $payment->refresh();
+        $this->assertSame(Payment::STATUS_REFUNDED, $payment->payment_status);
+    }
+
+    /**
+     * Skenario E2E 5: Refund Setelah Completed (Menciptakan Utang Dompet Teknisi).
+     */
+    public function test_refund_after_completed_creates_technician_debt(): void
+    {
+        // 1. Order telah selesai dan pendapatan teknisi sudah masuk
+        // S = 100k, T = 20k -> Total 120k. Komisi 5% = 5k. N = 115k.
+        $res = $this->actingAs($this->customer)
+            ->postJson('/api/v1/payments/checkout', [
+                'order_id' => $this->order->id,
+                'payment_method' => 'transfer',
+            ]);
+        $payment = Payment::find($res->json('data.payment.id'));
+        $payment->update(['payment_status' => Payment::STATUS_PAID, 'paid_at' => now()]);
+        $this->order->update(['payment_status' => 'paid']);
+
+        app(WalletService::class)->holdEscrow($this->technician, 120000, $this->order);
+        app(WalletService::class)->releaseEscrowToBalance($this->technician, $this->order, 115000, 120000);
+        $this->order->update(['status' => Order::STATUS_COMPLETED]);
+
+        $wallet = TechnicianWallet::where('technician_id', $this->technician->id)->first();
+        $this->assertSame(115000, $wallet->balance);
+
+        // Simulasikan teknisi telah menarik saldonya sehingga saldo aktif = 0
+        $wallet->update(['balance' => 0]);
+
+        // 2. Admin refund pesanan yang komplain pasca selesai
+        $refundRes = $this->actingAs($this->admin)
+            ->postJson("/api/v1/admin/payments/{$payment->id}/refund", [
+                'reason' => 'Kompor mengalami kerusakan fatal akibat kelalaian servis',
+            ]);
+
+        $refundRes->assertStatus(200);
+
+        // Saldo teknisi terpotong 115.000 menjadi -115.000 (utang teknisi ke platform)
+        $wallet->refresh();
+        $this->assertSame(-115000, $wallet->balance);
+
+        $tx = WalletTransaction::where('wallet_id', $wallet->id)->latest('id')->first();
+        $this->assertSame(WalletTransaction::TYPE_DEBIT, $tx->type);
+        $this->assertSame(115000, $tx->amount);
+        $this->assertSame(0, $tx->balance_before);
+        $this->assertSame(-115000, $tx->balance_after);
     }
 }

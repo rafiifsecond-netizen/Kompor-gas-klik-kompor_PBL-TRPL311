@@ -79,6 +79,43 @@ class WalletService
     }
 
     /**
+     * 2b. Reversal setelah completed (Admin Refund).
+     * Hak pendapatan teknisi ditarik kembali dari saldo dompet.
+     * Jika saldo tidak mencukupi, saldo dompet menjadi negatif (utang).
+     */
+    public function reverseCompletedSettlement(User $technician, Order $order, int $amount, string $reason): void
+    {
+        DB::transaction(function () use ($technician, $order, $amount, $reason) {
+            $wallet = TechnicianWallet::where('technician_id', $technician->id)
+                ->lockForUpdate()
+                ->firstOrCreate(
+                    ['technician_id' => $technician->id],
+                    ['balance' => 0, 'pending_balance' => 0]
+                );
+
+            $balanceBefore = (int) $wallet->balance;
+            $balanceAfter = $balanceBefore - $amount;
+            $wallet->balance = $balanceAfter;
+            $wallet->save();
+
+            WalletTransaction::create([
+                'wallet_id' => $wallet->id,
+                'transaction_number' => $this->generateTransactionNumber(),
+                'type' => WalletTransaction::TYPE_DEBIT,
+                'amount' => $amount,
+                'balance_before' => $balanceBefore,
+                'balance_after' => $balanceAfter,
+                'reference_type' => 'refund_reversal',
+                'reference_id' => $order->id,
+                'description' => "Penarikan kembali hak teknisi pasca refund pesanan #{$order->order_number}: {$reason}",
+                'created_at' => now(),
+            ]);
+
+            $this->evaluateTechnicianSuspension($technician, $balanceAfter);
+        });
+    }
+
+    /**
      * 3. Rilis escrow ke saldo aktif (completed).
      * - Lepas pending_balance
      * - Kreditkan hak teknisi (N) ke balance
