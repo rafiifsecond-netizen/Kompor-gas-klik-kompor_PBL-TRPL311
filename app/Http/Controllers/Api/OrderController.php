@@ -20,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -102,6 +103,13 @@ class OrderController extends Controller
 
             foreach ($validated['services'] as $srv) {
                 $serviceItem = ServiceItem::findOrFail($srv['service_item_id']);
+
+                if (! $serviceItem->is_active) {
+                    throw ValidationException::withMessages([
+                        'services' => ["Layanan '{$serviceItem->name}' saat ini sedang tidak aktif dan tidak dapat dipesan."],
+                    ]);
+                }
+
                 $itemTotal = $serviceItem->base_price * $srv['quantity'];
                 $subtotal += $itemTotal;
 
@@ -340,7 +348,7 @@ class OrderController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => ['required', 'string', 'in:accepted,on_the_way,in_progress,completed,rejected'],
+            'status' => ['required', 'string', 'in:accepted,on_the_way,arrived,in_progress,completed,cancelled,rejected'],
             'note' => ['nullable', 'string'],
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
@@ -348,6 +356,24 @@ class OrderController extends Controller
 
         $statusTo = $validated['status'];
         $oldStatus = $order->status;
+
+        // Validasi aturan transisi sekuensial status pengerjaan (F014)
+        $allowedTransitions = [
+            Order::STATUS_PENDING => [Order::STATUS_ACCEPTED, Order::STATUS_CANCELLED, 'rejected'],
+            Order::STATUS_ACCEPTED => [Order::STATUS_ON_THE_WAY, Order::STATUS_CANCELLED, 'rejected'],
+            Order::STATUS_ON_THE_WAY => [Order::STATUS_ARRIVED, Order::STATUS_IN_PROGRESS, Order::STATUS_CANCELLED],
+            Order::STATUS_ARRIVED => [Order::STATUS_IN_PROGRESS, Order::STATUS_CANCELLED],
+            Order::STATUS_IN_PROGRESS => [Order::STATUS_COMPLETED, Order::STATUS_CANCELLED],
+            Order::STATUS_COMPLETED => [],
+            Order::STATUS_CANCELLED => [],
+        ];
+
+        if ($statusTo !== $oldStatus && ! in_array($statusTo, $allowedTransitions[$oldStatus] ?? [], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => "Transisi status pengerjaan dari '{$oldStatus}' ke '{$statusTo}' tidak diizinkan. Tahapan harus berurutan.",
+            ], 422);
+        }
 
         return DB::transaction(function () use ($order, $user, $validated, $request, $statusTo, $oldStatus) {
             // Auto-assign technician if order has no technician_id assigned yet
@@ -441,7 +467,18 @@ class OrderController extends Controller
                 ]);
             }
 
+            if ($statusTo === 'arrived') {
+                $order->arrived_at = now();
+                Notification::send($order->customer_id, [
+                    'type' => Notification::TYPE_ORDER_UPDATE,
+                    'title' => 'Teknisi Telah Tiba',
+                    'message' => "Teknisi telah tiba di lokasi Anda untuk pesanan #{$order->order_number}.",
+                    'data' => ['order_id' => $order->id],
+                ]);
+            }
+
             if ($statusTo === 'in_progress') {
+                $order->started_at = now();
                 Notification::send($order->customer_id, [
                     'type' => Notification::TYPE_ORDER_UPDATE,
                     'title' => 'Servis Sedang Dikerjakan',

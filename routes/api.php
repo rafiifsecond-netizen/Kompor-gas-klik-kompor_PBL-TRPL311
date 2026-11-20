@@ -127,8 +127,11 @@ Route::prefix('v1')->group(function () {
             Route::patch('/users/{id}/role', [AdminController::class, 'updateUserRole']);
             Route::get('/activity-logs', [AdminController::class, 'activityLogs']);
 
-            // Tariff & Catalog management
+            // Tariff & Catalog management (F017)
             Route::post('/services', [ServiceCatalogController::class, 'storeServiceItem']);
+            Route::put('/services/{id}', [ServiceCatalogController::class, 'updateServiceItem']);
+            Route::patch('/services/{id}/toggle-active', [ServiceCatalogController::class, 'toggleActive']);
+            Route::delete('/services/{id}', [ServiceCatalogController::class, 'destroyServiceItem']);
             Route::patch('/services/{id}/tariff', [ServiceCatalogController::class, 'updateTariff']);
 
             // Promo Management CRUD

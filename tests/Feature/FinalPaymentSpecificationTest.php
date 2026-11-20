@@ -610,6 +610,9 @@ class FinalPaymentSpecificationTest extends TestCase
         $this->assertSame(120000, $wallet->pending_balance);
         $this->assertSame(0, $wallet->balance);
 
+        // Set status ke in_progress sebelum teknisi menyelesaikan servis (F014 sequential flow)
+        $this->order->update(['status' => Order::STATUS_IN_PROGRESS]);
+
         // 2. Teknisi menyelesaikan servis (STATUS_COMPLETED)
         $this->actingAs($this->technician)
             ->patchJson("/api/v1/orders/{$this->order->id}/status", [

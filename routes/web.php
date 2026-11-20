@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminPaymentController;
+use App\Http\Controllers\Admin\AdminReportController;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\Order;
@@ -383,17 +384,25 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string',
-            'base_price' => 'required|numeric',
+            'base_price' => 'required|numeric|min:1',
             'service_category_id' => 'nullable|exists:service_categories,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
         $category = ServiceCategory::firstOrCreate(['name' => 'Service Kompor Gas'], ['slug' => 'service-kompor-gas']);
 
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('services', 'public');
+            $imageUrl = '/storage/'.$path;
+        }
+
         ServiceItem::create([
             'service_category_id' => $validated['service_category_id'] ?? $category->id,
             'name' => $validated['name'],
-            'slug' => Str::slug($validated['name']),
+            'slug' => Str::slug($validated['name']).'-'.Str::random(4),
             'description' => $validated['description'],
+            'image_url' => $imageUrl,
             'base_price' => $validated['base_price'],
             'is_active' => true,
         ]);
@@ -401,9 +410,52 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         return back()->with('success', 'Layanan baru berhasil ditambahkan.');
     })->middleware(['auth', 'role:admin'])->name('admin.services.store');
 
-    Route::delete('/admin/services/{id}', function ($id) {
-        ServiceItem::findOrFail($id)->delete();
+    Route::post('/admin/services/{id}/update', function (Request $request, $id) {
+        $service = ServiceItem::findOrFail($id);
 
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'base_price' => 'required|numeric|min:1',
+            'service_category_id' => 'required|exists:service_categories,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ]);
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('services', 'public');
+            $service->image_url = '/storage/'.$path;
+        }
+
+        $service->update([
+            'name' => $validated['name'],
+            'description' => $validated['description'],
+            'base_price' => $validated['base_price'],
+            'service_category_id' => $validated['service_category_id'],
+        ]);
+
+        return back()->with('success', 'Layanan berhasil diperbarui.');
+    })->middleware(['auth', 'role:admin'])->name('admin.services.update');
+
+    Route::post('/admin/services/{id}/toggle-active', function ($id) {
+        $service = ServiceItem::findOrFail($id);
+        $service->is_active = ! $service->is_active;
+        $service->save();
+
+        $statusStr = $service->is_active ? 'diaktifkan' : 'dinonaktifkan';
+        return back()->with('success', "Layanan berhasil {$statusStr}.");
+    })->middleware(['auth', 'role:admin'])->name('admin.services.toggle_active');
+
+    Route::delete('/admin/services/{id}', function ($id) {
+        $service = ServiceItem::findOrFail($id);
+
+        $isUsed = \App\Models\OrderItem::where('service_item_id', $id)->exists();
+        if ($isUsed) {
+            $service->update(['is_active' => false]);
+            $service->delete(); // Soft delete
+            return back()->with('success', 'Layanan telah diarsipkan (soft delete) karena memiliki riwayat transaksi.');
+        }
+
+        $service->forceDelete();
         return back()->with('success', 'Layanan berhasil dihapus.');
     })->middleware(['auth', 'role:admin'])->name('admin.services.destroy');
 
@@ -449,20 +501,14 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         return back()->with('success', 'Ulasan berhasil dihapus.');
     })->middleware(['auth', 'role:admin'])->name('admin.reviews.destroy');
 
-    // ── Reports ─────────────────────────────────────────────────────────────────
-    Route::get('/admin/reports', function () {
-        $user = Auth::user();
-        $stats = [
-            'total_users' => User::where('role', 'customer')->count(),
-            'total_technicians' => TechnicianProfile::count(),
-            'today_orders' => Order::whereDate('created_at', today())->count(),
-            'completed_orders' => Order::where('status', 'completed')->count(),
-        ];
+    // ── Reports (F020) ─────────────────────────────────────────────────────────
+    Route::get('/admin/reports', [AdminReportController::class, 'index'])
+        ->middleware(['auth', 'role:admin'])
+        ->name('admin.reports');
 
-        $revenue = Order::where('payment_status', 'paid')->sum('total_amount');
-
-        return view('admin.reports', compact('stats', 'revenue'));
-    })->name('admin.reports');
+    Route::get('/admin/reports/export', [AdminReportController::class, 'exportCsv'])
+        ->middleware(['auth', 'role:admin'])
+        ->name('admin.reports.export');
 
     // ── Settings ────────────────────────────────────────────────────────────────
     Route::get('/admin/settings', function () {

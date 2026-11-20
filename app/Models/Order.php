@@ -18,6 +18,8 @@ class Order extends Model
 
     public const STATUS_ON_THE_WAY = 'on_the_way';
 
+    public const STATUS_ARRIVED = 'arrived';
+
     public const STATUS_IN_PROGRESS = 'in_progress';
 
     public const STATUS_COMPLETED = 'completed';
@@ -30,6 +32,8 @@ class Order extends Model
         'technician_id',
         'status',
         'scheduled_at',
+        'arrived_at',
+        'started_at',
         'customer_name',
         'customer_phone',
         'address',
@@ -53,6 +57,8 @@ class Order extends Model
     {
         return [
             'scheduled_at' => 'datetime',
+            'arrived_at' => 'datetime',
+            'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'latitude' => 'float',
             'longitude' => 'float',

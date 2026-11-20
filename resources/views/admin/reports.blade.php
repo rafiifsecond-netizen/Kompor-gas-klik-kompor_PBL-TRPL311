@@ -25,6 +25,12 @@
         .animate-float { animation: float 4s ease-in-out infinite; }
         .animate-glow { animation: pulseGlow 3s ease-in-out infinite; }
         .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+
+        @media print {
+            aside, header, .no-print, .filter-box { display: none !important; }
+            body, main { background: white !important; color: black !important; height: auto !important; overflow: visible !important; }
+            main { border-radius: 0 !important; box-shadow: none !important; }
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden bg-[#090b27]">
@@ -78,7 +84,7 @@
                 <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping shrink-0"></div>
                 <div>
                     <span class="font-bold block text-white text-xs">Server Online</span>
-                    <span class="text-[10px] text-slate-400">Laravel v12 • PHP 8.4</span>
+                    <span class="text-[10px] text-slate-400">Laravel v11 • MySQL</span>
                 </div>
             </div>
             <form method="POST" action="{{ route('admin.logout') }}">
@@ -103,13 +109,12 @@
                 <a href="{{ route('admin.dashboard') }}" class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 hover:text-black hover:bg-slate-200 transition shadow-sm transform hover:-translate-x-0.5">
                     <i data-lucide="arrow-left" class="w-6 h-6"></i>
                 </a>
+                <div>
+                    <h1 class="text-xl font-extrabold text-slate-900">Laporan & Rekapitulasi (F020)</h1>
+                    <p class="text-xs text-slate-500">Data analitik real-time dari database transaksi KlikKompor</p>
+                </div>
             </div>
             <div class="flex items-center gap-8">
-                <!-- Search -->
-                <div class="relative w-96">
-                    <input type="text" placeholder="Cari laporan..." class="w-full bg-slate-100 border border-slate-200 rounded-full py-3 pl-5 pr-12 text-sm outline-none focus:border-orange-500 focus:bg-white transition shadow-sm" />
-                    <i data-lucide="search" class="w-5 h-5 text-slate-400 absolute right-4 top-3.5"></i>
-                </div>
                 <!-- Notification Bell -->
                 @php
                     $unreadCount = \App\Models\Notification::where('user_id', auth()->id())->whereNull('read_at')->count();
@@ -137,49 +142,207 @@
         <!-- Body Content -->
         <div class="p-8 space-y-8 animate-fade-in relative z-10">
 
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 class="text-3xl font-extrabold text-slate-900">Laporan Keuangan & Operasional</h1>
-                    <p class="text-xs text-slate-500 mt-1">Ringkasan transaksi pendapatan dan performa layanan perbaikan kompor gas.</p>
+            <!-- Filter & Action Controls -->
+            <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border border-orange-100 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4 filter-box">
+                <form method="GET" action="{{ route('admin.reports') }}" class="flex flex-wrap items-center gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Mulai</label>
+                        <input type="date" name="start_date" value="{{ $startDate->format('Y-m-d') }}" class="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Sampai</label>
+                        <input type="date" name="end_date" value="{{ $endDate->format('Y-m-d') }}" class="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Periode Grafik</label>
+                        <select name="period" class="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white">
+                            <option value="daily" {{ $period === 'daily' ? 'selected' : '' }}>Harian</option>
+                            <option value="weekly" {{ $period === 'weekly' ? 'selected' : '' }}>Mingguan</option>
+                            <option value="monthly" {{ $period === 'monthly' ? 'selected' : '' }}>Bulanan</option>
+                            <option value="yearly" {{ $period === 'yearly' ? 'selected' : '' }}>Tahunan</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end gap-2 pt-4">
+                        <button type="submit" class="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition">
+                            <i data-lucide="filter" class="w-3.5 h-3.5"></i> Filter
+                        </button>
+                        <a href="{{ route('admin.reports') }}" class="px-3 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 font-semibold text-xs transition">
+                            Reset
+                        </a>
+                    </div>
+                </form>
+
+                <div class="flex items-center gap-2.5 no-print self-end lg:self-center">
+                    <a href="{{ route('admin.reports.export', request()->all()) }}" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition">
+                        <i data-lucide="download" class="w-4 h-4"></i> Ekspor CSV
+                    </a>
+                    <button onclick="window.print()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Cetak / PDF
+                    </button>
                 </div>
-                <button onclick="window.print()" class="px-5 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-orange-500/25 transition">
-                    <i data-lucide="printer" class="w-4 h-4"></i> Cetak / Export Laporan
-                </button>
             </div>
 
-            <!-- Revenue Banner -->
+            <!-- Revenue Banner with Dynamic Data -->
             <div class="bg-gradient-to-r from-[#090b27] to-[#1e1b4b] text-white p-8 rounded-3xl overflow-hidden shadow-xl relative">
                 <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-orange-500/30 rounded-full blur-3xl animate-glow"></div>
                 <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-orange-500/30 text-orange-400 border border-orange-500/30">Laporan Pendapatan Bersih</span>
-                        <h2 class="text-4xl font-extrabold mt-3">Rp {{ number_format($revenue, 0, ',', '.') }}</h2>
-                        <p class="text-xs text-slate-300 mt-1">Total akumulasi pembayaran lunas dari transaksi jasa service.</p>
+                        <div class="flex items-center gap-2.5">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold bg-orange-500/30 text-orange-400 border border-orange-500/30">Total Pendapatan Bersih</span>
+                            @if($stats['profit_growth'] >= 0)
+                                <span class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                    <i data-lucide="trending-up" class="w-3 h-3"></i> +{{ $stats['profit_growth'] }}% vs periode sebelumnya
+                                </span>
+                            @else
+                                <span class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center gap-1">
+                                    <i data-lucide="trending-down" class="w-3 h-3"></i> {{ $stats['profit_growth'] }}% vs periode sebelumnya
+                                </span>
+                            @endif
+                        </div>
+                        <h2 class="text-4xl font-extrabold mt-3">Rp {{ number_format($netRevenue, 0, ',', '.') }}</h2>
+                        <p class="text-xs text-slate-300 mt-1">
+                            Akumulasi pembayaran berstatus LUNAS (Bruto: Rp {{ number_format($stats['gross_revenue'], 0, ',', '.') }}) dikurangi Refund (Rp {{ number_format($stats['refunded_amount'], 0, ',', '.') }}).
+                        </p>
                     </div>
-                    <div class="flex gap-4">
+                    <div class="flex flex-wrap gap-3">
                         <div class="bg-white/10 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-white/10">
-                            <span class="text-[11px] text-slate-300 block">Jasa Selesai</span>
-                            <span class="text-xl font-bold text-white">{{ $stats['completed_orders'] }} Order</span>
+                            <span class="text-[11px] text-slate-300 block">Pesanan Selesai</span>
+                            <span class="text-xl font-bold text-white">{{ number_format($stats['completed_orders']) }} Order</span>
                         </div>
                         <div class="bg-white/10 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-white/10">
-                            <span class="text-[11px] text-slate-300 block">Teknisi Aktif</span>
-                            <span class="text-xl font-bold text-white">{{ $stats['total_technicians'] }} Orang</span>
+                            <span class="text-[11px] text-slate-300 block">Total Transaksi</span>
+                            <span class="text-xl font-bold text-white">{{ number_format($stats['total_transactions']) }} Trx</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Revenue Trend Chart -->
-            <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border border-orange-100 shadow-sm hover:shadow-md transition">
+            <!-- 6 Summary Metric Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-orange-100 shadow-sm">
+                    <span class="text-[11px] font-bold text-slate-500 block uppercase">Total Transaksi</span>
+                    <h3 class="text-2xl font-extrabold text-slate-900 mt-1">{{ number_format($stats['total_transactions']) }}</h3>
+                    <span class="text-[10px] text-slate-400">Dalam periode filter</span>
+                </div>
+                <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-orange-100 shadow-sm">
+                    <span class="text-[11px] font-bold text-emerald-600 block uppercase">Pendapatan Bersih</span>
+                    <h3 class="text-lg font-extrabold text-emerald-700 mt-1">Rp {{ number_format($stats['net_revenue'], 0, ',', '.') }}</h3>
+                    <span class="text-[10px] text-slate-400">Lunas - Refund</span>
+                </div>
+                <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-orange-100 shadow-sm">
+                    <span class="text-[11px] font-bold text-blue-600 block uppercase">Pesanan Selesai</span>
+                    <h3 class="text-2xl font-extrabold text-blue-700 mt-1">{{ number_format($stats['completed_orders']) }}</h3>
+                    <span class="text-[10px] text-slate-400">Status Completed</span>
+                </div>
+                <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-orange-100 shadow-sm">
+                    <span class="text-[11px] font-bold text-rose-600 block uppercase">Pesanan Dibatalkan</span>
+                    <h3 class="text-2xl font-extrabold text-rose-700 mt-1">{{ number_format($stats['cancelled_orders']) }}</h3>
+                    <span class="text-[10px] text-slate-400">Status Cancelled</span>
+                </div>
+                <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-orange-100 shadow-sm">
+                    <span class="text-[11px] font-bold text-amber-600 block uppercase">Pembayaran Pending</span>
+                    <h3 class="text-2xl font-extrabold text-amber-700 mt-1">{{ number_format($stats['pending_payments']) }}</h3>
+                    <span class="text-[10px] text-slate-400">Menunggu / Verifikasi</span>
+                </div>
+                <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-orange-100 shadow-sm">
+                    <span class="text-[11px] font-bold text-teal-600 block uppercase">Pembayaran Berhasil</span>
+                    <h3 class="text-2xl font-extrabold text-teal-700 mt-1">{{ number_format($stats['paid_payments']) }}</h3>
+                    <span class="text-[10px] text-slate-400">Status Paid</span>
+                </div>
+            </div>
+
+            <!-- Revenue Trend Dynamic Chart -->
+            <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border border-orange-100 shadow-sm">
                 <div class="flex items-center justify-between mb-4">
                     <div>
-                        <h3 class="font-bold text-slate-900 text-lg">Grafik Tren Pendapatan Servis</h3>
-                        <p class="text-xs text-slate-500">Pertumbuhan pendapatan harian bulan ini</p>
+                        <h3 class="font-bold text-slate-900 text-lg">Grafik Tren Pendapatan Servis Kompor</h3>
+                        <p class="text-xs text-slate-500">
+                            Periode: <span class="font-bold text-orange-600 uppercase">{{ $period }}</span> ({{ $startDate->format('d M Y') }} - {{ $endDate->format('d M Y') }})
+                        </p>
                     </div>
-                    <span class="text-xs border border-slate-200 px-3 py-1 rounded-lg text-emerald-600 font-bold bg-emerald-50">+18% Profit</span>
+                    <span class="text-xs border border-slate-200 px-3 py-1 rounded-lg {{ $stats['profit_growth'] >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50' }} font-bold">
+                        {{ $stats['profit_growth'] >= 0 ? '+' : '' }}{{ $stats['profit_growth'] }}% Profit Growth
+                    </span>
                 </div>
-                <div class="h-64">
+                <div class="h-72">
                     <canvas id="reportChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Transactions Detail Table -->
+            <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border border-orange-100 shadow-sm space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-lg">Riwayat Transaksi Pembayaran</h3>
+                        <p class="text-xs text-slate-500">Daftar transaksi aktual dalam rentang waktu yang dipilih</p>
+                    </div>
+                    <span class="text-xs font-semibold text-slate-500">{{ $transactions->total() }} Transaksi ditemukan</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-slate-500 uppercase font-bold bg-slate-50/50">
+                                <th class="py-3 px-4">No. Transaksi</th>
+                                <th class="py-3 px-4">No. Pesanan</th>
+                                <th class="py-3 px-4">Pelanggan</th>
+                                <th class="py-3 px-4">Metode</th>
+                                <th class="py-3 px-4">Nominal</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4">Waktu Buat</th>
+                                <th class="py-3 px-4">Waktu Lunas</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
+                            @forelse($transactions as $trx)
+                                <tr class="hover:bg-orange-50/30 transition">
+                                    <td class="py-3 px-4 font-mono font-bold text-slate-900">
+                                        {{ $trx->payment_number ?? ('TRX-' . $trx->id) }}
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        {{ $trx->order?->order_number ?? '-' }}
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        {{ $trx->customer?->name ?? ($trx->order?->customer_name ?? 'Pelanggan') }}
+                                    </td>
+                                    <td class="py-3 px-4 uppercase font-semibold">
+                                        {{ $trx->payment_method }}
+                                    </td>
+                                    <td class="py-3 px-4 font-bold text-slate-900">
+                                        Rp {{ number_format($trx->amount, 0, ',', '.') }}
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        @if($trx->payment_status === 'paid')
+                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">LUNAS</span>
+                                        @elseif(in_array($trx->payment_status, ['pending', 'awaiting_verification']))
+                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">MENUNGGU</span>
+                                        @elseif($trx->payment_status === 'refunded')
+                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">REFUND</span>
+                                        @else
+                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">{{ strtoupper($trx->payment_status) }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3 px-4 text-slate-500">
+                                        {{ $trx->created_at->format('d/m/Y H:i') }}
+                                    </td>
+                                    <td class="py-3 px-4 text-slate-500">
+                                        {{ $trx->paid_at ? $trx->paid_at->format('d/m/Y H:i') : '-' }}
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="8" class="text-center py-8 text-slate-400">
+                                        Tidak ada data transaksi pembayaran pada rentang tanggal ini.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pt-4 border-t border-slate-100">
+                    {{ $transactions->links() }}
                 </div>
             </div>
 
@@ -189,24 +352,45 @@
     <script>
         lucide.createIcons();
 
+        const chartLabels = @json($chartData['labels']);
+        const chartData = @json($chartData['data']);
+
         const ctx = document.getElementById('reportChart').getContext('2d');
         new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
+                labels: chartLabels,
                 datasets: [{
-                    label: 'Pendapatan (Rp)',
-                    data: [2500000, 3800000, 4200000, 5100000],
+                    label: 'Pendapatan Bersih (Rp)',
+                    data: chartData,
                     backgroundColor: '#ff8000',
+                    hoverBackgroundColor: '#ea580c',
                     borderRadius: 8,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let val = context.parsed.y || 0;
+                                return 'Pendapatan: Rp ' + val.toLocaleString('id-ID');
+                            }
+                        }
+                    }
+                },
                 scales: {
-                    y: { beginAtZero: true },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'Rp ' + (value / 1000).toLocaleString('id-ID') + 'k';
+                            }
+                        }
+                    },
                     x: { grid: { display: false } }
                 }
             }
