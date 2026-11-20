@@ -157,6 +157,41 @@ class AdminPaymentController extends Controller
     }
 
     /**
+     * Verifikasi Pembayaran Tunai / Cash (Approve / Reject) oleh Admin.
+     */
+    public function verifyCash(Request $request, int $id): JsonResponse
+    {
+        $admin = $request->user();
+
+        $validated = $request->validate([
+            'approved' => ['required', 'boolean'],
+            'notes' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $payment = Payment::findOrFail($id);
+
+        try {
+            $updated = $this->paymentService->verifyCashPaymentByAdmin(
+                payment: $payment,
+                admin: $admin,
+                isApproved: (bool) $validated['approved'],
+                notes: $validated['notes'] ?? null
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => $validated['approved'] ? 'Pembayaran tunai berhasil disetujui.' : 'Pembayaran tunai ditolak.',
+                'data' => $updated,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
      * Refund Pembayaran (Hanya Admin).
      */
     public function refund(Request $request, int $id): JsonResponse

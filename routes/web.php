@@ -420,6 +420,14 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->middleware('signed')
         ->name('admin.payments.view_proof_signed');
 
+    Route::post('/admin/payments/{id}/verify-cash', [AdminPaymentController::class, 'verifyCash'])
+        ->middleware(['auth', 'role:admin'])
+        ->name('admin.payments.verify_cash');
+
+    Route::post('/admin/payments/{id}/verify-transfer', [AdminPaymentController::class, 'verifyTransfer'])
+        ->middleware(['auth', 'role:admin'])
+        ->name('admin.payments.verify_transfer');
+
     // ── Reviews ─────────────────────────────────────────────────────────────────
     Route::get('/admin/reviews', function () {
         $user = Auth::user();

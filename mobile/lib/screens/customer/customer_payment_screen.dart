@@ -327,8 +327,13 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
         );
         if (mounted && payRes is Map && payRes['data'] != null) {
           final paymentData = payRes['data']['payment'] as Map<String, dynamic>;
+          final vaData = payRes['data']['va'] as Map<String, dynamic>?;
           final payId = paymentData['id'] as int;
           final payAmount = (paymentData['amount'] as num).toDouble();
+          final dynamicVa = vaData?['va_number']?.toString() ??
+              paymentData['va_number']?.toString() ??
+              _bankDetails[_selectedBank]?['number'] ??
+              '8040 1234 5678 90';
 
           await showModalBottomSheet<void>(
             context: context,
@@ -339,6 +344,7 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
               paymentId: payId,
               amount: payAmount,
               bankName: _selectedBank,
+              vaNumber: dynamicVa,
               bankDetails: _bankDetails[_selectedBank]!,
               onSuccess: () {
                 Navigator.of(ctx).pop();
@@ -1595,6 +1601,7 @@ class _TransferModalSheet extends StatefulWidget {
   final int paymentId;
   final double amount;
   final String bankName;
+  final String vaNumber;
   final Map<String, String> bankDetails;
   final VoidCallback onSuccess;
   final VoidCallback onDismiss;
@@ -1603,6 +1610,7 @@ class _TransferModalSheet extends StatefulWidget {
     required this.paymentId,
     required this.amount,
     required this.bankName,
+    required this.vaNumber,
     required this.bankDetails,
     required this.onSuccess,
     required this.onDismiss,
@@ -1617,6 +1625,36 @@ class _TransferModalSheetState extends State<_TransferModalSheet> {
   final _picker = ImagePicker();
   XFile? _selectedProof;
   bool _isUploading = false;
+  Timer? _pollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startPollingStatus();
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startPollingStatus() {
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      try {
+        final statusRes = await _paymentRepo.getPaymentStatus(widget.paymentId);
+        if (!mounted) return;
+        final status = statusRes['data']?['payment_status']?.toString();
+        if (status == 'paid') {
+          _pollTimer?.cancel();
+          AppFeedback.success(context, 'Pembayaran Virtual Account berhasil diverifikasi!');
+          widget.onSuccess();
+        }
+      } catch (e) {
+        debugPrint('Polling VA status error: $e');
+      }
+    });
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -1706,7 +1744,7 @@ class _TransferModalSheetState extends State<_TransferModalSheet> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      widget.bankDetails['number']!,
+                      widget.vaNumber,
                       style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -1715,8 +1753,8 @@ class _TransferModalSheetState extends State<_TransferModalSheet> {
                     ),
                     InkWell(
                       onTap: () {
-                        Clipboard.setData(ClipboardData(text: widget.bankDetails['number']!));
-                        AppFeedback.success(context, 'Nomor rekening disalin ke clipboard');
+                        Clipboard.setData(ClipboardData(text: widget.vaNumber));
+                        AppFeedback.success(context, 'Nomor rekening Virtual Account disalin ke clipboard');
                       },
                       child: const Row(
                         children: [

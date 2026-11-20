@@ -690,57 +690,35 @@ class OrderController extends Controller
 
         $validated = $request->validate([
             'payment_method' => ['required', 'string', 'in:cash,qris,transfer'],
+            'promo_code' => ['nullable', 'string', 'max:30'],
+            'sender_bank_name' => ['nullable', 'string', 'max:50'],
             'proof_url' => ['nullable', 'string'],
         ]);
 
-        return DB::transaction(function () use ($order, $user, $validated, $request) {
-            $paymentNumber = 'PAY-'.date('Ymd').'-'.strtoupper(Str::random(5));
-
-            $payment = Payment::updateOrCreate(
-                ['order_id' => $order->id],
-                [
-                    'customer_id' => $order->customer_id,
-                    'payment_number' => $paymentNumber,
-                    'payment_method' => $validated['payment_method'],
-                    'amount' => $order->total_amount,
-                    'payment_status' => 'paid',
-                    'paid_at' => now(),
-                    'proof_url' => $validated['proof_url'] ?? null,
-                    'transaction_reference' => 'TXN-'.Str::random(10),
-                ]
+        try {
+            $paymentService = app(\App\Services\Payment\PaymentService::class);
+            $payment = $paymentService->checkout(
+                order: $order,
+                paymentMethod: $validated['payment_method'],
+                promoCode: $validated['promo_code'] ?? null,
+                senderBankName: $validated['sender_bank_name'] ?? null
             );
-
-            $order->update([
-                'payment_method' => $validated['payment_method'],
-                'payment_status' => 'paid',
-            ]);
-
-            ActivityLog::logEvent(
-                eventName: 'payment.processed',
-                description: 'Pembayaran lunas sebesar Rp '.number_format($order->total_amount, 0, ',', '.')." untuk pesanan {$order->order_number}",
-                entity: $payment,
-                newValues: $payment->toArray(),
-                request: $request,
-                actor: $user
-            );
-
-            if ($order->technician_id) {
-                Notification::send($order->technician_id, [
-                    'type' => Notification::TYPE_PAYMENT,
-                    'title' => 'Pembayaran Diterima',
-                    'message' => "Pembayaran pesanan #{$order->order_number} sebesar Rp ".number_format($order->total_amount, 0, ',', '.').' telah dikonfirmasi.',
-                    'data' => ['order_id' => $order->id, 'payment_id' => $payment->id],
-                ]);
-            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Pembayaran berhasil dikonfirmasi.',
+                'message' => $payment->payment_method === 'cash'
+                    ? 'Pesanan berhasil dibuat dengan metode tunai. Harap serahkan pembayaran ke teknisi.'
+                    : 'Instruksi pembayaran berhasil dibuat. Silakan selesaikan pembayaran.',
                 'data' => [
-                    'order' => $order,
+                    'order' => $order->fresh(),
                     'payment' => $payment,
                 ],
             ]);
-        });
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 }

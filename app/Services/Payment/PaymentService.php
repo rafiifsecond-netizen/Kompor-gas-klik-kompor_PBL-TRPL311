@@ -149,10 +149,26 @@ class PaymentService
                 $payment->payload = $chargeResult;
             } elseif ($paymentMethod === 'transfer') {
                 $expiryHours = (int) PlatformSetting::get('manual_transfer_expiry_hours', 24);
-                $payment->gateway_provider = 'manual_transfer';
-                $payment->sender_bank_name = $senderBankName;
+                $payment->gateway_provider = 'midtrans';
+                $payment->gateway_order_id = $gatewayOrderId;
+                $payment->bank_name = strtolower($senderBankName ?? 'bca');
+                $payment->sender_bank_name = $senderBankName ?? 'BCA';
                 $payment->sender_account_name = $senderAccountName;
                 $payment->expires_at = now()->addHours($expiryHours);
+
+                // Charge Midtrans Bank Transfer (Virtual Account)
+                $chargeResult = $this->midtransService->chargeBankTransfer(
+                    bank: $senderBankName ?? 'bca',
+                    gatewayOrderId: $gatewayOrderId,
+                    grossAmount: $calc->paymentAmount,
+                    expiryHours: $expiryHours
+                );
+
+                $payment->gateway_transaction_id = $chargeResult['transaction_id'] ?? null;
+                $payment->va_number = $chargeResult['extracted_va_number'] ?? null;
+                $payment->biller_code = $chargeResult['biller_code'] ?? null;
+                $payment->bill_key = $chargeResult['bill_key'] ?? null;
+                $payment->payload = $chargeResult;
             } elseif ($paymentMethod === 'cash') {
                 $payment->gateway_provider = 'cash';
                 $payment->expires_at = now()->addDays(7); // Toleransi waktu penyelesaian servis tunai
@@ -363,6 +379,79 @@ class PaymentService
                 entity: $payment,
                 actor: $technician
             );
+
+            return $payment;
+        });
+    }
+
+    /**
+     * Verifikasi Pembayaran Cash oleh Admin.
+     */
+    public function verifyCashPaymentByAdmin(
+        Payment $payment,
+        User $admin,
+        bool $isApproved,
+        ?string $notes = null
+    ): Payment {
+        return DB::transaction(function () use ($payment, $admin, $isApproved, $notes) {
+            $payment = Payment::where('id', $payment->id)->lockForUpdate()->firstOrFail();
+
+            if ($payment->payment_method !== 'cash') {
+                throw new Exception('Bukan transaksi tunai (cash).');
+            }
+
+            if ($payment->payment_status === Payment::STATUS_PAID) {
+                return $payment; // Idempotent
+            }
+
+            $order = Order::where('id', $payment->order_id)->lockForUpdate()->firstOrFail();
+
+            if ($isApproved) {
+                $payment->update([
+                    'payment_status' => Payment::STATUS_PAID,
+                    'paid_at' => now(),
+                    'verified_by' => $admin->id,
+                    'verified_at' => now(),
+                    'rejection_reason' => $notes ? "Admin Note: {$notes}" : null,
+                ]);
+
+                $order->update(['payment_status' => 'paid']);
+
+                // Tandai promo used
+                $this->promoService->markUsed($order);
+
+                // Settlement komisi tunai di dompet teknisi jika teknisi sudah ditugaskan
+                if ($order->technician_id) {
+                    $technician = User::find($order->technician_id);
+                    $commissionRecord = CommissionRecord::where('order_id', $order->id)->first();
+                    if ($technician && $commissionRecord) {
+                        $this->walletService->settleCashPayment($technician, $order, $commissionRecord);
+                    }
+                }
+
+                ActivityLog::logEvent(
+                    eventName: 'payment.cash_admin_verified',
+                    description: "Admin memverifikasi pembayaran tunai #{$payment->payment_number} untuk pesanan #{$order->order_number}",
+                    entity: $payment,
+                    actor: $admin
+                );
+            } else {
+                $payment->update([
+                    'payment_status' => Payment::STATUS_FAILED,
+                    'verified_by' => $admin->id,
+                    'verified_at' => now(),
+                    'rejection_reason' => $notes ?? 'Ditolak oleh admin',
+                ]);
+
+                $this->promoService->releasePromo($order);
+
+                ActivityLog::logEvent(
+                    eventName: 'payment.cash_admin_rejected',
+                    description: "Admin menolak konfirmasi pembayaran tunai #{$payment->payment_number}",
+                    entity: $payment,
+                    actor: $admin
+                );
+            }
 
             return $payment;
         });

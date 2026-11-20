@@ -141,6 +141,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/payments', [AdminPaymentController::class, 'index']);
             Route::get('/payments/{id}/proof-url', [AdminPaymentController::class, 'getProofSignedUrl']);
             Route::post('/payments/{id}/verify-transfer', [AdminPaymentController::class, 'verifyTransfer']);
+            Route::post('/payments/{id}/verify-cash', [AdminPaymentController::class, 'verifyCash']);
             Route::post('/payments/{id}/refund', [AdminPaymentController::class, 'refund']);
             Route::get('/payments/flagged-refunds', [AdminPaymentController::class, 'flaggedRefunds']);
             Route::get('/payments/export', [AdminPaymentController::class, 'exportCsv']);

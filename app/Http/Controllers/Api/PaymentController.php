@@ -74,6 +74,13 @@ class PaymentController extends Controller
                         'qr_url' => $payment->qris_qr_url,
                         'expires_at' => $payment->expires_at?->toIso8601String(),
                     ] : null,
+                    'va' => $payment->payment_method === 'transfer' ? [
+                        'bank' => strtoupper($payment->bank_name ?? 'BCA'),
+                        'va_number' => $payment->va_number,
+                        'biller_code' => $payment->biller_code,
+                        'bill_key' => $payment->bill_key,
+                        'expires_at' => $payment->expires_at?->toIso8601String(),
+                    ] : null,
                 ],
             ], 201);
         } catch (ValidationException $ve) {
@@ -102,8 +109,8 @@ class PaymentController extends Controller
             return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
         }
 
-        // Jika QRIS dan status masih pending, lakukan sinkronisasi status ke Midtrans Core API jika sudah ada gateway_order_id
-        if ($payment->payment_method === 'qris' && $payment->payment_status === Payment::STATUS_PENDING && $payment->gateway_order_id) {
+        // Sinkronisasi status ke Midtrans Core API jika transaksi gateway pending
+        if (in_array($payment->payment_method, ['qris', 'transfer'], true) && $payment->payment_status === Payment::STATUS_PENDING && $payment->gateway_order_id) {
             if ($payment->expires_at && now()->gt($payment->expires_at)) {
                 $payment->update(['payment_status' => Payment::STATUS_EXPIRED]);
             } else {
@@ -126,6 +133,8 @@ class PaymentController extends Controller
                 'payment_status' => $payment->payment_status,
                 'payment_method' => $payment->payment_method,
                 'amount' => $payment->amount,
+                'va_number' => $payment->va_number,
+                'bank_name' => $payment->bank_name,
                 'expires_at' => $payment->expires_at?->toIso8601String(),
                 'paid_at' => $payment->paid_at?->toIso8601String(),
                 'is_expired' => $payment->expires_at ? now()->gt($payment->expires_at) : false,
