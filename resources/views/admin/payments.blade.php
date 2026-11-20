@@ -238,64 +238,83 @@
                         <thead>
                             <tr class="bg-orange-500 text-white font-bold rounded-xl overflow-hidden text-xs">
                                 <th class="py-4 px-6 rounded-l-xl">No. Transaksi</th>
+                                <th class="py-4 px-6">No. Pesanan</th>
                                 <th class="py-4 px-6">Pelanggan</th>
                                 <th class="py-4 px-6">Metode</th>
-                                <th class="py-4 px-6">Jumlah</th>
+                                <th class="py-4 px-6">Nominal</th>
                                 <th class="py-4 px-6">Status</th>
-                                <th class="py-4 px-6">Waktu</th>
+                                <th class="py-4 px-6">Waktu Transaksi</th>
                                 <th class="py-4 px-6 rounded-r-xl text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-xs">
                             @forelse($payments as $index => $payment)
                                 <tr class="hover:bg-slate-50 transition">
-                                    <td class="py-4 px-6 font-bold text-slate-900">{{ $payment->payment_number ?? '#PAY-2026-00'.($index+1) }}</td>
+                                    <td class="py-4 px-6 font-bold text-slate-900">{{ $payment->payment_number ?? '-' }}</td>
+                                    <td class="py-4 px-6 text-slate-700 font-semibold">{{ $payment->order?->order_number ?? '-' }}</td>
                                     <td class="py-4 px-6 text-slate-900 font-bold">{{ $payment->customer?->name ?? $payment->order?->customer_name ?? 'Pelanggan' }}</td>
                                     <td class="py-4 px-6 text-slate-800 font-semibold uppercase">
                                         @php
                                             $methodLabel = match($payment->payment_method) {
                                                 'cash' => 'Tunai (COD)',
-                                                'transfer' => 'Transfer Bank',
-                                                'qris' => 'QRIS',
+                                                'transfer' => 'Virtual Account (' . strtoupper($payment->bank_name ?? 'Bank') . ')',
+                                                'qris' => 'QRIS Dinamis',
                                                 default => strtoupper($payment->payment_method ?? 'Tunai'),
                                             };
                                         @endphp
                                         {{ $methodLabel }}
                                     </td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold">Rp.{{ number_format($payment->amount ?? 90000, 0, ',', '.') }}</td>
+                                    <td class="py-4 px-6 text-slate-900 font-bold">Rp {{ number_format($payment->amount ?? 0, 0, ',', '.') }}</td>
                                     <td class="py-4 px-6">
                                         @php
-                                            $stPaid = $payment->payment_status === 'paid';
+                                            $statusBadge = match($payment->payment_status) {
+                                                'paid' => ['bg' => 'bg-emerald-500', 'text' => 'Lunas'],
+                                                'pending' => ['bg' => 'bg-amber-500', 'text' => 'Menunggu Pembayaran'],
+                                                'awaiting_verification' => ['bg' => 'bg-blue-500', 'text' => 'Menunggu Verifikasi'],
+                                                'expired' => ['bg' => 'bg-slate-500', 'text' => 'Kedaluwarsa'],
+                                                'failed' => ['bg' => 'bg-rose-500', 'text' => 'Gagal'],
+                                                'refunded' => ['bg' => 'bg-purple-500', 'text' => 'Di-refund'],
+                                                'cancelled' => ['bg' => 'bg-zinc-400', 'text' => 'Dibatalkan'],
+                                                default => ['bg' => 'bg-slate-400', 'text' => ucfirst($payment->payment_status)],
+                                            };
                                         @endphp
-                                        <span class="px-3 py-1 rounded-full text-[11px] font-bold {{ $stPaid ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white' }}">
-                                            {{ $stPaid ? 'Lunas' : 'Menunggu' }}
+                                        <span class="px-2.5 py-1 rounded-full text-[11px] font-bold text-white {{ $statusBadge['bg'] }}">
+                                            {{ $statusBadge['text'] }}
                                         </span>
                                     </td>
-                                    <td class="py-4 px-6 text-slate-600 font-medium">{{ $payment->created_at->format('d/m/Y H:i') }}</td>
+                                    <td class="py-4 px-6 text-slate-600 font-medium">
+                                        <div>{{ $payment->created_at->format('d/m/Y H:i') }}</div>
+                                        @if($payment->paid_at)
+                                            <div class="text-[10px] text-emerald-600 font-semibold">Lunas: {{ $payment->paid_at->format('d/m/Y H:i') }}</div>
+                                        @endif
+                                    </td>
                                     <td class="py-4 px-6 text-center">
-                                        <div class="flex items-center justify-center gap-3">
-                                            <button class="text-slate-600 hover:text-orange-600 transition" title="Cetak Resi">
-                                                <i data-lucide="printer" class="w-4 h-4"></i>
-                                            </button>
-                                            <button class="text-slate-600 hover:text-red-600 transition" title="Hapus">
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                            </button>
+                                        <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                                            @if($payment->payment_method === 'transfer' && $payment->proof_url)
+                                                <a href="{{ route('admin.payments.proof', $payment->id) }}" target="_blank" class="px-2.5 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 font-bold text-[11px] transition" title="Lihat Bukti Transfer">
+                                                    Lihat Bukti
+                                                </a>
+                                            @endif
+                                            @if($payment->payment_method === 'transfer' && $payment->payment_status === 'awaiting_verification')
+                                                <button onclick="openVerifyTransferModal({{ $payment->id }}, '{{ $payment->payment_number }}')" class="px-2.5 py-1 rounded bg-emerald-500 text-white hover:bg-emerald-600 font-bold text-[11px] transition">
+                                                    Verifikasi
+                                                </button>
+                                            @elseif($payment->payment_method === 'cash' && $payment->payment_status !== 'paid')
+                                                <button onclick="openVerifyCashModal({{ $payment->id }}, '{{ $payment->payment_number }}')" class="px-2.5 py-1 rounded bg-amber-500 text-white hover:bg-amber-600 font-bold text-[11px] transition">
+                                                    Verifikasi Tunai
+                                                </button>
+                                            @elseif($payment->payment_status === 'paid')
+                                                <button onclick="openRefundModal({{ $payment->id }}, '{{ $payment->payment_number }}')" class="px-2.5 py-1 rounded bg-red-100 text-red-600 hover:bg-red-200 font-bold text-[11px] transition">
+                                                    Refund
+                                                </button>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
                             @empty
-                                <tr class="hover:bg-slate-50">
-                                    <td class="py-4 px-6 font-bold text-slate-900">#PAY-2026-001</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold">Budi Santoso</td>
-                                    <td class="py-4 px-6 text-slate-800 font-semibold">Tunai (COD)</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold">Rp.90.000</td>
-                                    <td class="py-4 px-6"><span class="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500 text-white">Lunas</span></td>
-                                    <td class="py-4 px-6 text-slate-600 font-medium">16/09/2026 12:00</td>
-                                    <td class="py-4 px-6 text-center">
-                                        <div class="flex items-center justify-center gap-3">
-                                            <button class="text-slate-600 hover:text-orange-600"><i data-lucide="printer" class="w-4 h-4"></i></button>
-                                            <button class="text-slate-600 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                                        </div>
+                                <tr>
+                                    <td colspan="8" class="py-8 text-center text-slate-500 font-medium">
+                                        Tidak ada data transaksi pembayaran yang ditemukan.
                                     </td>
                                 </tr>
                             @endforelse
@@ -310,6 +329,165 @@
 
     <script>
         lucide.createIcons();
+
+    <!-- Modal Verifikasi Tunai -->
+    <div id="modalVerifyCash" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <h3 class="text-lg font-extrabold text-slate-900">Verifikasi Pembayaran Tunai</h3>
+            <p class="text-xs text-slate-600">Pastikan uang tunai telah diterima secara sah oleh teknisi atau disetorkan ke kasir.</p>
+            <input type="hidden" id="cashPaymentId">
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Tambahan (Opsional)</label>
+                <textarea id="cashNotes" rows="2" class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-orange-500" placeholder="Contoh: Diterima langsung di kantor kasir..."></textarea>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('modalVerifyCash')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                <button onclick="submitVerifyCash(false)" class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-100 text-rose-600 hover:bg-rose-200">Tolak</button>
+                <button onclick="submitVerifyCash(true)" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600">Setujui Tunai</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Verifikasi Transfer -->
+    <div id="modalVerifyTransfer" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <h3 class="text-lg font-extrabold text-slate-900">Verifikasi Bukti Transfer</h3>
+            <input type="hidden" id="transferPaymentId">
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Alasan Penolakan (Wajib jika ditolak)</label>
+                <textarea id="transferRejectionReason" rows="2" class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-orange-500" placeholder="Contoh: Bukti transfer buram atau nominal tidak sesuai..."></textarea>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('modalVerifyTransfer')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                <button onclick="submitVerifyTransfer(false)" class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-100 text-rose-600 hover:bg-rose-200">Tolak Bukti</button>
+                <button onclick="submitVerifyTransfer(true)" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600">Setujui Transfer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Refund -->
+    <div id="modalRefund" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <h3 class="text-lg font-extrabold text-slate-900">Refund Transaksi Pembayaran</h3>
+            <input type="hidden" id="refundPaymentId">
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Alasan Pengembalian Dana (Refund)</label>
+                <textarea id="refundReason" rows="2" class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-orange-500" placeholder="Contoh: Permintaan pembatalan order oleh pelanggan..."></textarea>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('modalRefund')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                <button onclick="submitRefund()" class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700">Proses Refund</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function openVerifyCashModal(id, payNum) {
+            document.getElementById('cashPaymentId').value = id;
+            document.getElementById('cashNotes').value = '';
+            document.getElementById('modalVerifyCash').classList.remove('hidden');
+        }
+
+        function openVerifyTransferModal(id, payNum) {
+            document.getElementById('transferPaymentId').value = id;
+            document.getElementById('transferRejectionReason').value = '';
+            document.getElementById('modalVerifyTransfer').classList.remove('hidden');
+        }
+
+        function openRefundModal(id, payNum) {
+            document.getElementById('refundPaymentId').value = id;
+            document.getElementById('refundReason').value = '';
+            document.getElementById('modalRefund').classList.remove('hidden');
+        }
+
+        async function submitVerifyCash(approved) {
+            const id = document.getElementById('cashPaymentId').value;
+            const notes = document.getElementById('cashNotes').value;
+            try {
+                const res = await fetch(`/admin/payments/${id}/verify-cash`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ approved, notes })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert('Gagal: ' + (data.message || 'Terjadi kesalahan.'));
+                }
+            } catch (e) {
+                alert('Koneksi bermasalah: ' + e.message);
+            }
+        }
+
+        async function submitVerifyTransfer(approved) {
+            const id = document.getElementById('transferPaymentId').value;
+            const rejectionReason = document.getElementById('transferRejectionReason').value;
+            if (!approved && !rejectionReason.trim()) {
+                alert('Harap isi alasan penolakan bukti transfer!');
+                return;
+            }
+            try {
+                const res = await fetch(`/admin/payments/${id}/verify-transfer`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ approved, rejection_reason: rejectionReason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert('Gagal: ' + (data.message || 'Terjadi kesalahan.'));
+                }
+            } catch (e) {
+                alert('Koneksi bermasalah: ' + e.message);
+            }
+        }
+
+        async function submitRefund() {
+            const id = document.getElementById('refundPaymentId').value;
+            const reason = document.getElementById('refundReason').value;
+            if (!reason.trim()) {
+                alert('Harap isi alasan pengembalian dana (refund)!');
+                return;
+            }
+            try {
+                const res = await fetch(`/api/v1/payments/${id}/refund`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Refund berhasil diproses.');
+                    window.location.reload();
+                } else {
+                    alert('Gagal refund: ' + (data.message || 'Terjadi kesalahan.'));
+                }
+            } catch (e) {
+                alert('Koneksi bermasalah: ' + e.message);
+            }
+        }
 
         // Interactive Live Search & Search Icon Switch to Enter Icon
         document.querySelectorAll('input[type="text"]').forEach(input => {

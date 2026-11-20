@@ -28,6 +28,7 @@ class User extends Authenticatable
         'avatar_url',
         'address',
         'is_active',
+        'is_suspended_from_orders',
         'password',
     ];
 
@@ -52,6 +53,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'is_suspended_from_orders' => 'boolean',
         ];
     }
 
@@ -118,5 +120,20 @@ class User extends Authenticatable
     public function chatsAsTechnician(): HasMany
     {
         return $this->hasMany(Chat::class, 'technician_id');
+    }
+
+    public function wallet(): HasOne
+    {
+        return $this->hasOne(TechnicianWallet::class, 'technician_id');
+    }
+
+    public function payoutRequests(): HasMany
+    {
+        return $this->hasMany(PayoutRequest::class, 'technician_id');
+    }
+
+    public function promoUsages(): HasMany
+    {
+        return $this->hasMany(PromoUsage::class, 'user_id');
     }
 }

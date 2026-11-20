@@ -215,7 +215,7 @@ class KlikKomporExtendedFeaturesTest extends TestCase
 
         $response->assertStatus(201)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.subtotal', '45000.00');
+            ->assertJsonPath('data.subtotal', 45000);
 
         $costId = $response->json('data.id');
 

@@ -65,6 +65,9 @@
                 <a href="{{ route('admin.reports') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="bar-chart-2" class="w-5 h-5"></i> Laporan
                 </a>
+                <a href="{{ route('admin.dashboard_management') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
+                    <i data-lucide="image" class="w-5 h-5"></i> Banner Dashboard
+                </a>
                 <a href="{{ route('admin.settings') }}" class="flex items-center gap-4 px-5 py-3.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white font-bold transition">
                     <i data-lucide="settings" class="w-5 h-5"></i> Pengaturan
                 </a>
@@ -247,10 +250,11 @@
                         <thead>
                             <tr class="bg-orange-500 text-white font-bold rounded-xl overflow-hidden text-xs">
                                 <th class="py-4 px-6 rounded-l-xl">No</th>
+                                <th class="py-4 px-6">Gambar</th>
                                 <th class="py-4 px-6">Nama Layanan</th>
-                                <th class="py-4 px-6">Layanan</th>
+                                <th class="py-4 px-6">Kategori</th>
                                 <th class="py-4 px-6">Deskripsi Singkat</th>
-                                <th class="py-4 px-6">Harga</th>
+                                <th class="py-4 px-6">Harga Dasar</th>
                                 <th class="py-4 px-6">Status</th>
                                 <th class="py-4 px-6 rounded-r-xl text-center">Aksi</th>
                             </tr>
@@ -259,28 +263,45 @@
                             @forelse($services as $index => $service)
                                 <tr class="hover:bg-slate-50 transition">
                                     <td class="py-4 px-6 font-bold text-slate-900">{{ $index + 1 }}</td>
+                                    <td class="py-4 px-6">
+                                        @if($service->image_url)
+                                            <img src="{{ $service->image_url }}" alt="{{ $service->name }}" class="w-12 h-12 object-cover rounded-xl border border-slate-200 shadow-sm" onerror="this.src='https://via.placeholder.com/48?text=Service'" />
+                                        @else
+                                            <div class="w-12 h-12 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs">
+                                                <i data-lucide="wrench" class="w-5 h-5"></i>
+                                            </div>
+                                        @endif
+                                    </td>
                                     <td class="py-4 px-6 text-slate-900 font-bold">{{ $service->name }}</td>
                                     <td class="py-4 px-6 text-slate-800 font-semibold">{{ $service->category?->name ?? 'Service' }}</td>
                                     <td class="py-4 px-6 text-slate-600 max-w-xs truncate">{{ $service->description ?? '-' }}</td>
-                                    <td class="py-4 px-6 text-slate-900 font-bold">Rp.{{ number_format($service->base_price, 0, ',', '.') }}</td>
+                                    <td class="py-4 px-6 text-slate-900 font-bold">Rp {{ number_format($service->base_price, 0, ',', '.') }}</td>
                                     <td class="py-4 px-6">
-                                        <span class="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500 text-white">
-                                            Aktif
-                                        </span>
-                                    </td>
-                                    <td class="py-4 px-6 text-center">
-                                        <form method="POST" action="{{ route('admin.services.destroy', $service->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus layanan ini?');">
+                                        <form method="POST" action="{{ route('admin.services.toggle_active', $service->id) }}">
                                             @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-500 hover:text-red-700 font-bold transition flex items-center justify-center gap-1 mx-auto">
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i> Hapus
+                                            <button type="submit" class="px-3 py-1 rounded-full text-[11px] font-bold transition {{ $service->is_active ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-slate-400 text-white hover:bg-slate-500' }}" title="Klik untuk mengubah status">
+                                                {{ $service->is_active ? 'Aktif' : 'Nonaktif' }}
                                             </button>
                                         </form>
+                                    </td>
+                                    <td class="py-4 px-6 text-center">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <button type="button" onclick='openEditModal(@json($service))' class="text-blue-600 hover:text-blue-800 font-bold transition flex items-center gap-1">
+                                                <i data-lucide="edit-3" class="w-4 h-4"></i> Edit
+                                            </button>
+                                            <form method="POST" action="{{ route('admin.services.destroy', $service->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus layanan ini?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-red-500 hover:text-red-700 font-bold transition flex items-center gap-1">
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i> Hapus
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
                                 <tr class="hover:bg-slate-50">
-                                    <td colspan="7" class="py-6 text-center text-slate-400">Belum ada data layanan.</td>
+                                    <td colspan="8" class="py-6 text-center text-slate-400">Belum ada data layanan.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -294,12 +315,12 @@
 
     <!-- Modal Tambah Layanan -->
     <div id="addModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full p-8 space-y-6 shadow-2xl relative animate-fade-in">
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 space-y-6 shadow-2xl relative animate-fade-in max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-100 pb-4">
                 <h3 class="text-lg font-extrabold text-slate-900">Tambah Layanan Baru</h3>
                 <button onclick="closeModal()" class="text-slate-400 hover:text-black text-xl font-bold">&times;</button>
             </div>
-            <form method="POST" action="{{ route('admin.services.store') }}" class="space-y-4">
+            <form method="POST" action="{{ route('admin.services.store') }}" enctype="multipart/form-data" class="space-y-4">
                 @csrf
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Nama Layanan</label>
@@ -315,7 +336,11 @@
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Harga Dasar (Rp)</label>
-                    <input type="number" name="base_price" required placeholder="150000" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
+                    <input type="number" name="base_price" min="1" required placeholder="150000" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Foto Layanan (Opsional)</label>
+                    <input type="file" name="image" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs outline-none focus:border-orange-500 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-orange-600" />
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Deskripsi Singkat</label>
@@ -329,6 +354,47 @@
         </div>
     </div>
 
+    <!-- Modal Edit Layanan -->
+    <div id="editModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 space-y-6 shadow-2xl relative animate-fade-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <h3 class="text-lg font-extrabold text-slate-900">Edit Layanan</h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-black text-xl font-bold">&times;</button>
+            </div>
+            <form id="editForm" method="POST" action="" enctype="multipart/form-data" class="space-y-4">
+                @csrf
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Layanan</label>
+                    <input type="text" id="editName" name="name" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Kategori Layanan</label>
+                    <select id="editCategory" name="service_category_id" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500">
+                        @foreach($categories as $cat)
+                            <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Harga Dasar (Rp)</label>
+                    <input type="number" id="editPrice" name="base_price" min="1" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Ganti Foto Layanan (Opsional)</label>
+                    <input type="file" name="image" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs outline-none focus:border-orange-500 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-orange-600" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Deskripsi Singkat</label>
+                    <textarea id="editDescription" name="description" required rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500"></textarea>
+                </div>
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeEditModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-md shadow-orange-500/25">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         lucide.createIcons();
 
@@ -337,6 +403,18 @@
         }
         function closeModal() {
             document.getElementById('addModal').classList.add('hidden');
+        }
+
+        function openEditModal(service) {
+            document.getElementById('editForm').action = '/admin/services/' + service.id + '/update';
+            document.getElementById('editName').value = service.name || '';
+            document.getElementById('editCategory').value = service.service_category_id || '';
+            document.getElementById('editPrice').value = Math.round(service.base_price) || 0;
+            document.getElementById('editDescription').value = service.description || '';
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
         }
 
         // Live Search & Icon Switch

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../core/constants/api_endpoints.dart';
 import '../core/network/api_exception.dart';
 import '../models/user_model.dart';
@@ -113,6 +114,13 @@ class AuthProvider extends ChangeNotifier {
     required String passwordConfirmation,
     String? address,
     String role = 'customer',
+    String? bio,
+    int? yearsOfExperience,
+    List<String>? skills,
+    String? ktpNumber,
+    XFile? ktpPhoto,
+    XFile? applicationLetter,
+    XFile? supportingDocument,
   }) async {
     _status = AuthStatus.authenticating;
     _errorMessage = null;
@@ -128,6 +136,13 @@ class AuthProvider extends ChangeNotifier {
         passwordConfirmation: passwordConfirmation,
         address: address,
         role: role,
+        bio: bio,
+        yearsOfExperience: yearsOfExperience,
+        skills: skills,
+        ktpNumber: ktpNumber,
+        ktpPhoto: ktpPhoto,
+        applicationLetter: applicationLetter,
+        supportingDocument: supportingDocument,
       );
       _status = AuthStatus.authenticated;
       notifyListeners();

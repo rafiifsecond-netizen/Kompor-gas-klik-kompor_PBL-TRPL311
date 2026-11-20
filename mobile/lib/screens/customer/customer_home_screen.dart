@@ -14,6 +14,8 @@ import '../../core/routes/app_routes.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/animated_fade_slide.dart';
 import '../../widgets/custom_bottom_nav_bar.dart';
+import '../../models/banner_model.dart';
+import '../../repositories/banner_repository.dart';
 import 'customer_service_detail_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,11 +85,13 @@ class CustomerHomeScreen extends StatefulWidget {
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   static const int _homeIndex = 0;
   late final Future<Map<String, dynamic>?> _latestCompletedOrder;
+  late final Future<List<BannerModel>> _bannersFuture;
 
   @override
   void initState() {
     super.initState();
     _latestCompletedOrder = _loadLatestCompletedOrder();
+    _bannersFuture = BannerRepository().getBanners();
   }
 
   Future<Map<String, dynamic>?> _loadLatestCompletedOrder() async {
@@ -146,10 +150,34 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
                 const SizedBox(height: 16),
 
-                // ── Carousel banner (auto-scroll) ──────────────
-                const Padding(
+                // ── Carousel banner (auto-scroll & dinamis dari database) ──
+                Padding(
                   padding: _kPad,
-                  child: _BannerCarousel(items: _carouselItems),
+                  child: FutureBuilder<List<BannerModel>>(
+                    future: _bannersFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Container(
+                          height: 195,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        );
+                      }
+                      final banners = snapshot.data ?? [];
+                      if (banners.isNotEmpty) {
+                        return _BannerCarousel(dynamicBanners: banners);
+                      }
+                      return const _BannerCarousel(items: _carouselItems);
+                    },
+                  ),
                 ),
 
                 const SizedBox(height: 24),
@@ -305,8 +333,10 @@ class _ServiceReminderCard extends StatelessWidget {
 // BANNER CAROUSEL — auto-scroll 3 detik, swipe manual, dot indicator
 // ─────────────────────────────────────────────────────────────────────────────
 class _BannerCarousel extends StatefulWidget {
-  final List<_BannerItem> items;
-  const _BannerCarousel({required this.items});
+  final List<_BannerItem>? items;
+  final List<BannerModel>? dynamicBanners;
+
+  const _BannerCarousel({this.items, this.dynamicBanners});
 
   @override
   State<_BannerCarousel> createState() => _BannerCarouselState();
@@ -329,7 +359,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
   }
 
   void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!mounted) return;
       _ctrl.nextPage(
         duration: const Duration(milliseconds: 450),
@@ -347,7 +377,13 @@ class _BannerCarouselState extends State<_BannerCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    final count = widget.items.length;
+    final hasDynamic =
+        widget.dynamicBanners != null && widget.dynamicBanners!.isNotEmpty;
+    final count = hasDynamic
+        ? widget.dynamicBanners!.length
+        : (widget.items?.length ?? 0);
+
+    if (count == 0) return const SizedBox.shrink();
 
     return Column(
       children: [
@@ -360,7 +396,11 @@ class _BannerCarouselState extends State<_BannerCarousel> {
               controller: _ctrl,
               onPageChanged: (page) => setState(() => _current = page % count),
               itemBuilder: (_, index) {
-                final item = widget.items[index % count];
+                if (hasDynamic) {
+                  final banner = widget.dynamicBanners![index % count];
+                  return _BannerSlide(dynamicBanner: banner);
+                }
+                final item = widget.items![index % count];
                 return _BannerSlide(item: item);
               },
             ),
@@ -394,22 +434,138 @@ class _BannerCarouselState extends State<_BannerCarousel> {
 
 // Satu slide banner
 class _BannerSlide extends StatelessWidget {
-  final _BannerItem item;
-  const _BannerSlide({required this.item});
+  final _BannerItem? item;
+  final BannerModel? dynamicBanner;
+
+  const _BannerSlide({this.item, this.dynamicBanner});
 
   @override
   Widget build(BuildContext context) {
+    if (dynamicBanner != null) {
+      final banner = dynamicBanner!;
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background network image
+          Image.network(
+            banner.imageUrl,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return Container(
+                color: Colors.grey.shade200,
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primary, AppColors.bannerOrange],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: const Center(
+                  child: Icon(Icons.image_outlined,
+                      color: Colors.white70, size: 48),
+                ),
+              );
+            },
+          ),
+
+          // Gradient overlay for readability
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.transparent, Color(0xAA000000)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+
+          // Badge
+          if (banner.badgeText != null && banner.badgeText!.isNotEmpty)
+            Positioned(
+              top: 14,
+              left: 18,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  banner.badgeText!,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+
+          // Text Content
+          Positioned(
+            left: 18,
+            right: 24,
+            bottom: 18,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  banner.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                if (banner.description != null &&
+                    banner.description!.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    banner.description!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.9),
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Fallback item
+    final fallbackItem = item!;
     return Stack(
       fit: StackFit.expand,
       children: [
         // Background: gambar atau gradient
-        if (item.assetPath != null)
-          Image.asset(item.assetPath!, fit: BoxFit.cover)
+        if (fallbackItem.assetPath != null)
+          Image.asset(fallbackItem.assetPath!, fit: BoxFit.cover)
         else
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: item.gradient,
+                colors: fallbackItem.gradient,
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -417,7 +573,7 @@ class _BannerSlide extends StatelessWidget {
           ),
 
         // Decorative circles (hanya pada fallback)
-        if (item.assetPath == null) ...[
+        if (fallbackItem.assetPath == null) ...[
           Positioned(
             right: -20,
             top: -20,
@@ -451,7 +607,7 @@ class _BannerSlide extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                item.title,
+                fallbackItem.title,
                 style: GoogleFonts.inter(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
@@ -460,7 +616,7 @@ class _BannerSlide extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                item.subtitle,
+                fallbackItem.subtitle,
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   color: Colors.white.withValues(alpha: 0.88),

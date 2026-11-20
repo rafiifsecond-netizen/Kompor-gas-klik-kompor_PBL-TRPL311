@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/routes/route_args.dart';
 import '../../repositories/address_repository.dart';
 import '../../repositories/order_repository.dart';
+import '../../repositories/payment_repository.dart';
 import '../../core/utils/app_feedback.dart';
 import '../../core/constants/app_colors.dart';
 
@@ -18,8 +22,14 @@ class CustomerPaymentScreen extends StatefulWidget {
 
 class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
   final _repository = OrderRepository();
+  final _paymentRepo = PaymentRepository();
+  final _promoController = TextEditingController();
+
   String _selectedMethod = 'cash'; // 'cash', 'bank', or 'qris'
   bool _isProcessing = false;
+  bool _isValidatingPromo = false;
+  String? _appliedPromoCode;
+  double _discountAmount = 0.0;
 
   // Selected Bank for Transfer
   String _selectedBank = 'BCA';
@@ -41,6 +51,12 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
       'holder': 'PT KLIK KOMPOR INDONESIA',
     },
   };
+
+  @override
+  void dispose() {
+    _promoController.dispose();
+    super.dispose();
+  }
 
   /// Extracts numeric amount from various string / int formats
   double _parseRupiah(dynamic value) {
@@ -101,6 +117,42 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
     } catch (_) {}
 
     return {'latitude': null, 'longitude': null};
+  }
+
+  Future<void> _validateAndApplyPromo() async {
+    final code = _promoController.text.trim().toUpperCase();
+    if (code.isEmpty) return;
+    setState(() => _isValidatingPromo = true);
+    try {
+      final backendMethod = _selectedMethod == 'bank' ? 'transfer' : _selectedMethod;
+      final res = await _paymentRepo.validatePromo(
+        orderId: 0,
+        promoCode: code,
+        paymentMethod: backendMethod,
+      );
+      if (res is Map && res['data'] != null) {
+        final disc = _parseRupiah(res['data']['discount_amount']);
+        setState(() {
+          _appliedPromoCode = code;
+          _discountAmount = disc;
+        });
+        if (mounted) {
+          AppFeedback.success(
+            context,
+            'Promo $code berhasil diterapkan! Hemat Rp ${_formatRupiah(disc)}',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.error(
+          context,
+          'Kupon promo tidak valid, kadaluwarsa, atau kuota habis.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isValidatingPromo = false);
+    }
   }
 
   Future<void> _handlePaymentConfirmation(
@@ -210,6 +262,128 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
     if (!mounted) return;
     setState(() => _isProcessing = false);
 
+    final orderId = createdOrder?['id'] as int? ?? 0;
+    final targetOrderData = createdOrder ?? {
+      ...args,
+      'address': validAddress,
+      'payment_method': _selectedMethod,
+    };
+
+    if (_selectedMethod == 'qris') {
+      try {
+        final payRes = await _paymentRepo.checkout(
+          orderId: orderId,
+          paymentMethod: 'qris',
+          promoCode: _appliedPromoCode,
+        );
+        if (mounted && payRes is Map && payRes['data'] != null) {
+          final paymentData = payRes['data']['payment'] as Map<String, dynamic>;
+          final qrisData = payRes['data']['qris'] as Map<String, dynamic>?;
+          final qrString = qrisData?['qr_string']?.toString() ??
+              paymentData['qris_qr_string']?.toString() ??
+              '00020101021226670016ID.CO.MIDTRANS.WWW01189360091800000000005204581253033605802ID5909KLIKKOMPOR6007JAKARTA61051234062070703A016304DEMO';
+          final payId = paymentData['id'] as int;
+          final payAmount = (paymentData['amount'] as num).toDouble();
+
+          await showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            isDismissible: false,
+            backgroundColor: Colors.transparent,
+            builder: (ctx) => _QrisModalSheet(
+              paymentId: payId,
+              qrString: qrString,
+              amount: payAmount,
+              onSuccess: () {
+                Navigator.of(ctx).pop();
+                nav.pushNamedAndRemoveUntil(
+                  AppRoutes.customerOrderTracking,
+                  (r) => r.settings.name == AppRoutes.customerHome,
+                  arguments: targetOrderData,
+                );
+              },
+              onDismiss: () {
+                Navigator.of(ctx).pop();
+                nav.pushNamedAndRemoveUntil(
+                  AppRoutes.customerOrderTracking,
+                  (r) => r.settings.name == AppRoutes.customerHome,
+                  arguments: targetOrderData,
+                );
+              },
+            ),
+          );
+          return;
+        }
+      } catch (e) {
+        debugPrint('Checkout QRIS error: $e');
+      }
+    } else if (_selectedMethod == 'bank') {
+      try {
+        final payRes = await _paymentRepo.checkout(
+          orderId: orderId,
+          paymentMethod: 'transfer',
+          promoCode: _appliedPromoCode,
+          senderBankName: _selectedBank,
+        );
+        if (mounted && payRes is Map && payRes['data'] != null) {
+          final paymentData = payRes['data']['payment'] as Map<String, dynamic>;
+          final vaData = payRes['data']['va'] as Map<String, dynamic>?;
+          final payId = paymentData['id'] as int;
+          final payAmount = (paymentData['amount'] as num).toDouble();
+          final dynamicVa = vaData?['va_number']?.toString() ??
+              paymentData['va_number']?.toString() ??
+              _bankDetails[_selectedBank]?['number'] ??
+              '8040 1234 5678 90';
+
+          await showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            isDismissible: false,
+            backgroundColor: Colors.transparent,
+            builder: (ctx) => _TransferModalSheet(
+              paymentId: payId,
+              amount: payAmount,
+              bankName: _selectedBank,
+              vaNumber: dynamicVa,
+              bankDetails: _bankDetails[_selectedBank]!,
+              onSuccess: () {
+                Navigator.of(ctx).pop();
+                nav.pushNamedAndRemoveUntil(
+                  AppRoutes.customerOrderTracking,
+                  (r) => r.settings.name == AppRoutes.customerHome,
+                  arguments: targetOrderData,
+                );
+              },
+              onDismiss: () {
+                Navigator.of(ctx).pop();
+                nav.pushNamedAndRemoveUntil(
+                  AppRoutes.customerOrderTracking,
+                  (r) => r.settings.name == AppRoutes.customerHome,
+                  arguments: targetOrderData,
+                );
+              },
+            ),
+          );
+          return;
+        }
+      } catch (e) {
+        debugPrint('Checkout Transfer error: $e');
+      }
+    } else {
+      // Cash
+      try {
+        await _paymentRepo.checkout(
+          orderId: orderId,
+          paymentMethod: 'cash',
+          promoCode: _appliedPromoCode,
+        );
+      } catch (e) {
+        debugPrint('Checkout Cash error: $e');
+      }
+    }
+
+    if (!mounted) return;
+
     AppFeedback.success(
       context,
       _selectedMethod == 'cash'
@@ -220,12 +394,7 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
     nav.pushNamedAndRemoveUntil(
       AppRoutes.customerOrderTracking,
       (r) => r.settings.name == AppRoutes.customerHome,
-      arguments: createdOrder ??
-          {
-            ...args,
-            'address': validAddress,
-            'payment_method': _selectedMethod,
-          },
+      arguments: targetOrderData,
     );
   }
 
@@ -247,7 +416,7 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
         : _parseRupiah(args['price'] ?? args['priceRange']);
     final effectiveBase = basePrice > 0 ? basePrice : 95000.0;
     const transportFee = 15000.0;
-    final estimatedTotal = effectiveBase + transportFee;
+    final estimatedTotal = (effectiveBase - _discountAmount).clamp(0.0, double.infinity) + transportFee;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -320,7 +489,17 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
 
                         const SizedBox(height: 22),
 
-                        // ── Section 3: Rincian Biaya Transparan ────────────────
+                        // ── Section 3: Kupon Promo ────────────────────────────
+                        _buildSectionHeader(
+                          title: 'Kupon Promo',
+                          icon: Icons.confirmation_num_outlined,
+                        ),
+                        const SizedBox(height: 10),
+                        _buildPromoCard(),
+
+                        const SizedBox(height: 22),
+
+                        // ── Section 4: Rincian Biaya Transparan ────────────────
                         _buildSectionHeader(
                           title: 'Rincian Biaya',
                           icon: Icons.account_balance_wallet_outlined,
@@ -635,7 +814,7 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Pembayaran QRIS',
+                        'Pembayaran QRIS Midtrans',
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -651,113 +830,10 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
               _buildQrisLogoWidget(width: 68, height: 28),
             ],
           ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Column(
-              children: [
-                // Header Banner di atas QR
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildQrisLogoWidget(
-                        width: 52,
-                        height: 20,
-                        isWhiteBackground: true,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'PEMBAYARAN STANDAR NASIONAL',
-                        style: GoogleFonts.inter(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                // QR Code Container dengan Logo QRIS di tengahnya
-                Container(
-                  width: 180,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      const Icon(
-                        Icons.qr_code_2_rounded,
-                        size: 170,
-                        color: Colors.black87,
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFCBD5E1)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: _buildQrisLogoWidget(width: 44, height: 18),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'NMID: ID1020268877665',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'A.n. PT KLIK KOMPOR INDONESIA',
-                  style: GoogleFonts.inter(
-                    fontSize: 11.5,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
-            'Buka aplikasi e-wallet (GoPay, OVO, Dana, ShopeePay) atau m-Banking Anda, lalu scan kode QR di atas untuk menyelesaikan pembayaran senilai Rp ${_formatRupiah(total)}.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-              fontSize: 11.5,
-              color: AppColors.textSecondary,
-              height: 1.4,
-            ),
+            'Setelah mengonfirmasi pesanan, QR Code resmi Midtrans akan dimuat otomatis dengan batas waktu pembayaran 15 menit dan verifikasi lunas real-time.',
+            style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
           ),
         ],
       ),
@@ -765,38 +841,52 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
   }
 
   Widget _buildBankTransferInstructionCard() {
-    final currentBank = _bankDetails[_selectedBank] ?? _bankDetails['BCA']!;
+    final currentBank = _bankDetails[_selectedBank]!;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Pilih Bank Tujuan:',
-            style: GoogleFonts.inter(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
-            ),
+          Row(
+            children: [
+              const Icon(Icons.account_balance_rounded,
+                  color: Color(0xFF2563EB), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Pilih Bank Tujuan Transfer:',
+                style: GoogleFonts.inter(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1E3A8A),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children: _bankDetails.keys.map((bankName) {
-                final isCurrent = _selectedBank == bankName;
+              children: _bankDetails.keys.map((bank) {
+                final isCurrent = _selectedBank == bank;
                 return Padding(
-                  padding: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
-                    label: Text(bankName),
+                    label: Text(bank),
                     selected: isCurrent,
                     onSelected: (selected) {
-                      if (selected) setState(() => _selectedBank = bankName);
+                      if (selected) setState(() => _selectedBank = bank);
                     },
                     selectedColor: const Color(0xFFDBEAFE),
                     labelStyle: GoogleFonts.inter(
@@ -921,6 +1011,112 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
     );
   }
 
+  Widget _buildPromoCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _appliedPromoCode != null ? const Color(0xFF16A34A) : const Color(0xFFE5E7EB),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_appliedPromoCode != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF16A34A)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Promo ${_appliedPromoCode!} Aktif (-Rp ${_formatRupiah(_discountAmount)})',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF166534),
+                        ),
+                      ),
+                    ],
+                  ),
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _appliedPromoCode = null;
+                        _discountAmount = 0.0;
+                        _promoController.clear();
+                      });
+                    },
+                    child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF166534)),
+                  ),
+                ],
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: TextField(
+                      controller: _promoController,
+                      textCapitalization: TextCapitalization.characters,
+                      style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w600),
+                      decoration: const InputDecoration(
+                        hintText: 'Kode promo (contoh: HEMAT20)',
+                        hintStyle: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 96,
+                  height: 40,
+                  child: ElevatedButton(
+                    onPressed: _isValidatingPromo ? null : _validateAndApplyPromo,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                    ),
+                    child: _isValidatingPromo
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : Text('Terapkan', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCostBreakdownCard(
     double basePrice,
     double transportFee,
@@ -936,6 +1132,10 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
       child: Column(
         children: [
           _buildCostRow('Biaya Servis Dasar', 'Rp ${_formatRupiah(basePrice)}'),
+          if (_discountAmount > 0) ...[
+            const SizedBox(height: 8),
+            _buildCostRow('Diskon Kupon Promo', '-Rp ${_formatRupiah(_discountAmount)}', isGreen: true),
+          ],
           const SizedBox(height: 8),
           _buildCostRow(
               'Ongkos Transport Teknisi', 'Rp ${_formatRupiah(transportFee)}'),
@@ -971,7 +1171,7 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
     );
   }
 
-  Widget _buildCostRow(String title, String amount) {
+  Widget _buildCostRow(String title, String amount, {bool isGreen = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -979,7 +1179,7 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
           child: Text(
             title,
             style: GoogleFonts.inter(
-                fontSize: 12.5, color: AppColors.textSecondary),
+                fontSize: 12.5, color: isGreen ? const Color(0xFF16A34A) : AppColors.textSecondary),
           ),
         ),
         const SizedBox(width: 8),
@@ -988,7 +1188,7 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
           style: GoogleFonts.inter(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Colors.black87),
+              color: isGreen ? const Color(0xFF16A34A) : Colors.black87),
         ),
       ],
     );
@@ -1130,6 +1330,542 @@ class _CustomerPaymentScreenState extends State<CustomerPaymentScreen> {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QRIS PAYMENT MODAL SHEET (Live Countdown, QrImageView, Polling & Auto-Resolve)
+// ─────────────────────────────────────────────────────────────────────────────
+class _QrisModalSheet extends StatefulWidget {
+  final int paymentId;
+  final String qrString;
+  final double amount;
+  final VoidCallback onSuccess;
+  final VoidCallback onDismiss;
+
+  const _QrisModalSheet({
+    required this.paymentId,
+    required this.qrString,
+    required this.amount,
+    required this.onSuccess,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_QrisModalSheet> createState() => _QrisModalSheetState();
+}
+
+class _QrisModalSheetState extends State<_QrisModalSheet> {
+  final _paymentRepo = PaymentRepository();
+  Timer? _countdownTimer;
+  Timer? _pollingTimer;
+  int _secondsLeft = 900; // 15 minutes
+  bool _isPaid = false;
+  bool _isExpired = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimers();
+  }
+
+  void _startTimers() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_secondsLeft <= 1) {
+        timer.cancel();
+        setState(() {
+          _secondsLeft = 0;
+          _isExpired = true;
+        });
+      } else {
+        setState(() => _secondsLeft--);
+      }
+    });
+
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!mounted || _isPaid || _isExpired) return;
+      try {
+        final statusRes = await _paymentRepo.getPaymentStatus(widget.paymentId);
+        if (statusRes is Map && statusRes['data'] != null) {
+          final status = statusRes['data']['payment_status']?.toString();
+          if (status == 'paid') {
+            timer.cancel();
+            _countdownTimer?.cancel();
+            if (mounted) {
+              setState(() => _isPaid = true);
+              Future.delayed(const Duration(milliseconds: 1000), widget.onSuccess);
+            }
+          } else if (status == 'expired' || statusRes['data']['is_expired'] == true) {
+            timer.cancel();
+            _countdownTimer?.cancel();
+            if (mounted) setState(() => _isExpired = true);
+          }
+        }
+      } catch (_) {}
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
+
+  String _formatTimer(int totalSecs) {
+    final m = (totalSecs ~/ 60).toString().padLeft(2, '0');
+    final s = (totalSecs % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  String _formatRupiah(num value) {
+    final str = value.toStringAsFixed(0);
+    return str.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (match) => '.',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Pembayaran QRIS',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black87,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _isExpired ? Colors.red.shade50 : const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _isExpired ? Colors.red.shade200 : AppColors.primary.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.timer_outlined,
+                      size: 14,
+                      color: _isExpired ? Colors.red : AppColors.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _isExpired ? 'Kedaluwarsa' : _formatTimer(_secondsLeft),
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _isExpired ? Colors.red : AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Total Bayar: Rp ${_formatRupiah(widget.amount)}',
+            style: GoogleFonts.inter(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (_isPaid) ...[
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 54),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Pembayaran Berhasil Diverifikasi!',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF166534),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (_isExpired) ...[
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.error_outline_rounded, color: Colors.red, size: 48),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Waktu pembayaran telah habis',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.red.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: QrImageView(
+                data: widget.qrString,
+                version: QrVersions.auto,
+                size: 200.0,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Buka aplikasi e-Wallet atau m-Banking Anda, pilih Scan QRIS dan arahkan ke kode QR di atas.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(fontSize: 11.5, color: AppColors.textSecondary, height: 1.4),
+            ),
+          ],
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton(
+              onPressed: widget.onDismiss,
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                side: BorderSide(color: Colors.grey.shade300),
+              ),
+              child: Text(
+                _isPaid ? 'Lihat Status Pesanan' : 'Selesaikan Nanti (Cek Riwayat)',
+                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TRANSFER PAYMENT MODAL SHEET (Virtual Account, Image Picker & Upload Proof)
+// ─────────────────────────────────────────────────────────────────────────────
+class _TransferModalSheet extends StatefulWidget {
+  final int paymentId;
+  final double amount;
+  final String bankName;
+  final String vaNumber;
+  final Map<String, String> bankDetails;
+  final VoidCallback onSuccess;
+  final VoidCallback onDismiss;
+
+  const _TransferModalSheet({
+    required this.paymentId,
+    required this.amount,
+    required this.bankName,
+    required this.vaNumber,
+    required this.bankDetails,
+    required this.onSuccess,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_TransferModalSheet> createState() => _TransferModalSheetState();
+}
+
+class _TransferModalSheetState extends State<_TransferModalSheet> {
+  final _paymentRepo = PaymentRepository();
+  final _picker = ImagePicker();
+  XFile? _selectedProof;
+  bool _isUploading = false;
+  Timer? _pollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startPollingStatus();
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startPollingStatus() {
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      try {
+        final statusRes = await _paymentRepo.getPaymentStatus(widget.paymentId);
+        if (!mounted) return;
+        final status = statusRes['data']?['payment_status']?.toString();
+        if (status == 'paid') {
+          _pollTimer?.cancel();
+          AppFeedback.success(context, 'Pembayaran Virtual Account berhasil diverifikasi!');
+          widget.onSuccess();
+        }
+      } catch (e) {
+        debugPrint('Polling VA status error: $e');
+      }
+    });
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final file = await _picker.pickImage(source: source, imageQuality: 85);
+      if (file != null) {
+        setState(() => _selectedProof = file);
+      }
+    } catch (e) {
+      debugPrint('Error pick image: $e');
+    }
+  }
+
+  Future<void> _uploadProof() async {
+    if (_selectedProof == null) return;
+    setState(() => _isUploading = true);
+    try {
+      await _paymentRepo.uploadProof(
+        paymentId: widget.paymentId,
+        proofFile: _selectedProof!,
+        senderBankName: widget.bankName,
+      );
+      if (mounted) {
+        AppFeedback.success(context, 'Bukti transfer berhasil dikirim! Menunggu verifikasi admin.');
+        widget.onSuccess();
+      }
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.error(context, 'Gagal mengunggah bukti: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  String _formatRupiah(num value) {
+    final str = value.toStringAsFixed(0);
+    return str.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (match) => '.',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Transfer Bank ${widget.bankName}',
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Nomor Rekening Virtual Account:',
+                  style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      widget.vaNumber,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: widget.vaNumber));
+                        AppFeedback.success(context, 'Nomor rekening Virtual Account disalin ke clipboard');
+                      },
+                      child: const Row(
+                        children: [
+                          Icon(Icons.copy_rounded, size: 15, color: Color(0xFF2563EB)),
+                          SizedBox(width: 4),
+                          Text('Salin', style: TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  widget.bankDetails['holder']!,
+                  style: GoogleFonts.inter(fontSize: 11.5, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Total Nominal: Rp ${_formatRupiah(widget.amount)}',
+            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.primary),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Unggah Bukti Transfer',
+            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          if (_selectedProof == null)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _pickImage(ImageSource.gallery),
+                    icon: const Icon(Icons.photo_library_outlined, size: 18),
+                    label: const Text('Galeri'),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _pickImage(ImageSource.camera),
+                    icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                    label: const Text('Kamera'),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.image_rounded, color: Color(0xFF2563EB), size: 24),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _selectedProof!.name,
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    onPressed: () => setState(() => _selectedProof = null),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton(
+              onPressed: (_selectedProof == null || _isUploading) ? null : _uploadProof,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _isUploading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text('Kirim Bukti Pembayaran', style: GoogleFonts.inter(fontSize: 13.5, fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: TextButton(
+              onPressed: widget.onDismiss,
+              child: Text(
+                'Unggah Nanti di Halaman Riwayat',
+                style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -28,6 +28,7 @@ class ApiEndpoints {
   static String get resetPassword => '$baseUrl/auth/reset-password';
 
   // Catalog & Services
+  static String get banners => '$baseUrl/dashboard/banners';
   static String get services => '$baseUrl/services';
   static String get categories => '$baseUrl/categories';
 
@@ -36,6 +37,7 @@ class ApiEndpoints {
   static String technicianDetail(int id) => '$baseUrl/technicians/$id';
   static String get updateAvailability => '$baseUrl/technician/availability';
   static String get updateLocation => '$baseUrl/technician/location';
+  static String get technicianRegistrationStatus => '$baseUrl/technician/registration-status';
 
   // Addresses
   static String get addresses => '$baseUrl/addresses';
@@ -51,6 +53,15 @@ class ApiEndpoints {
   static String payOrder(int id) => '$baseUrl/orders/$id/pay';
   static String rescheduleOrder(int id) => '$baseUrl/orders/$id/reschedule';
   static String reviewOrder(int id) => '$baseUrl/orders/$id/review';
+
+  // Payments & Financial Specification
+  static String get paymentCheckout => '$baseUrl/payments/checkout';
+  static String paymentStatus(int paymentId) => '$baseUrl/payments/$paymentId/status';
+  static String uploadPaymentProof(int paymentId) => '$baseUrl/payments/$paymentId/upload-proof';
+  static String confirmCashPayment(int paymentId) => '$baseUrl/payments/$paymentId/confirm-cash';
+  static String get validatePromo => '$baseUrl/promos/validate';
+  static String get technicianWallet => '$baseUrl/wallet/me';
+  static String get requestPayout => '$baseUrl/wallet/payout';
 
   // Order Chat
   static String get technicianChats => '$baseUrl/chats';

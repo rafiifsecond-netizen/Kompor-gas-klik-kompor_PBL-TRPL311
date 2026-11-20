@@ -20,18 +20,18 @@ class _TechnicianUpdateStatusScreenState
   bool _isSaving = false;
 
   final List<String> _statuses = [
-    'Order Diterima',
-    'Dalam Perjalanan ke Lokasi',
-    'Sedang Mengerjakan Servis',
-    'Pembayaran Diterima (Lunas)',
-    'Pengerjaan Selesai',
+    'Order Diterima (Accepted)',
+    'Menuju Lokasi Pelanggan (On the Way)',
+    'Tiba di Lokasi (Arrived)',
+    'Sedang Mengerjakan Servis (In Progress)',
+    'Pengerjaan Selesai (Completed)',
   ];
 
   final List<String> _statusApiCodes = [
     'accepted',
     'on_the_way',
+    'arrived',
     'in_progress',
-    'completed',
     'completed',
   ];
 
@@ -122,13 +122,74 @@ class _TechnicianUpdateStatusScreenState
                         fontWeight: FontWeight.w500,
                         color: AppColors.textSecondary),
                   ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Status Pembayaran:',
+                        style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (args['payment_status'] == 'paid')
+                              ? Colors.green.shade50
+                              : Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: (args['payment_status'] == 'paid')
+                                ? Colors.green.shade300
+                                : Colors.orange.shade300,
+                          ),
+                        ),
+                        child: Text(
+                          (args['payment_status'] == 'paid') ? 'LUNAS' : 'BELUM LUNAS',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: (args['payment_status'] == 'paid')
+                                ? Colors.green.shade800
+                                : Colors.orange.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB), size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Pembaruan di sini khusus status fisik pekerjaan teknisi. Konfirmasi uang tunai dikelola via tab Pendapatan/Dompet (F009).',
+                      style: GoogleFonts.inter(fontSize: 11.5, color: const Color(0xFF1E40AF)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
             Text(
-              'Pilih Status Terbaru:',
+              'Pilih Status Pengerjaan Terbaru:',
               style: GoogleFonts.inter(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,

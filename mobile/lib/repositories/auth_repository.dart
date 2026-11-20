@@ -1,3 +1,4 @@
+import 'package:image_picker/image_picker.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
@@ -44,6 +45,13 @@ class AuthRepository {
     required String passwordConfirmation,
     String? address,
     String role = 'customer',
+    String? bio,
+    int? yearsOfExperience,
+    List<String>? skills,
+    String? ktpNumber,
+    XFile? ktpPhoto,
+    XFile? applicationLetter,
+    XFile? supportingDocument,
   }) async {
     final response = await _authService.register(
       name: name,
@@ -53,6 +61,13 @@ class AuthRepository {
       passwordConfirmation: passwordConfirmation,
       address: address,
       role: role,
+      bio: bio,
+      yearsOfExperience: yearsOfExperience,
+      skills: skills,
+      ktpNumber: ktpNumber,
+      ktpPhoto: ktpPhoto,
+      applicationLetter: applicationLetter,
+      supportingDocument: supportingDocument,
     );
 
     if (response.data == null) {

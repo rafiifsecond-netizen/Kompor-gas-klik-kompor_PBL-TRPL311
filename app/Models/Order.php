@@ -18,6 +18,8 @@ class Order extends Model
 
     public const STATUS_ON_THE_WAY = 'on_the_way';
 
+    public const STATUS_ARRIVED = 'arrived';
+
     public const STATUS_IN_PROGRESS = 'in_progress';
 
     public const STATUS_COMPLETED = 'completed';
@@ -30,6 +32,8 @@ class Order extends Model
         'technician_id',
         'status',
         'scheduled_at',
+        'arrived_at',
+        'started_at',
         'customer_name',
         'customer_phone',
         'address',
@@ -53,13 +57,15 @@ class Order extends Model
     {
         return [
             'scheduled_at' => 'datetime',
+            'arrived_at' => 'datetime',
+            'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'latitude' => 'float',
             'longitude' => 'float',
-            'subtotal' => 'decimal:2',
-            'transport_fee' => 'decimal:2',
-            'discount' => 'decimal:2',
-            'total_amount' => 'decimal:2',
+            'subtotal' => 'integer',
+            'transport_fee' => 'integer',
+            'discount' => 'integer',
+            'total_amount' => 'integer',
         ];
     }
 
@@ -90,7 +96,32 @@ class Order extends Model
 
     public function payment(): HasOne
     {
-        return $this->hasOne(Payment::class);
+        return $this->hasOne(Payment::class)->latestOfMany();
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function activePayment(): HasOne
+    {
+        return $this->hasOne(Payment::class)
+            ->whereIn('payment_status', [
+                Payment::STATUS_PENDING,
+                Payment::STATUS_AWAITING_VERIFICATION,
+                Payment::STATUS_PAID,
+            ]);
+    }
+
+    public function commissionRecord(): HasOne
+    {
+        return $this->hasOne(CommissionRecord::class);
+    }
+
+    public function promoUsage(): HasOne
+    {
+        return $this->hasOne(PromoUsage::class);
     }
 
     public function review(): HasOne

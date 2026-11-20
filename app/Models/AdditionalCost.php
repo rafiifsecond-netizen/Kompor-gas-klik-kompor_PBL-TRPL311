@@ -32,15 +32,15 @@ class AdditionalCost extends Model
     {
         return [
             'quantity' => 'integer',
-            'unit_price' => 'decimal:2',
-            'subtotal' => 'decimal:2',
+            'unit_price' => 'integer',
+            'subtotal' => 'integer',
         ];
     }
 
     /** Hitung dan simpan subtotal dari quantity × unit_price. */
     public function recalculateSubtotal(): void
     {
-        $this->subtotal = $this->quantity * $this->unit_price;
+        $this->subtotal = (int) $this->quantity * (int) $this->unit_price;
     }
 
     public function order(): BelongsTo

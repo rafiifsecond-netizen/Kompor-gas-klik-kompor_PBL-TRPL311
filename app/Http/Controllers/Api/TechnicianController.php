@@ -180,6 +180,39 @@ class TechnicianController extends Controller
     }
 
     /**
+     * Get registration status for the currently authenticated technician (Bagian B).
+     */
+    public function registrationStatus(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user->isTechnician()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya akun teknisi yang dapat memeriksa status pendaftaran.',
+            ], 403);
+        }
+
+        $profile = $user->technicianProfile;
+        $status = $profile?->status ?? 'pending';
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'status' => $status,
+                'is_verified' => (bool) ($profile?->is_verified ?? false),
+                'rejection_reason' => $profile?->rejection_reason,
+                'created_at' => $profile?->created_at ?? $user->created_at,
+                'verified_at' => $profile?->verified_at,
+            ],
+        ]);
+    }
+
+    /**
      * Calculate distance between two lat/lng points using Haversine formula (km).
      */
     private function calculateHaversineDistance(float $lat1, float $lon1, float $lat2, float $lon2): float

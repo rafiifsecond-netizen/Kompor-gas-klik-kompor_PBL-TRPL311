@@ -142,42 +142,42 @@ class AdditionalCostController extends Controller
         }
 
         return DB::transaction(function () use ($order, $cost, $user, $request) {
-        $cost->update(['status' => AdditionalCost::STATUS_APPROVED]);
+            $cost->update(['status' => AdditionalCost::STATUS_APPROVED]);
 
-        // Recalculate order subtotal and total amount
-        $order->subtotal += $cost->subtotal;
-        $order->total_amount += $cost->subtotal;
-        $order->save();
+            // Recalculate order subtotal and total amount
+            $order->subtotal += $cost->subtotal;
+            $order->total_amount += $cost->subtotal;
+            $order->save();
 
-        if ($order->technician_id) {
-            Notification::send($order->technician_id, [
-                'type' => Notification::TYPE_ORDER_UPDATE,
-                'title' => 'Biaya Tambahan Disetujui',
-                'message' => "Pelanggan menyetujui biaya tambahan: {$cost->item_name} (Rp ".number_format($cost->subtotal, 0, ',', '.').').',
+            if ($order->technician_id) {
+                Notification::send($order->technician_id, [
+                    'type' => Notification::TYPE_ORDER_UPDATE,
+                    'title' => 'Biaya Tambahan Disetujui',
+                    'message' => "Pelanggan menyetujui biaya tambahan: {$cost->item_name} (Rp ".number_format($cost->subtotal, 0, ',', '.').').',
+                    'data' => [
+                        'order_id' => $order->id,
+                        'additional_cost_id' => $cost->id,
+                    ],
+                ]);
+            }
+
+            ActivityLog::logEvent(
+                eventName: 'order.additional_cost_approved',
+                description: "Pelanggan menyetujui biaya tambahan: {$cost->item_name} (Rp ".number_format($cost->subtotal, 0, ',', '.').") pada pesanan {$order->order_number}",
+                entity: $cost,
+                newValues: ['status' => AdditionalCost::STATUS_APPROVED],
+                request: $request,
+                actor: $user
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Biaya tambahan disetujui. Total tagihan pesanan telah diperbarui.',
                 'data' => [
-                    'order_id' => $order->id,
-                    'additional_cost_id' => $cost->id,
+                    'additional_cost' => $cost->fresh(),
+                    'order' => $order->fresh(),
                 ],
             ]);
-        }
-
-        ActivityLog::logEvent(
-            eventName: 'order.additional_cost_approved',
-            description: "Pelanggan menyetujui biaya tambahan: {$cost->item_name} (Rp ".number_format($cost->subtotal, 0, ',', '.').") pada pesanan {$order->order_number}",
-            entity: $cost,
-            newValues: ['status' => AdditionalCost::STATUS_APPROVED],
-            request: $request,
-            actor: $user
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Biaya tambahan disetujui. Total tagihan pesanan telah diperbarui.',
-            'data' => [
-                'additional_cost' => $cost->fresh(),
-                'order' => $order->fresh(),
-            ],
-        ]);
         });
     }
 
@@ -207,34 +207,34 @@ class AdditionalCostController extends Controller
         }
 
         return DB::transaction(function () use ($order, $cost, $user, $request) {
-        $cost->update(['status' => AdditionalCost::STATUS_REJECTED]);
+            $cost->update(['status' => AdditionalCost::STATUS_REJECTED]);
 
-        if ($order->technician_id) {
-            Notification::send($order->technician_id, [
-                'type' => Notification::TYPE_ORDER_UPDATE,
-                'title' => 'Biaya Tambahan Ditolak',
-                'message' => "Pelanggan menolak pengajuan biaya tambahan: {$cost->item_name}.",
-                'data' => [
-                    'order_id' => $order->id,
-                    'additional_cost_id' => $cost->id,
-                ],
+            if ($order->technician_id) {
+                Notification::send($order->technician_id, [
+                    'type' => Notification::TYPE_ORDER_UPDATE,
+                    'title' => 'Biaya Tambahan Ditolak',
+                    'message' => "Pelanggan menolak pengajuan biaya tambahan: {$cost->item_name}.",
+                    'data' => [
+                        'order_id' => $order->id,
+                        'additional_cost_id' => $cost->id,
+                    ],
+                ]);
+            }
+
+            ActivityLog::logEvent(
+                eventName: 'order.additional_cost_rejected',
+                description: "Pelanggan menolak biaya tambahan: {$cost->item_name} pada pesanan {$order->order_number}",
+                entity: $cost,
+                newValues: ['status' => AdditionalCost::STATUS_REJECTED],
+                request: $request,
+                actor: $user
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Biaya tambahan ditolak.',
+                'data' => $cost->fresh(),
             ]);
-        }
-
-        ActivityLog::logEvent(
-            eventName: 'order.additional_cost_rejected',
-            description: "Pelanggan menolak biaya tambahan: {$cost->item_name} pada pesanan {$order->order_number}",
-            entity: $cost,
-            newValues: ['status' => AdditionalCost::STATUS_REJECTED],
-            request: $request,
-            actor: $user
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Biaya tambahan ditolak.',
-            'data' => $cost->fresh(),
-        ]);
         });
     }
 

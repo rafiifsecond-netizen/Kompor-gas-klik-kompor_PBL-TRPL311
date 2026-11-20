@@ -26,6 +26,7 @@ class AppRoutes {
   static const String customerEditAddress = '/customer/edit-address';
 
   // Technician Routes
+  static const String technicianPending = '/technician/pending';
   static const String technicianDashboard = '/technician/dashboard';
   static const String technicianIncomingOrders = '/technician/incoming-orders';
   static const String technicianOrderDetail = '/technician/order-detail';

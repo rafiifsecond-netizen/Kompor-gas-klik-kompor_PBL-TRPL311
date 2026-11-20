@@ -22,9 +22,9 @@ class OrderItem extends Model
     protected function casts(): array
     {
         return [
-            'unit_price' => 'decimal:2',
+            'unit_price' => 'integer',
             'quantity' => 'integer',
-            'total_price' => 'decimal:2',
+            'total_price' => 'integer',
         ];
     }
 

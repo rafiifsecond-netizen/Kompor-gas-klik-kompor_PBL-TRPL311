@@ -8,10 +8,10 @@ use App\Models\TechnicianProfile;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -32,8 +32,12 @@ class AuthController extends Controller
             // Specific for technician registration
             'bio' => ['nullable', 'string'],
             'years_of_experience' => ['nullable', 'integer', 'min:0'],
-            'skills' => ['nullable', 'array'],
+            'skills' => ['nullable'],
             'ktp_number' => ['nullable', 'string', 'max:30'],
+            'ktp_photo' => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            'application_letter' => ['nullable', 'file', 'mimes:pdf,jpeg,png,jpg,webp,doc,docx', 'max:5120'],
+            'supporting_document' => ['nullable', 'file', 'mimes:pdf,jpeg,png,jpg,webp,doc,docx', 'max:5120'],
+            'certificate' => ['nullable', 'file', 'mimes:pdf,jpeg,png,jpg,webp,doc,docx', 'max:5120'],
         ]);
 
         $role = $validated['role'] ?? 'customer';
@@ -49,14 +53,51 @@ class AuthController extends Controller
         ]);
 
         if ($role === 'technician') {
+            $ktpPhotoUrl = null;
+            if ($request->hasFile('ktp_photo')) {
+                $path = $request->file('ktp_photo')->store('ktp_photos', 'public');
+                $ktpPhotoUrl = '/storage/'.$path;
+            }
+
+            $applicationLetterUrl = null;
+            if ($request->hasFile('application_letter')) {
+                $path = $request->file('application_letter')->store('application_letters', 'public');
+                $applicationLetterUrl = '/storage/'.$path;
+            }
+
+            $supportingDocUrl = null;
+            if ($request->hasFile('supporting_document')) {
+                $path = $request->file('supporting_document')->store('supporting_documents', 'public');
+                $supportingDocUrl = '/storage/'.$path;
+            }
+
+            $certificateUrl = null;
+            if ($request->hasFile('certificate')) {
+                $path = $request->file('certificate')->store('certificates', 'public');
+                $certificateUrl = '/storage/'.$path;
+                if (! $supportingDocUrl) {
+                    $supportingDocUrl = $certificateUrl;
+                }
+            }
+
+            $skills = $validated['skills'] ?? ['Kompor Gas Standar'];
+            if (is_string($skills)) {
+                $skills = array_filter(array_map('trim', explode(',', $skills)));
+            }
+
             TechnicianProfile::create([
                 'user_id' => $user->id,
                 'bio' => $validated['bio'] ?? null,
                 'years_of_experience' => $validated['years_of_experience'] ?? 0,
-                'skills' => $validated['skills'] ?? ['Kompor Gas Standar'],
+                'skills' => ! empty($skills) ? $skills : ['Kompor Gas Standar'],
                 'ktp_number' => $validated['ktp_number'] ?? null,
+                'ktp_photo_url' => $ktpPhotoUrl,
+                'application_letter_url' => $applicationLetterUrl,
+                'supporting_document_url' => $supportingDocUrl,
+                'certificate_url' => $certificateUrl ?? $supportingDocUrl,
+                'status' => TechnicianProfile::STATUS_PENDING,
                 'is_verified' => false,
-                'is_available' => true,
+                'is_available' => false,
             ]);
         }
 
@@ -70,9 +111,13 @@ class AuthController extends Controller
             actor: $user
         );
 
+        $message = $role === 'technician'
+            ? 'Pendaftaran akun teknisi berhasil diajukan dan sedang menunggu persetujuan Admin.'
+            : 'Registrasi berhasil.';
+
         return response()->json([
             'success' => true,
-            'message' => 'Registrasi berhasil.',
+            'message' => $message,
             'data' => [
                 'user' => $user->load('technicianProfile'),
                 'token' => $token,
@@ -113,6 +158,19 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Akun dinonaktifkan. Silakan hubungi admin.',
             ], 403);
+        }
+
+        // Jika teknisi berstatus ditolak, kembalikan pesan penolakan
+        if ($user->isTechnician()) {
+            $profile = $user->technicianProfile;
+            if ($profile && $profile->status === 'rejected') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pendaftaran teknisi ditolak: '.($profile->rejection_reason ?? 'Persyaratan belum terpenuhi.'),
+                    'status' => 'rejected',
+                    'rejection_reason' => $profile->rejection_reason,
+                ], 403);
+            }
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -291,7 +349,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'Alamat email tidak terdaftar.',
@@ -351,7 +409,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user || $user->role === 'admin') {
+        if (! $user || $user->role === 'admin') {
             return response()->json([
                 'success' => false,
                 'message' => 'Akun tidak valid untuk reset kata sandi.',
@@ -362,14 +420,14 @@ class AuthController extends Controller
             ->where('email', $validated['email'])
             ->first();
 
-        if (!$resetRecord) {
+        if (! $resetRecord) {
             return response()->json([
                 'success' => false,
                 'message' => 'Permintaan reset kata sandi tidak ditemukan atau sudah kadaluarsa.',
             ], 422);
         }
 
-        $expiresAt = \Illuminate\Support\Carbon::parse($resetRecord->created_at)
+        $expiresAt = Carbon::parse($resetRecord->created_at)
             ->addSeconds((int) config('auth.passwords.users.expire', 3600));
 
         if ($expiresAt->isPast()) {
@@ -383,7 +441,7 @@ class AuthController extends Controller
 
         $tokenValid = Hash::check($validated['token'], $resetRecord->token);
 
-        if (!$tokenValid) {
+        if (! $tokenValid) {
             return response()->json([
                 'success' => false,
                 'message' => 'Kode reset kata sandi tidak valid.',
