@@ -2,21 +2,16 @@
 
 namespace Tests\Feature;
 
-use App\Models\CommissionRecord;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PayoutRequest;
 use App\Models\PlatformSetting;
 use App\Models\Promo;
 use App\Models\PromoUsage;
-use App\Models\ServiceItem;
 use App\Models\TechnicianWallet;
 use App\Models\User;
 use App\Models\WalletTransaction;
 use App\Models\WebhookEvent;
-use App\Services\Payment\FinancialCalculator;
-use App\Services\Payment\MidtransService;
-use App\Services\Payment\PaymentService;
 use App\Services\Payment\WalletService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -29,8 +24,11 @@ class FinalPaymentSpecificationTest extends TestCase
     use RefreshDatabase;
 
     protected User $customer;
+
     protected User $technician;
+
     protected User $admin;
+
     protected Order $order;
 
     protected function setUp(): void
@@ -58,7 +56,7 @@ class FinalPaymentSpecificationTest extends TestCase
 
         // Buat pesanan standar untuk pengujian: Subtotal jasa = 100.000, Transport = 20.000
         $this->order = Order::create([
-            'order_number' => 'KP-TEST-' . bin2hex(random_bytes(3)),
+            'order_number' => 'KP-TEST-'.bin2hex(random_bytes(3)),
             'customer_id' => $this->customer->id,
             'technician_id' => $this->technician->id,
             'status' => Order::STATUS_ACCEPTED,
@@ -144,7 +142,7 @@ class FinalPaymentSpecificationTest extends TestCase
      */
     public function test_checkout_idempotency_key_returns_same_payment(): void
     {
-        $idempotencyKey = 'IDEMP-TEST-' . bin2hex(random_bytes(6));
+        $idempotencyKey = 'IDEMP-TEST-'.bin2hex(random_bytes(6));
 
         $res1 = $this->actingAs($this->customer)
             ->withHeader('Idempotency-Key', $idempotencyKey)
@@ -220,11 +218,11 @@ class FinalPaymentSpecificationTest extends TestCase
         $payment = Payment::find($res->json('data.payment.id'));
         $orderId = $payment->gateway_order_id;
         $statusCode = '200';
-        $grossAmount = (string) $payment->amount . '.00';
+        $grossAmount = (string) $payment->amount.'.00';
         $serverKey = 'SB-Mid-server-TESTKEY123';
 
         // Hitung signature valid: sha512(order_id + status_code + gross_amount + ServerKey)
-        $validSignature = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
+        $validSignature = hash('sha512', $orderId.$statusCode.$grossAmount.$serverKey);
 
         $webhookPayload = [
             'order_id' => $orderId,
@@ -232,7 +230,7 @@ class FinalPaymentSpecificationTest extends TestCase
             'gross_amount' => $grossAmount,
             'signature_key' => $validSignature,
             'transaction_status' => 'settlement',
-            'transaction_id' => 'mid-tx-' . bin2hex(random_bytes(6)),
+            'transaction_id' => 'mid-tx-'.bin2hex(random_bytes(6)),
         ];
 
         // 1. Webhook Pertama
@@ -284,7 +282,7 @@ class FinalPaymentSpecificationTest extends TestCase
         $webhookPayload = [
             'order_id' => $payment->gateway_order_id,
             'status_code' => '200',
-            'gross_amount' => (string) $payment->amount . '.00',
+            'gross_amount' => (string) $payment->amount.'.00',
             'signature_key' => 'INVALID_SIGNATURE_HASH',
             'transaction_status' => 'settlement',
             'transaction_id' => 'mid-tx-fake',
@@ -325,9 +323,9 @@ class FinalPaymentSpecificationTest extends TestCase
         // Tiba-tiba webhook settlement datang untuk attempt 1 lama yang sudah tercancel
         $orderId = $oldPayment->gateway_order_id;
         $statusCode = '200';
-        $grossAmount = (string) $oldPayment->amount . '.00';
+        $grossAmount = (string) $oldPayment->amount.'.00';
         $serverKey = 'SB-Mid-server-TESTKEY123';
-        $validSignature = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
+        $validSignature = hash('sha512', $orderId.$statusCode.$grossAmount.$serverKey);
 
         $webhookPayload = [
             'order_id' => $orderId,
@@ -335,7 +333,7 @@ class FinalPaymentSpecificationTest extends TestCase
             'gross_amount' => $grossAmount,
             'signature_key' => $validSignature,
             'transaction_status' => 'settlement',
-            'transaction_id' => 'mid-tx-late-' . bin2hex(random_bytes(4)),
+            'transaction_id' => 'mid-tx-late-'.bin2hex(random_bytes(4)),
         ];
 
         $response = $this->postJson('/api/v1/payments/webhook', $webhookPayload);

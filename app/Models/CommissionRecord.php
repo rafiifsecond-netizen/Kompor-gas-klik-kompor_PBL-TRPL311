@@ -11,11 +11,15 @@ class CommissionRecord extends Model
     use HasFactory;
 
     public const DIRECTION_TECH_PAYS_PLATFORM = 'technician_pays_platform';
+
     public const DIRECTION_PLATFORM_PAYS_TECH = 'platform_pays_technician';
+
     public const DIRECTION_NONE = 'none';
 
     public const STATUS_SETTLED = 'settled';
+
     public const STATUS_UNSETTLED = 'unsettled';
+
     public const STATUS_WAIVED = 'waived';
 
     protected $fillable = [

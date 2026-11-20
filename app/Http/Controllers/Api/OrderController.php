@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Chat;
+use App\Models\CommissionRecord;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderStatusLog;
@@ -12,6 +13,8 @@ use App\Models\Payment;
 use App\Models\ServiceItem;
 use App\Models\User;
 use App\Services\Payment\FinancialCalculator;
+use App\Services\Payment\PromoService;
+use App\Services\Payment\WalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -347,164 +350,164 @@ class OrderController extends Controller
         $oldStatus = $order->status;
 
         return DB::transaction(function () use ($order, $user, $validated, $request, $statusTo, $oldStatus) {
-        // Auto-assign technician if order has no technician_id assigned yet
-        if (! $order->technician_id && $user->isTechnician()) {
-            $order->technician_id = $user->id;
-            Chat::firstOrCreate(
-                ['order_id' => $order->id],
-                [
-                    'customer_id' => $order->customer_id,
-                    'technician_id' => $user->id,
-                ]
-            );
-        }
+            // Auto-assign technician if order has no technician_id assigned yet
+            if (! $order->technician_id && $user->isTechnician()) {
+                $order->technician_id = $user->id;
+                Chat::firstOrCreate(
+                    ['order_id' => $order->id],
+                    [
+                        'customer_id' => $order->customer_id,
+                        'technician_id' => $user->id,
+                    ]
+                );
+            }
 
-        if ($statusTo === 'rejected') {
-            $order->update([
-                'status' => Order::STATUS_CANCELLED,
-                'cancellation_reason' => $validated['note'] ?? 'Ditolak oleh teknisi.',
-                'cancelled_by' => $user->id,
-            ]);
+            if ($statusTo === 'rejected') {
+                $order->update([
+                    'status' => Order::STATUS_CANCELLED,
+                    'cancellation_reason' => $validated['note'] ?? 'Ditolak oleh teknisi.',
+                    'cancelled_by' => $user->id,
+                ]);
+
+                OrderStatusLog::create([
+                    'order_id' => $order->id,
+                    'actor_id' => $user->id,
+                    'actor_role' => $user->role,
+                    'status_from' => $oldStatus,
+                    'status_to' => Order::STATUS_CANCELLED,
+                    'note' => $validated['note'] ?? 'Pesanan ditolak oleh teknisi.',
+                    'latitude' => $validated['latitude'] ?? null,
+                    'longitude' => $validated['longitude'] ?? null,
+                ]);
+
+                ActivityLog::logEvent(
+                    eventName: 'order.technician_responded',
+                    description: "Teknisi menolak pesanan {$order->order_number}",
+                    entity: $order,
+                    oldValues: ['status' => $oldStatus],
+                    newValues: ['status' => 'cancelled', 'reason' => $validated['note'] ?? null],
+                    request: $request,
+                    actor: $user
+                );
+
+                Notification::send($order->customer_id, [
+                    'type' => Notification::TYPE_ORDER_UPDATE,
+                    'title' => 'Pesanan Ditolak',
+                    'message' => "Pesanan #{$order->order_number} ditolak oleh teknisi. Alasan: ".($validated['note'] ?? 'Teknisi berhalangan'),
+                    'data' => ['order_id' => $order->id],
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Pesanan ditolak.',
+                    'data' => $order,
+                ]);
+            }
+
+            // If assigning/accepting order
+            if ($statusTo === 'accepted') {
+                $order->technician_id = $user->id;
+
+                Chat::firstOrCreate(
+                    ['order_id' => $order->id],
+                    [
+                        'customer_id' => $order->customer_id,
+                        'technician_id' => $user->id,
+                    ]
+                );
+
+                Notification::send($order->customer_id, [
+                    'type' => Notification::TYPE_ORDER_UPDATE,
+                    'title' => 'Teknisi Menerima Pesanan',
+                    'message' => "Teknisi {$user->name} telah menerima pesanan #{$order->order_number}.",
+                    'data' => ['order_id' => $order->id],
+                ]);
+
+                ActivityLog::logEvent(
+                    eventName: 'order.technician_responded',
+                    description: "Teknisi {$user->name} menerima pesanan {$order->order_number}",
+                    entity: $order,
+                    request: $request,
+                    actor: $user
+                );
+            }
+
+            if ($statusTo === 'on_the_way') {
+                Notification::send($order->customer_id, [
+                    'type' => Notification::TYPE_ORDER_UPDATE,
+                    'title' => 'Teknisi Menuju Lokasi',
+                    'message' => "Teknisi sedang dalam perjalanan menuju lokasi Anda untuk pesanan #{$order->order_number}.",
+                    'data' => ['order_id' => $order->id],
+                ]);
+            }
+
+            if ($statusTo === 'in_progress') {
+                Notification::send($order->customer_id, [
+                    'type' => Notification::TYPE_ORDER_UPDATE,
+                    'title' => 'Servis Sedang Dikerjakan',
+                    'message' => "Teknisi mulai melakukan servis kompor gas untuk pesanan #{$order->order_number}.",
+                    'data' => ['order_id' => $order->id],
+                ]);
+            }
+
+            if ($statusTo === 'completed') {
+                $order->completed_at = now();
+                // Increment technician jobs completed count
+                if ($order->technician_id) {
+                    $techUser = User::find($order->technician_id);
+                    $techUser?->technicianProfile()?->increment('jobs_completed_count');
+
+                    // Rilis escrow ke dompet teknisi jika pembayaran non-cash sudah lunas
+                    $activePayment = $order->activePayment;
+                    if ($techUser && $activePayment && $activePayment->payment_status === Payment::STATUS_PAID && in_array($activePayment->payment_method, ['qris', 'transfer'], true)) {
+                        $commissionRecord = CommissionRecord::where('order_id', $order->id)->first();
+                        $netIncome = $commissionRecord ? (int) $commissionRecord->technician_net_income : (int) $activePayment->amount;
+                        app(WalletService::class)->releaseEscrowToBalance(
+                            technician: $techUser,
+                            order: $order,
+                            technicianNetIncome: $netIncome,
+                            escrowAmountToRelease: (int) $activePayment->amount
+                        );
+                    }
+                }
+
+                Notification::send($order->customer_id, [
+                    'type' => Notification::TYPE_ORDER_UPDATE,
+                    'title' => 'Servis Telah Selesai',
+                    'message' => "Servis untuk pesanan #{$order->order_number} telah selesai. Silakan lakukan pembayaran dan berikan ulasan Anda.",
+                    'data' => ['order_id' => $order->id],
+                ]);
+            }
+
+            $order->status = $statusTo;
+            $order->save();
 
             OrderStatusLog::create([
                 'order_id' => $order->id,
                 'actor_id' => $user->id,
                 'actor_role' => $user->role,
                 'status_from' => $oldStatus,
-                'status_to' => Order::STATUS_CANCELLED,
-                'note' => $validated['note'] ?? 'Pesanan ditolak oleh teknisi.',
+                'status_to' => $statusTo,
+                'note' => $validated['note'] ?? null,
                 'latitude' => $validated['latitude'] ?? null,
                 'longitude' => $validated['longitude'] ?? null,
             ]);
 
             ActivityLog::logEvent(
-                eventName: 'order.technician_responded',
-                description: "Teknisi menolak pesanan {$order->order_number}",
+                eventName: 'order.status_transition',
+                description: "Perubahan status pesanan {$order->order_number} dari {$oldStatus} ke {$statusTo}",
                 entity: $order,
                 oldValues: ['status' => $oldStatus],
-                newValues: ['status' => 'cancelled', 'reason' => $validated['note'] ?? null],
+                newValues: ['status' => $statusTo],
                 request: $request,
                 actor: $user
             );
-
-            Notification::send($order->customer_id, [
-                'type' => Notification::TYPE_ORDER_UPDATE,
-                'title' => 'Pesanan Ditolak',
-                'message' => "Pesanan #{$order->order_number} ditolak oleh teknisi. Alasan: ".($validated['note'] ?? 'Teknisi berhalangan'),
-                'data' => ['order_id' => $order->id],
-            ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Pesanan ditolak.',
+                'message' => "Status pesanan berhasil diperbarui menjadi {$statusTo}.",
                 'data' => $order,
             ]);
-        }
-
-        // If assigning/accepting order
-        if ($statusTo === 'accepted') {
-            $order->technician_id = $user->id;
-
-            Chat::firstOrCreate(
-                ['order_id' => $order->id],
-                [
-                    'customer_id' => $order->customer_id,
-                    'technician_id' => $user->id,
-                ]
-            );
-
-            Notification::send($order->customer_id, [
-                'type' => Notification::TYPE_ORDER_UPDATE,
-                'title' => 'Teknisi Menerima Pesanan',
-                'message' => "Teknisi {$user->name} telah menerima pesanan #{$order->order_number}.",
-                'data' => ['order_id' => $order->id],
-            ]);
-
-            ActivityLog::logEvent(
-                eventName: 'order.technician_responded',
-                description: "Teknisi {$user->name} menerima pesanan {$order->order_number}",
-                entity: $order,
-                request: $request,
-                actor: $user
-            );
-        }
-
-        if ($statusTo === 'on_the_way') {
-            Notification::send($order->customer_id, [
-                'type' => Notification::TYPE_ORDER_UPDATE,
-                'title' => 'Teknisi Menuju Lokasi',
-                'message' => "Teknisi sedang dalam perjalanan menuju lokasi Anda untuk pesanan #{$order->order_number}.",
-                'data' => ['order_id' => $order->id],
-            ]);
-        }
-
-        if ($statusTo === 'in_progress') {
-            Notification::send($order->customer_id, [
-                'type' => Notification::TYPE_ORDER_UPDATE,
-                'title' => 'Servis Sedang Dikerjakan',
-                'message' => "Teknisi mulai melakukan servis kompor gas untuk pesanan #{$order->order_number}.",
-                'data' => ['order_id' => $order->id],
-            ]);
-        }
-
-        if ($statusTo === 'completed') {
-            $order->completed_at = now();
-            // Increment technician jobs completed count
-            if ($order->technician_id) {
-                $techUser = User::find($order->technician_id);
-                $techUser?->technicianProfile()?->increment('jobs_completed_count');
-
-                // Rilis escrow ke dompet teknisi jika pembayaran non-cash sudah lunas
-                $activePayment = $order->activePayment;
-                if ($techUser && $activePayment && $activePayment->payment_status === Payment::STATUS_PAID && in_array($activePayment->payment_method, ['qris', 'transfer'], true)) {
-                    $commissionRecord = \App\Models\CommissionRecord::where('order_id', $order->id)->first();
-                    $netIncome = $commissionRecord ? (int) $commissionRecord->technician_net_income : (int) $activePayment->amount;
-                    app(\App\Services\Payment\WalletService::class)->releaseEscrowToBalance(
-                        technician: $techUser,
-                        order: $order,
-                        technicianNetIncome: $netIncome,
-                        escrowAmountToRelease: (int) $activePayment->amount
-                    );
-                }
-            }
-
-            Notification::send($order->customer_id, [
-                'type' => Notification::TYPE_ORDER_UPDATE,
-                'title' => 'Servis Telah Selesai',
-                'message' => "Servis untuk pesanan #{$order->order_number} telah selesai. Silakan lakukan pembayaran dan berikan ulasan Anda.",
-                'data' => ['order_id' => $order->id],
-            ]);
-        }
-
-        $order->status = $statusTo;
-        $order->save();
-
-        OrderStatusLog::create([
-            'order_id' => $order->id,
-            'actor_id' => $user->id,
-            'actor_role' => $user->role,
-            'status_from' => $oldStatus,
-            'status_to' => $statusTo,
-            'note' => $validated['note'] ?? null,
-            'latitude' => $validated['latitude'] ?? null,
-            'longitude' => $validated['longitude'] ?? null,
-        ]);
-
-        ActivityLog::logEvent(
-            eventName: 'order.status_transition',
-            description: "Perubahan status pesanan {$order->order_number} dari {$oldStatus} ke {$statusTo}",
-            entity: $order,
-            oldValues: ['status' => $oldStatus],
-            newValues: ['status' => $statusTo],
-            request: $request,
-            actor: $user
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => "Status pesanan berhasil diperbarui menjadi {$statusTo}.",
-            'data' => $order,
-        ]);
         });
     }
 
@@ -561,10 +564,10 @@ class OrderController extends Controller
                 $techUser = User::find($order->technician_id);
                 $activePayment = $order->activePayment;
                 if ($techUser && $activePayment && $activePayment->payment_status === Payment::STATUS_PAID) {
-                    app(\App\Services\Payment\WalletService::class)->reverseEscrow($techUser, (int) $activePayment->amount);
+                    app(WalletService::class)->reverseEscrow($techUser, (int) $activePayment->amount);
                 }
             }
-            app(\App\Services\Payment\PromoService::class)->releasePromo($order);
+            app(PromoService::class)->releasePromo($order);
 
             ActivityLog::logEvent(
                 eventName: 'order.cancelled',
@@ -621,43 +624,43 @@ class OrderController extends Controller
         ]);
 
         return DB::transaction(function () use ($order, $user, $validated, $request) {
-        $oldSchedule = $order->scheduled_at->toDateTimeString();
-        $order->update(['scheduled_at' => $validated['scheduled_at']]);
+            $oldSchedule = $order->scheduled_at->toDateTimeString();
+            $order->update(['scheduled_at' => $validated['scheduled_at']]);
 
-        OrderStatusLog::create([
-            'order_id' => $order->id,
-            'actor_id' => $user->id,
-            'actor_role' => $user->role,
-            'status_from' => $order->status,
-            'status_to' => $order->status,
-            'note' => "Penjadwalan ulang dari {$oldSchedule} ke {$validated['scheduled_at']}. Alasan: ".($validated['reason'] ?? '-'),
-        ]);
-
-        ActivityLog::logEvent(
-            eventName: 'order.schedule_rescheduled',
-            description: "Perubahan jadwal pesanan {$order->order_number}",
-            entity: $order,
-            oldValues: ['scheduled_at' => $oldSchedule],
-            newValues: ['scheduled_at' => $validated['scheduled_at']],
-            request: $request,
-            actor: $user
-        );
-
-        $recipientId = $user->id === $order->customer_id ? $order->technician_id : $order->customer_id;
-        if ($recipientId) {
-            Notification::send($recipientId, [
-                'type' => Notification::TYPE_ORDER_UPDATE,
-                'title' => 'Jadwal Kunjungan Diubah',
-                'message' => "Jadwal kunjungan pesanan #{$order->order_number} diubah menjadi {$validated['scheduled_at']}.",
-                'data' => ['order_id' => $order->id, 'scheduled_at' => $validated['scheduled_at']],
+            OrderStatusLog::create([
+                'order_id' => $order->id,
+                'actor_id' => $user->id,
+                'actor_role' => $user->role,
+                'status_from' => $order->status,
+                'status_to' => $order->status,
+                'note' => "Penjadwalan ulang dari {$oldSchedule} ke {$validated['scheduled_at']}. Alasan: ".($validated['reason'] ?? '-'),
             ]);
-        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Jadwal kunjungan berhasil diubah.',
-            'data' => $order,
-        ]);
+            ActivityLog::logEvent(
+                eventName: 'order.schedule_rescheduled',
+                description: "Perubahan jadwal pesanan {$order->order_number}",
+                entity: $order,
+                oldValues: ['scheduled_at' => $oldSchedule],
+                newValues: ['scheduled_at' => $validated['scheduled_at']],
+                request: $request,
+                actor: $user
+            );
+
+            $recipientId = $user->id === $order->customer_id ? $order->technician_id : $order->customer_id;
+            if ($recipientId) {
+                Notification::send($recipientId, [
+                    'type' => Notification::TYPE_ORDER_UPDATE,
+                    'title' => 'Jadwal Kunjungan Diubah',
+                    'message' => "Jadwal kunjungan pesanan #{$order->order_number} diubah menjadi {$validated['scheduled_at']}.",
+                    'data' => ['order_id' => $order->id, 'scheduled_at' => $validated['scheduled_at']],
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Jadwal kunjungan berhasil diubah.',
+                'data' => $order,
+            ]);
         });
     }
 
@@ -691,53 +694,53 @@ class OrderController extends Controller
         ]);
 
         return DB::transaction(function () use ($order, $user, $validated, $request) {
-        $paymentNumber = 'PAY-'.date('Ymd').'-'.strtoupper(Str::random(5));
+            $paymentNumber = 'PAY-'.date('Ymd').'-'.strtoupper(Str::random(5));
 
-        $payment = Payment::updateOrCreate(
-            ['order_id' => $order->id],
-            [
-                'customer_id' => $order->customer_id,
-                'payment_number' => $paymentNumber,
+            $payment = Payment::updateOrCreate(
+                ['order_id' => $order->id],
+                [
+                    'customer_id' => $order->customer_id,
+                    'payment_number' => $paymentNumber,
+                    'payment_method' => $validated['payment_method'],
+                    'amount' => $order->total_amount,
+                    'payment_status' => 'paid',
+                    'paid_at' => now(),
+                    'proof_url' => $validated['proof_url'] ?? null,
+                    'transaction_reference' => 'TXN-'.Str::random(10),
+                ]
+            );
+
+            $order->update([
                 'payment_method' => $validated['payment_method'],
-                'amount' => $order->total_amount,
                 'payment_status' => 'paid',
-                'paid_at' => now(),
-                'proof_url' => $validated['proof_url'] ?? null,
-                'transaction_reference' => 'TXN-'.Str::random(10),
-            ]
-        );
-
-        $order->update([
-            'payment_method' => $validated['payment_method'],
-            'payment_status' => 'paid',
-        ]);
-
-        ActivityLog::logEvent(
-            eventName: 'payment.processed',
-            description: 'Pembayaran lunas sebesar Rp '.number_format($order->total_amount, 0, ',', '.')." untuk pesanan {$order->order_number}",
-            entity: $payment,
-            newValues: $payment->toArray(),
-            request: $request,
-            actor: $user
-        );
-
-        if ($order->technician_id) {
-            Notification::send($order->technician_id, [
-                'type' => Notification::TYPE_PAYMENT,
-                'title' => 'Pembayaran Diterima',
-                'message' => "Pembayaran pesanan #{$order->order_number} sebesar Rp ".number_format($order->total_amount, 0, ',', '.').' telah dikonfirmasi.',
-                'data' => ['order_id' => $order->id, 'payment_id' => $payment->id],
             ]);
-        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Pembayaran berhasil dikonfirmasi.',
-            'data' => [
-                'order' => $order,
-                'payment' => $payment,
-            ],
-        ]);
+            ActivityLog::logEvent(
+                eventName: 'payment.processed',
+                description: 'Pembayaran lunas sebesar Rp '.number_format($order->total_amount, 0, ',', '.')." untuk pesanan {$order->order_number}",
+                entity: $payment,
+                newValues: $payment->toArray(),
+                request: $request,
+                actor: $user
+            );
+
+            if ($order->technician_id) {
+                Notification::send($order->technician_id, [
+                    'type' => Notification::TYPE_PAYMENT,
+                    'title' => 'Pembayaran Diterima',
+                    'message' => "Pembayaran pesanan #{$order->order_number} sebesar Rp ".number_format($order->total_amount, 0, ',', '.').' telah dikonfirmasi.',
+                    'data' => ['order_id' => $order->id, 'payment_id' => $payment->id],
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pembayaran berhasil dikonfirmasi.',
+                'data' => [
+                    'order' => $order,
+                    'payment' => $payment,
+                ],
+            ]);
         });
     }
 }

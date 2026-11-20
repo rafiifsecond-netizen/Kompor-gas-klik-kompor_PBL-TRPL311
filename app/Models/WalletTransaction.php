@@ -13,6 +13,7 @@ class WalletTransaction extends Model
     public $timestamps = false;
 
     public const TYPE_CREDIT = 'credit';
+
     public const TYPE_DEBIT = 'debit';
 
     protected $fillable = [

@@ -4,22 +4,24 @@ use App\Http\Controllers\Admin\AdminPaymentController;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\Order;
-use App\Models\Payment;
 use App\Models\Review;
 use App\Models\ServiceCategory;
 use App\Models\ServiceItem;
 use App\Models\TechnicianProfile;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 
 Route::get('/', function () {
     if (Auth::check() && Auth::user()->role === 'admin') {
         return redirect()->route('admin.dashboard');
     }
+
     return view('admin.login');
 });
 
@@ -28,6 +30,7 @@ Route::get('/admin/login', function () {
     if (Auth::check() && Auth::user()->role === 'admin') {
         return redirect()->route('admin.dashboard');
     }
+
     return view('admin.login');
 })->name('admin.login');
 
@@ -43,7 +46,7 @@ Route::post('/admin/login', function (Request $request) {
         if ($user->role !== 'admin') {
             return back()->withErrors(['email' => 'Akses ditolak! Akun ini bukan akun Admin. Admin hanya dapat login melalui Web Admin.']);
         }
-        if (!$user->is_active) {
+        if (! $user->is_active) {
             return back()->withErrors(['email' => 'Akun admin dinonaktifkan.']);
         }
 
@@ -92,7 +95,7 @@ Route::post('/admin/forgot-password', function (Request $request) {
         request: $request
     );
 
-    $token = \Illuminate\Support\Str::random(60);
+    $token = Str::random(60);
     DB::table('password_reset_tokens')->updateOrInsert(
         ['email' => $user->email],
         [
@@ -119,7 +122,7 @@ Route::post('/admin/reset-password', function (Request $request) {
     ]);
 
     $user = User::where('email', $request->email)->first();
-    if (!$user || $user->role !== 'admin') {
+    if (! $user || $user->role !== 'admin') {
         return back()->withErrors(['email' => 'Akun admin tidak ditemukan.']);
     }
 
@@ -129,7 +132,7 @@ Route::post('/admin/reset-password', function (Request $request) {
 
     if (
         ! $resetRecord
-        || now()->greaterThan(\Illuminate\Support\Carbon::parse($resetRecord->created_at)->addHour())
+        || now()->greaterThan(Carbon::parse($resetRecord->created_at)->addHour())
         || ! Hash::check($request->token, $resetRecord->token)
     ) {
         return back()->withErrors(['token' => 'Token reset tidak valid atau sudah kadaluarsa.']);
@@ -152,329 +155,337 @@ Route::post('/admin/reset-password', function (Request $request) {
 })->name('admin.reset_password.submit');
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
-Route::get('/admin/dashboard', function () {
+    Route::get('/admin/dashboard', function () {
 
-    $stats = [
-        'total_users' => User::where('role', 'customer')->count(),
-        'total_technicians' => TechnicianProfile::count(),
-        'today_orders' => Order::whereDate('created_at', today())->count(),
-        'completed_orders' => Order::where('status', 'completed')->count(),
-        'revenue' => Order::where('payment_status', 'paid')->sum('total_amount'),
-    ];
+        $stats = [
+            'total_users' => User::where('role', 'customer')->count(),
+            'total_technicians' => TechnicianProfile::count(),
+            'today_orders' => Order::whereDate('created_at', today())->count(),
+            'completed_orders' => Order::where('status', 'completed')->count(),
+            'revenue' => Order::where('payment_status', 'paid')->sum('total_amount'),
+        ];
 
-    $statusCounts = [
-        'pending' => Order::where('status', 'pending')->count(),
-        'processing' => Order::whereIn('status', ['accepted', 'in_progress'])->count(),
-        'on_the_way' => Order::where('status', 'on_the_way')->count(),
-        'completed' => Order::where('status', 'completed')->count(),
-        'cancelled' => Order::where('status', 'cancelled')->count(),
-    ];
+        $statusCounts = [
+            'pending' => Order::where('status', 'pending')->count(),
+            'processing' => Order::whereIn('status', ['accepted', 'in_progress'])->count(),
+            'on_the_way' => Order::where('status', 'on_the_way')->count(),
+            'completed' => Order::where('status', 'completed')->count(),
+            'cancelled' => Order::where('status', 'cancelled')->count(),
+        ];
 
-    $recentOrders = Order::with(['customer', 'technician'])->latest()->take(5)->get();
-    $activeTechnicians = TechnicianProfile::with('user')->take(4)->get();
+        $recentOrders = Order::with(['customer', 'technician'])->latest()->take(5)->get();
+        $activeTechnicians = TechnicianProfile::with('user')->take(4)->get();
 
-    $chartDays = [];
-    $chartCounts = [];
-    for ($i = 6; $i >= 0; $i--) {
-        $date = now()->subDays($i);
-        $chartDays[] = $date->format('d M');
-        $chartCounts[] = Order::whereDate('created_at', $date->toDateString())->count();
-    }
+        $chartDays = [];
+        $chartCounts = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $chartDays[] = $date->format('d M');
+            $chartCounts[] = Order::whereDate('created_at', $date->toDateString())->count();
+        }
 
-    return view('admin.dashboard', compact('stats', 'statusCounts', 'recentOrders', 'activeTechnicians', 'chartDays', 'chartCounts'));
-})->name('admin.dashboard');
+        return view('admin.dashboard', compact('stats', 'statusCounts', 'recentOrders', 'activeTechnicians', 'chartDays', 'chartCounts'));
+    })->name('admin.dashboard');
 
-// ── Profile Admin ────────────────────────────────────────────────────────────
-Route::get('/admin/profile', function () {
-    return view('admin.profile');
-})->name('admin.profile');
+    // ── Profile Admin ────────────────────────────────────────────────────────────
+    Route::get('/admin/profile', function () {
+        return view('admin.profile');
+    })->name('admin.profile');
 
-Route::post('/admin/profile', function (Request $request) {
-    $user = Auth::user();
-    $validated = $request->validate([
-        'name' => 'required|string|max:255',
-        'email' => 'required|email|unique:users,email,'.$user->id,
-        'phone' => 'required|string',
-    ]);
+    Route::post('/admin/profile', function (Request $request) {
+        $user = Auth::user();
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,'.$user->id,
+            'phone' => 'required|string',
+        ]);
 
-    $user->update($validated);
-    return back()->with('success', 'Profil administrator berhasil diperbarui.');
-})->name('admin.profile.update');
+        $user->update($validated);
 
-Route::post('/admin/profile/password', function (Request $request) {
-    $user = Auth::user();
-    $validated = $request->validate([
-        'current_password' => 'required',
-        'password' => 'required|min:6|confirmed',
-    ]);
+        return back()->with('success', 'Profil administrator berhasil diperbarui.');
+    })->name('admin.profile.update');
 
-    if (!Hash::check($validated['current_password'], $user->password)) {
-        return back()->withErrors(['current_password' => 'Kata sandi saat ini salah.']);
-    }
+    Route::post('/admin/profile/password', function (Request $request) {
+        $user = Auth::user();
+        $validated = $request->validate([
+            'current_password' => 'required',
+            'password' => 'required|min:6|confirmed',
+        ]);
 
-    $user->update(['password' => Hash::make($validated['password'])]);
-    return back()->with('success', 'Kata sandi administrator berhasil diperbarui.');
-})->name('admin.profile.password');
+        if (! Hash::check($validated['current_password'], $user->password)) {
+            return back()->withErrors(['current_password' => 'Kata sandi saat ini salah.']);
+        }
 
-// ── Notifications Admin ──────────────────────────────────────────────────────
-Route::get('/admin/notifications', function () {
-    $user = Auth::user();
-    $notifications = Notification::where('user_id', $user->id)
-        ->whereNull('read_at')
-        ->latest()
-        ->get();
+        $user->update(['password' => Hash::make($validated['password'])]);
 
-    return view('admin.notifications', compact('notifications'));
-})->name('admin.notifications');
+        return back()->with('success', 'Kata sandi administrator berhasil diperbarui.');
+    })->name('admin.profile.password');
 
-Route::post('/admin/notifications/read-all', function () {
-    $user = Auth::user();
-    Notification::where('user_id', $user->id)
-        ->whereNull('read_at')
-        ->update(['read_at' => now()]);
+    // ── Notifications Admin ──────────────────────────────────────────────────────
+    Route::get('/admin/notifications', function () {
+        $user = Auth::user();
+        $notifications = Notification::where('user_id', $user->id)
+            ->whereNull('read_at')
+            ->latest()
+            ->get();
 
-    return back()->with('success', 'Semua pemberitahuan telah dibaca.');
-})->name('admin.notifications.readAll');
+        return view('admin.notifications', compact('notifications'));
+    })->name('admin.notifications');
 
-Route::post('/admin/notifications/{id}/read', function ($id) {
-    $user = Auth::user();
-    $notif = Notification::where('user_id', $user->id)->findOrFail($id);
-    $notif->markAsRead();
+    Route::post('/admin/notifications/read-all', function () {
+        $user = Auth::user();
+        Notification::where('user_id', $user->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
 
-    return back()->with('success', 'Pemberitahuan telah dibaca.');
-})->name('admin.notifications.readSingle');
+        return back()->with('success', 'Semua pemberitahuan telah dibaca.');
+    })->name('admin.notifications.readAll');
 
-// ── Orders CRUD ─────────────────────────────────────────────────────────────
-Route::get('/admin/orders', function () {
-    $user = Auth::user();
-    $stats = [
-        'total_users' => User::where('role', 'customer')->count(),
-        'total_technicians' => TechnicianProfile::count(),
-        'today_orders' => Order::whereDate('created_at', today())->count(),
-        'completed_orders' => Order::where('status', 'completed')->count(),
-    ];
+    Route::post('/admin/notifications/{id}/read', function ($id) {
+        $user = Auth::user();
+        $notif = Notification::where('user_id', $user->id)->findOrFail($id);
+        $notif->markAsRead();
 
-    $orders = Order::with(['customer', 'technician'])->latest()->get();
+        return back()->with('success', 'Pemberitahuan telah dibaca.');
+    })->name('admin.notifications.readSingle');
 
-    return view('admin.orders', compact('stats', 'orders'));
-})->name('admin.orders');
+    // ── Orders CRUD ─────────────────────────────────────────────────────────────
+    Route::get('/admin/orders', function () {
+        $user = Auth::user();
+        $stats = [
+            'total_users' => User::where('role', 'customer')->count(),
+            'total_technicians' => TechnicianProfile::count(),
+            'today_orders' => Order::whereDate('created_at', today())->count(),
+            'completed_orders' => Order::where('status', 'completed')->count(),
+        ];
 
-Route::delete('/admin/orders/{id}', function ($id) {
-    Order::findOrFail($id)->delete();
-    return back()->with('success', 'Pesanan berhasil dihapus.');
-})->middleware(['auth', 'role:admin'])->name('admin.orders.destroy');
+        $orders = Order::with(['customer', 'technician'])->latest()->get();
 
-// ── Customers CRUD ──────────────────────────────────────────────────────────
-Route::get('/admin/customers', function () {
-    $user = Auth::user();
-    $stats = [
-        'total_users' => User::where('role', 'customer')->count(),
-        'total_technicians' => TechnicianProfile::count(),
-        'today_orders' => Order::whereDate('created_at', today())->count(),
-        'completed_orders' => Order::where('status', 'completed')->count(),
-    ];
+        return view('admin.orders', compact('stats', 'orders'));
+    })->name('admin.orders');
 
-    $customers = User::where('role', 'customer')->withCount('customerOrders')->latest()->get();
+    Route::delete('/admin/orders/{id}', function ($id) {
+        Order::findOrFail($id)->delete();
 
-    return view('admin.customers', compact('stats', 'customers'));
-})->name('admin.customers');
+        return back()->with('success', 'Pesanan berhasil dihapus.');
+    })->middleware(['auth', 'role:admin'])->name('admin.orders.destroy');
 
-Route::post('/admin/customers', function (Request $request) {
-    $validated = $request->validate([
-        'name' => 'required|string|max:255',
-        'email' => 'required|email|unique:users,email',
-        'phone' => 'required|string',
-        'address' => 'nullable|string',
-        'password' => 'required|min:6',
-    ]);
+    // ── Customers CRUD ──────────────────────────────────────────────────────────
+    Route::get('/admin/customers', function () {
+        $user = Auth::user();
+        $stats = [
+            'total_users' => User::where('role', 'customer')->count(),
+            'total_technicians' => TechnicianProfile::count(),
+            'today_orders' => Order::whereDate('created_at', today())->count(),
+            'completed_orders' => Order::where('status', 'completed')->count(),
+        ];
 
-    User::create([
-        'name' => $validated['name'],
-        'email' => $validated['email'],
-        'phone' => $validated['phone'],
-        'address' => $validated['address'] ?? 'Jl. Bunga',
-        'password' => Hash::make($validated['password']),
-        'role' => 'customer',
-        'is_active' => true,
-    ]);
+        $customers = User::where('role', 'customer')->withCount('customerOrders')->latest()->get();
 
-    return back()->with('success', 'Pelanggan baru berhasil ditambahkan.');
-})->middleware(['auth', 'role:admin'])->name('admin.customers.store');
+        return view('admin.customers', compact('stats', 'customers'));
+    })->name('admin.customers');
 
-Route::delete('/admin/customers/{id}', function ($id) {
-    User::findOrFail($id)->delete();
-    return back()->with('success', 'Pelanggan berhasil dihapus.');
-})->middleware(['auth', 'role:admin'])->name('admin.customers.destroy');
+    Route::post('/admin/customers', function (Request $request) {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'required|string',
+            'address' => 'nullable|string',
+            'password' => 'required|min:6',
+        ]);
 
-// ── Technicians CRUD ────────────────────────────────────────────────────────
-Route::get('/admin/technicians', function () {
-    $user = Auth::user();
-    $stats = [
-        'total_users' => User::where('role', 'customer')->count(),
-        'total_technicians' => TechnicianProfile::count(),
-        'today_orders' => Order::whereDate('created_at', today())->count(),
-        'completed_orders' => Order::where('status', 'completed')->count(),
-    ];
+        User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'],
+            'address' => $validated['address'] ?? 'Jl. Bunga',
+            'password' => Hash::make($validated['password']),
+            'role' => 'customer',
+            'is_active' => true,
+        ]);
 
-    $technicians = User::where('role', 'technician')->withCount('technicianOrders')->latest()->get();
+        return back()->with('success', 'Pelanggan baru berhasil ditambahkan.');
+    })->middleware(['auth', 'role:admin'])->name('admin.customers.store');
 
-    return view('admin.technicians', compact('stats', 'technicians'));
-})->name('admin.technicians');
+    Route::delete('/admin/customers/{id}', function ($id) {
+        User::findOrFail($id)->delete();
 
-Route::post('/admin/technicians', function (Request $request) {
-    $validated = $request->validate([
-        'name' => 'required|string|max:255',
-        'email' => 'required|email|unique:users,email',
-        'phone' => 'required|string',
-        'address' => 'nullable|string',
-        'password' => 'required|min:6',
-    ]);
+        return back()->with('success', 'Pelanggan berhasil dihapus.');
+    })->middleware(['auth', 'role:admin'])->name('admin.customers.destroy');
 
-    $user = User::create([
-        'name' => $validated['name'],
-        'email' => $validated['email'],
-        'phone' => $validated['phone'],
-        'address' => $validated['address'] ?? 'Jl. Bunga',
-        'password' => Hash::make($validated['password']),
-        'role' => 'technician',
-        'is_active' => true,
-    ]);
+    // ── Technicians CRUD ────────────────────────────────────────────────────────
+    Route::get('/admin/technicians', function () {
+        $user = Auth::user();
+        $stats = [
+            'total_users' => User::where('role', 'customer')->count(),
+            'total_technicians' => TechnicianProfile::count(),
+            'today_orders' => Order::whereDate('created_at', today())->count(),
+            'completed_orders' => Order::where('status', 'completed')->count(),
+        ];
 
-    TechnicianProfile::create([
-        'user_id' => $user->id,
-        'is_verified' => true,
-        'is_available' => true,
-        'rating_avg' => 5.0,
-    ]);
+        $technicians = User::where('role', 'technician')->withCount('technicianOrders')->latest()->get();
 
-    return back()->with('success', 'Teknisi baru berhasil ditambahkan.');
-})->middleware(['auth', 'role:admin'])->name('admin.technicians.store');
+        return view('admin.technicians', compact('stats', 'technicians'));
+    })->name('admin.technicians');
 
-Route::delete('/admin/technicians/{id}', function ($id) {
-    User::findOrFail($id)->delete();
-    return back()->with('success', 'Teknisi berhasil dihapus.');
-})->middleware(['auth', 'role:admin'])->name('admin.technicians.destroy');
+    Route::post('/admin/technicians', function (Request $request) {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'required|string',
+            'address' => 'nullable|string',
+            'password' => 'required|min:6',
+        ]);
 
-// ── Services CRUD ───────────────────────────────────────────────────────────
-Route::get('/admin/services', function () {
-    $user = Auth::user();
-    $stats = [
-        'total_users' => User::where('role', 'customer')->count(),
-        'total_technicians' => TechnicianProfile::count(),
-        'today_orders' => Order::whereDate('created_at', today())->count(),
-        'completed_orders' => Order::where('status', 'completed')->count(),
-    ];
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'],
+            'address' => $validated['address'] ?? 'Jl. Bunga',
+            'password' => Hash::make($validated['password']),
+            'role' => 'technician',
+            'is_active' => true,
+        ]);
 
-    $services = ServiceItem::with('category')->latest()->get();
-    $categories = ServiceCategory::all();
+        TechnicianProfile::create([
+            'user_id' => $user->id,
+            'is_verified' => true,
+            'is_available' => true,
+            'rating_avg' => 5.0,
+        ]);
 
-    return view('admin.services', compact('stats', 'services', 'categories'));
-})->name('admin.services');
+        return back()->with('success', 'Teknisi baru berhasil ditambahkan.');
+    })->middleware(['auth', 'role:admin'])->name('admin.technicians.store');
 
-Route::post('/admin/services', function (Request $request) {
-    $validated = $request->validate([
-        'name' => 'required|string|max:255',
-        'description' => 'required|string',
-        'base_price' => 'required|numeric',
-        'service_category_id' => 'nullable|exists:service_categories,id',
-    ]);
+    Route::delete('/admin/technicians/{id}', function ($id) {
+        User::findOrFail($id)->delete();
 
-    $category = ServiceCategory::firstOrCreate(['name' => 'Service Kompor Gas'], ['slug' => 'service-kompor-gas']);
+        return back()->with('success', 'Teknisi berhasil dihapus.');
+    })->middleware(['auth', 'role:admin'])->name('admin.technicians.destroy');
 
-    ServiceItem::create([
-        'service_category_id' => $validated['service_category_id'] ?? $category->id,
-        'name' => $validated['name'],
-        'slug' => \Illuminate\Support\Str::slug($validated['name']),
-        'description' => $validated['description'],
-        'base_price' => $validated['base_price'],
-        'is_active' => true,
-    ]);
+    // ── Services CRUD ───────────────────────────────────────────────────────────
+    Route::get('/admin/services', function () {
+        $user = Auth::user();
+        $stats = [
+            'total_users' => User::where('role', 'customer')->count(),
+            'total_technicians' => TechnicianProfile::count(),
+            'today_orders' => Order::whereDate('created_at', today())->count(),
+            'completed_orders' => Order::where('status', 'completed')->count(),
+        ];
 
-    return back()->with('success', 'Layanan baru berhasil ditambahkan.');
-})->middleware(['auth', 'role:admin'])->name('admin.services.store');
+        $services = ServiceItem::with('category')->latest()->get();
+        $categories = ServiceCategory::all();
 
-Route::delete('/admin/services/{id}', function ($id) {
-    ServiceItem::findOrFail($id)->delete();
-    return back()->with('success', 'Layanan berhasil dihapus.');
-})->middleware(['auth', 'role:admin'])->name('admin.services.destroy');
+        return view('admin.services', compact('stats', 'services', 'categories'));
+    })->name('admin.services');
 
-// ── Payments Management ─────────────────────────────────────────────────────
-Route::get('/admin/payments', [AdminPaymentController::class, 'index'])
-    ->middleware(['auth', 'role:admin'])
-    ->name('admin.payments');
+    Route::post('/admin/services', function (Request $request) {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'base_price' => 'required|numeric',
+            'service_category_id' => 'nullable|exists:service_categories,id',
+        ]);
 
-Route::get('/admin/payments/{id}/proof', [AdminPaymentController::class, 'viewProof'])
-    ->middleware(['auth', 'role:admin'])
-    ->name('admin.payments.proof');
+        $category = ServiceCategory::firstOrCreate(['name' => 'Service Kompor Gas'], ['slug' => 'service-kompor-gas']);
 
-Route::get('/admin/payments/{id}/view-proof-signed', [AdminPaymentController::class, 'viewProof'])
-    ->middleware('signed')
-    ->name('admin.payments.view_proof_signed');
+        ServiceItem::create([
+            'service_category_id' => $validated['service_category_id'] ?? $category->id,
+            'name' => $validated['name'],
+            'slug' => Str::slug($validated['name']),
+            'description' => $validated['description'],
+            'base_price' => $validated['base_price'],
+            'is_active' => true,
+        ]);
 
-// ── Reviews ─────────────────────────────────────────────────────────────────
-Route::get('/admin/reviews', function () {
-    $user = Auth::user();
-    $stats = [
-        'total_users' => User::where('role', 'customer')->count(),
-        'total_technicians' => TechnicianProfile::count(),
-        'today_orders' => Order::whereDate('created_at', today())->count(),
-        'completed_orders' => Order::where('status', 'completed')->count(),
-    ];
+        return back()->with('success', 'Layanan baru berhasil ditambahkan.');
+    })->middleware(['auth', 'role:admin'])->name('admin.services.store');
 
-    $reviews = Review::with(['customer', 'technician'])->latest()->get();
+    Route::delete('/admin/services/{id}', function ($id) {
+        ServiceItem::findOrFail($id)->delete();
 
-    return view('admin.reviews', compact('stats', 'reviews'));
-})->name('admin.reviews');
+        return back()->with('success', 'Layanan berhasil dihapus.');
+    })->middleware(['auth', 'role:admin'])->name('admin.services.destroy');
 
-Route::delete('/admin/reviews/{id}', function ($id) {
-    Review::findOrFail($id)->delete();
-    return back()->with('success', 'Ulasan berhasil dihapus.');
-})->middleware(['auth', 'role:admin'])->name('admin.reviews.destroy');
+    // ── Payments Management ─────────────────────────────────────────────────────
+    Route::get('/admin/payments', [AdminPaymentController::class, 'index'])
+        ->middleware(['auth', 'role:admin'])
+        ->name('admin.payments');
 
-// ── Reports ─────────────────────────────────────────────────────────────────
-Route::get('/admin/reports', function () {
-    $user = Auth::user();
-    $stats = [
-        'total_users' => User::where('role', 'customer')->count(),
-        'total_technicians' => TechnicianProfile::count(),
-        'today_orders' => Order::whereDate('created_at', today())->count(),
-        'completed_orders' => Order::where('status', 'completed')->count(),
-    ];
+    Route::get('/admin/payments/{id}/proof', [AdminPaymentController::class, 'viewProof'])
+        ->middleware(['auth', 'role:admin'])
+        ->name('admin.payments.proof');
 
-    $revenue = Order::where('payment_status', 'paid')->sum('total_amount');
+    Route::get('/admin/payments/{id}/view-proof-signed', [AdminPaymentController::class, 'viewProof'])
+        ->middleware('signed')
+        ->name('admin.payments.view_proof_signed');
 
-    return view('admin.reports', compact('stats', 'revenue'));
-})->name('admin.reports');
+    // ── Reviews ─────────────────────────────────────────────────────────────────
+    Route::get('/admin/reviews', function () {
+        $user = Auth::user();
+        $stats = [
+            'total_users' => User::where('role', 'customer')->count(),
+            'total_technicians' => TechnicianProfile::count(),
+            'today_orders' => Order::whereDate('created_at', today())->count(),
+            'completed_orders' => Order::where('status', 'completed')->count(),
+        ];
 
-// ── Settings ────────────────────────────────────────────────────────────────
-Route::get('/admin/settings', function () {
-    $user = Auth::user();
-    $stats = [
-        'total_users' => User::where('role', 'customer')->count(),
-        'total_technicians' => TechnicianProfile::count(),
-        'today_orders' => Order::whereDate('created_at', today())->count(),
-        'completed_orders' => Order::where('status', 'completed')->count(),
-    ];
+        $reviews = Review::with(['customer', 'technician'])->latest()->get();
 
-    return view('admin.settings', compact('stats'));
-})->name('admin.settings');
+        return view('admin.reviews', compact('stats', 'reviews'));
+    })->name('admin.reviews');
 
-Route::post('/admin/settings', function (Request $request) {
-    return back()->with('success', 'Pengaturan sistem & tarif berhasil diperbarui.');
-})->middleware(['auth', 'role:admin'])->name('admin.settings.update');
+    Route::delete('/admin/reviews/{id}', function ($id) {
+        Review::findOrFail($id)->delete();
 
-Route::post('/admin/logout', function (Request $request) {
-    $user = Auth::user();
-    ActivityLog::logEvent(
-        eventName: 'auth.logout',
-        description: 'Admin logout dari sesi web',
-        entity: $user,
-        request: $request,
-        actor: $user
-    );
-    Auth::logout();
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
-    return redirect()->route('admin.login');
-})->middleware(['auth', 'role:admin'])->name('admin.logout');
+        return back()->with('success', 'Ulasan berhasil dihapus.');
+    })->middleware(['auth', 'role:admin'])->name('admin.reviews.destroy');
+
+    // ── Reports ─────────────────────────────────────────────────────────────────
+    Route::get('/admin/reports', function () {
+        $user = Auth::user();
+        $stats = [
+            'total_users' => User::where('role', 'customer')->count(),
+            'total_technicians' => TechnicianProfile::count(),
+            'today_orders' => Order::whereDate('created_at', today())->count(),
+            'completed_orders' => Order::where('status', 'completed')->count(),
+        ];
+
+        $revenue = Order::where('payment_status', 'paid')->sum('total_amount');
+
+        return view('admin.reports', compact('stats', 'revenue'));
+    })->name('admin.reports');
+
+    // ── Settings ────────────────────────────────────────────────────────────────
+    Route::get('/admin/settings', function () {
+        $user = Auth::user();
+        $stats = [
+            'total_users' => User::where('role', 'customer')->count(),
+            'total_technicians' => TechnicianProfile::count(),
+            'today_orders' => Order::whereDate('created_at', today())->count(),
+            'completed_orders' => Order::where('status', 'completed')->count(),
+        ];
+
+        return view('admin.settings', compact('stats'));
+    })->name('admin.settings');
+
+    Route::post('/admin/settings', function (Request $request) {
+        return back()->with('success', 'Pengaturan sistem & tarif berhasil diperbarui.');
+    })->middleware(['auth', 'role:admin'])->name('admin.settings.update');
+
+    Route::post('/admin/logout', function (Request $request) {
+        $user = Auth::user();
+        ActivityLog::logEvent(
+            eventName: 'auth.logout',
+            description: 'Admin logout dari sesi web',
+            entity: $user,
+            request: $request,
+            actor: $user
+        );
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('admin.login');
+    })->middleware(['auth', 'role:admin'])->name('admin.logout');
 });

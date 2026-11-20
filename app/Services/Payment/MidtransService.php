@@ -9,8 +9,11 @@ use Illuminate\Support\Facades\Log;
 class MidtransService
 {
     protected string $serverKey;
+
     protected string $clientKey;
+
     protected bool $isProduction;
+
     protected string $baseUrl;
 
     public function __construct()
@@ -38,7 +41,7 @@ class MidtransService
             return false;
         }
 
-        $expectedSignature = hash('sha512', $orderId . $statusCode . $grossAmount . $this->serverKey);
+        $expectedSignature = hash('sha512', $orderId.$statusCode.$grossAmount.$this->serverKey);
 
         return hash_equals($expectedSignature, $signatureKey);
     }
@@ -72,10 +75,11 @@ class MidtransService
         // Jika server key belum diset (misal di local/mock test), berikan respons simulasi
         if (empty($this->serverKey)) {
             Log::warning("Midtrans server key is empty. Generating mock QRIS response for {$gatewayOrderId}.");
+
             return [
                 'status_code' => '201',
                 'status_message' => 'Success, QRIS transaction is created (MOCK)',
-                'transaction_id' => 'mock-tx-' . bin2hex(random_bytes(8)),
+                'transaction_id' => 'mock-tx-'.bin2hex(random_bytes(8)),
                 'order_id' => $gatewayOrderId,
                 'gross_amount' => (string) $grossAmount,
                 'payment_type' => 'qris',
@@ -102,7 +106,7 @@ class MidtransService
                 'status' => $response->status(),
                 'body' => $response->json(),
             ]);
-            throw new Exception("Gagal membuat transaksi QRIS Midtrans: " . ($response->json('status_message') ?? 'HTTP ' . $response->status()));
+            throw new Exception('Gagal membuat transaksi QRIS Midtrans: '.($response->json('status_message') ?? 'HTTP '.$response->status()));
         }
 
         $data = $response->json();

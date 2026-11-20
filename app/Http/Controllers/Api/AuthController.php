@@ -8,10 +8,10 @@ use App\Models\TechnicianProfile;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -291,7 +291,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'Alamat email tidak terdaftar.',
@@ -351,7 +351,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user || $user->role === 'admin') {
+        if (! $user || $user->role === 'admin') {
             return response()->json([
                 'success' => false,
                 'message' => 'Akun tidak valid untuk reset kata sandi.',
@@ -362,14 +362,14 @@ class AuthController extends Controller
             ->where('email', $validated['email'])
             ->first();
 
-        if (!$resetRecord) {
+        if (! $resetRecord) {
             return response()->json([
                 'success' => false,
                 'message' => 'Permintaan reset kata sandi tidak ditemukan atau sudah kadaluarsa.',
             ], 422);
         }
 
-        $expiresAt = \Illuminate\Support\Carbon::parse($resetRecord->created_at)
+        $expiresAt = Carbon::parse($resetRecord->created_at)
             ->addSeconds((int) config('auth.passwords.users.expire', 3600));
 
         if ($expiresAt->isPast()) {
@@ -383,7 +383,7 @@ class AuthController extends Controller
 
         $tokenValid = Hash::check($validated['token'], $resetRecord->token);
 
-        if (!$tokenValid) {
+        if (! $tokenValid) {
             return response()->json([
                 'success' => false,
                 'message' => 'Kode reset kata sandi tidak valid.',

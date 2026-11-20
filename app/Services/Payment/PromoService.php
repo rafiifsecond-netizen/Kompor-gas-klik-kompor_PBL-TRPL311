@@ -6,7 +6,6 @@ use App\Models\Order;
 use App\Models\Promo;
 use App\Models\PromoUsage;
 use App\Models\User;
-use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -46,7 +45,7 @@ class PromoService
         if ($serviceSubtotal < $promo->min_order_amount) {
             throw ValidationException::withMessages([
                 'promo_code' => [
-                    "Minimum subtotal jasa untuk promo ini adalah Rp " . number_format($promo->min_order_amount, 0, ',', '.') . "."
+                    'Minimum subtotal jasa untuk promo ini adalah Rp '.number_format($promo->min_order_amount, 0, ',', '.').'.',
                 ],
             ]);
         }
@@ -94,7 +93,7 @@ class PromoService
      */
     public function reservePromo(Order $order, string $code, string $paymentMethod): PromoUsage
     {
-        return DB::transaction(function () use ($order, $code, $paymentMethod) {
+        return DB::transaction(function () use ($order, $code) {
             $code = strtoupper(trim($code));
 
             // Lock baris promo
@@ -143,6 +142,7 @@ class PromoService
                         'discount_applied' => $discount,
                         'reserved_at' => now(),
                     ]);
+
                     return $existing;
                 }
                 $existing->update([

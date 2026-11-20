@@ -15,14 +15,14 @@ return new class extends Migration
         $driver = DB::getDriverName();
 
         // 1. users: Tambah is_suspended_from_orders
-        if (!Schema::hasColumn('users', 'is_suspended_from_orders')) {
+        if (! Schema::hasColumn('users', 'is_suspended_from_orders')) {
             Schema::table('users', function (Blueprint $table) {
                 $table->boolean('is_suspended_from_orders')->default(false)->after('is_active')->index();
             });
         }
 
         // 2. platform_settings
-        if (!Schema::hasTable('platform_settings')) {
+        if (! Schema::hasTable('platform_settings')) {
             Schema::create('platform_settings', function (Blueprint $table) {
                 $table->id();
                 $table->string('key', 50)->unique();
@@ -88,7 +88,7 @@ return new class extends Migration
         }
 
         // 3. promos
-        if (!Schema::hasTable('promos')) {
+        if (! Schema::hasTable('promos')) {
             Schema::create('promos', function (Blueprint $table) {
                 $table->id();
                 $table->string('code', 30)->unique();
@@ -111,7 +111,7 @@ return new class extends Migration
         }
 
         // 4. promo_usages
-        if (!Schema::hasTable('promo_usages')) {
+        if (! Schema::hasTable('promo_usages')) {
             Schema::create('promo_usages', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('promo_id')->constrained('promos')->restrictOnDelete();
@@ -134,49 +134,49 @@ return new class extends Migration
         }
 
         Schema::table('payments', function (Blueprint $table) {
-            if (!Schema::hasColumn('payments', 'idempotency_key')) {
+            if (! Schema::hasColumn('payments', 'idempotency_key')) {
                 $table->string('idempotency_key', 100)->nullable()->unique()->after('payment_number');
             }
-            if (!Schema::hasColumn('payments', 'gateway_provider')) {
+            if (! Schema::hasColumn('payments', 'gateway_provider')) {
                 $table->string('gateway_provider', 30)->nullable()->after('payment_status');
             }
-            if (!Schema::hasColumn('payments', 'gateway_order_id')) {
+            if (! Schema::hasColumn('payments', 'gateway_order_id')) {
                 $table->string('gateway_order_id', 100)->nullable()->unique()->after('gateway_provider');
             }
-            if (!Schema::hasColumn('payments', 'gateway_transaction_id')) {
+            if (! Schema::hasColumn('payments', 'gateway_transaction_id')) {
                 $table->string('gateway_transaction_id', 100)->nullable()->after('gateway_order_id');
             }
-            if (!Schema::hasColumn('payments', 'qris_qr_string')) {
+            if (! Schema::hasColumn('payments', 'qris_qr_string')) {
                 $table->text('qris_qr_string')->nullable()->after('gateway_transaction_id');
             }
-            if (!Schema::hasColumn('payments', 'qris_qr_url')) {
+            if (! Schema::hasColumn('payments', 'qris_qr_url')) {
                 $table->text('qris_qr_url')->nullable()->after('qris_qr_string');
             }
-            if (!Schema::hasColumn('payments', 'sender_bank_name')) {
+            if (! Schema::hasColumn('payments', 'sender_bank_name')) {
                 $table->string('sender_bank_name', 50)->nullable()->after('qris_qr_url');
             }
-            if (!Schema::hasColumn('payments', 'sender_account_name')) {
+            if (! Schema::hasColumn('payments', 'sender_account_name')) {
                 $table->string('sender_account_name', 150)->nullable()->after('sender_bank_name');
             }
-            if (!Schema::hasColumn('payments', 'proof_uploaded_at')) {
+            if (! Schema::hasColumn('payments', 'proof_uploaded_at')) {
                 $table->dateTime('proof_uploaded_at')->nullable()->after('proof_url');
             }
-            if (!Schema::hasColumn('payments', 'expires_at')) {
+            if (! Schema::hasColumn('payments', 'expires_at')) {
                 $table->dateTime('expires_at')->nullable()->after('proof_uploaded_at');
             }
-            if (!Schema::hasColumn('payments', 'verified_by')) {
+            if (! Schema::hasColumn('payments', 'verified_by')) {
                 $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete()->after('paid_at');
             }
-            if (!Schema::hasColumn('payments', 'verified_at')) {
+            if (! Schema::hasColumn('payments', 'verified_at')) {
                 $table->dateTime('verified_at')->nullable()->after('verified_by');
             }
-            if (!Schema::hasColumn('payments', 'rejection_reason')) {
+            if (! Schema::hasColumn('payments', 'rejection_reason')) {
                 $table->text('rejection_reason')->nullable()->after('verified_at');
             }
         });
 
         if ($driver === 'sqlite') {
-            DB::statement(<<<SQL
+            DB::statement(<<<'SQL'
                 CREATE VIEW IF NOT EXISTS v_payment_operational AS
                 SELECT
                     p.id,
@@ -196,19 +196,19 @@ return new class extends Migration
         // Backfill data payments yang sudah ada sebelum kolom expires_at dijadikan NOT NULL
         $nowStr = now()->toDateTimeString();
         DB::statement("UPDATE payments SET expires_at = COALESCE(paid_at, created_at, '{$nowStr}') WHERE expires_at IS NULL");
-        DB::statement("UPDATE payments SET gateway_provider = payment_method WHERE gateway_provider IS NULL");
+        DB::statement('UPDATE payments SET gateway_provider = payment_method WHERE gateway_provider IS NULL');
 
         // MySQL-specific: generated column untuk mengunci MAKS 1 ATTEMPT AKTIF per order
         if ($driver === 'mysql' || $driver === 'mariadb') {
             $hasVirtual = DB::select("SHOW COLUMNS FROM `payments` LIKE 'active_order_attempt'");
             if (empty($hasVirtual)) {
                 DB::statement("ALTER TABLE `payments` ADD `active_order_attempt` BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN `payment_status` IN ('pending', 'awaiting_verification', 'paid') THEN `order_id` ELSE NULL END) VIRTUAL");
-                DB::statement("ALTER TABLE `payments` ADD UNIQUE INDEX `uq_active_order_attempt` (`active_order_attempt`)");
+                DB::statement('ALTER TABLE `payments` ADD UNIQUE INDEX `uq_active_order_attempt` (`active_order_attempt`)');
             }
         }
 
         // 6. commission_records
-        if (!Schema::hasTable('commission_records')) {
+        if (! Schema::hasTable('commission_records')) {
             Schema::create('commission_records', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('order_id')->unique()->constrained('orders')->cascadeOnDelete();
@@ -242,7 +242,7 @@ return new class extends Migration
         }
 
         // 7. technician_wallets & wallet_transactions
-        if (!Schema::hasTable('technician_wallets')) {
+        if (! Schema::hasTable('technician_wallets')) {
             Schema::create('technician_wallets', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('technician_id')->unique()->constrained('users')->cascadeOnDelete();
@@ -255,7 +255,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('wallet_transactions')) {
+        if (! Schema::hasTable('wallet_transactions')) {
             Schema::create('wallet_transactions', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('wallet_id')->constrained('technician_wallets')->cascadeOnDelete();
@@ -274,7 +274,7 @@ return new class extends Migration
         }
 
         // 8. payout_requests
-        if (!Schema::hasTable('payout_requests')) {
+        if (! Schema::hasTable('payout_requests')) {
             Schema::create('payout_requests', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('technician_id')->constrained('users')->cascadeOnDelete();
@@ -295,7 +295,7 @@ return new class extends Migration
         }
 
         // 9. webhook_events
-        if (!Schema::hasTable('webhook_events')) {
+        if (! Schema::hasTable('webhook_events')) {
             Schema::create('webhook_events', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('payment_id')->nullable()->constrained('payments')->nullOnDelete();
@@ -315,22 +315,22 @@ return new class extends Migration
             });
         } else {
             Schema::table('webhook_events', function (Blueprint $table) {
-                if (!Schema::hasColumn('webhook_events', 'order_id')) {
+                if (! Schema::hasColumn('webhook_events', 'order_id')) {
                     $table->foreignId('order_id')->nullable()->constrained('orders')->nullOnDelete()->after('payment_id');
                 }
-                if (!Schema::hasColumn('webhook_events', 'gateway_provider')) {
+                if (! Schema::hasColumn('webhook_events', 'gateway_provider')) {
                     $table->string('gateway_provider', 30)->default('midtrans')->after('order_id');
                 }
-                if (!Schema::hasColumn('webhook_events', 'signature_valid')) {
+                if (! Schema::hasColumn('webhook_events', 'signature_valid')) {
                     $table->boolean('signature_valid')->default(true)->after('transaction_status');
                 }
-                if (!Schema::hasColumn('webhook_events', 'is_processed')) {
+                if (! Schema::hasColumn('webhook_events', 'is_processed')) {
                     $table->boolean('is_processed')->default(false)->after('signature_valid');
                 }
-                if (!Schema::hasColumn('webhook_events', 'flagged_for_manual_refund')) {
+                if (! Schema::hasColumn('webhook_events', 'flagged_for_manual_refund')) {
                     $table->boolean('flagged_for_manual_refund')->default(false)->after('is_processed');
                 }
-                if (!Schema::hasColumn('webhook_events', 'created_at')) {
+                if (! Schema::hasColumn('webhook_events', 'created_at')) {
                     $table->timestamp('created_at')->useCurrent()->after('processed_at');
                 }
             });
@@ -351,8 +351,8 @@ return new class extends Migration
         Schema::dropIfExists('commission_records');
 
         if (($driver === 'mysql' || $driver === 'mariadb') && Schema::hasColumn('payments', 'active_order_attempt')) {
-            DB::statement("ALTER TABLE `payments` DROP INDEX `uq_active_order_attempt`");
-            DB::statement("ALTER TABLE `payments` DROP COLUMN `active_order_attempt`");
+            DB::statement('ALTER TABLE `payments` DROP INDEX `uq_active_order_attempt`');
+            DB::statement('ALTER TABLE `payments` DROP COLUMN `active_order_attempt`');
         }
 
         Schema::table('payments', function (Blueprint $table) {
@@ -360,7 +360,7 @@ return new class extends Migration
                 'idempotency_key', 'gateway_provider', 'gateway_order_id',
                 'gateway_transaction_id', 'qris_qr_string', 'qris_qr_url',
                 'sender_bank_name', 'sender_account_name', 'proof_uploaded_at',
-                'expires_at', 'verified_by', 'verified_at', 'rejection_reason'
+                'expires_at', 'verified_by', 'verified_at', 'rejection_reason',
             ];
             foreach ($cols as $col) {
                 if (Schema::hasColumn('payments', $col)) {

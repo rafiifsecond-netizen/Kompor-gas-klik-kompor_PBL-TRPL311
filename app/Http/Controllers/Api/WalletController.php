@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PlatformSetting;
-use App\Models\TechnicianWallet;
 use App\Services\Payment\WalletService;
 use Exception;
 use Illuminate\Http\JsonResponse;

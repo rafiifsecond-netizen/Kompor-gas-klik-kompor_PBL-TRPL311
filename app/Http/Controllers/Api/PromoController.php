@@ -7,7 +7,6 @@ use App\Models\ActivityLog;
 use App\Models\Order;
 use App\Models\Promo;
 use App\Services\Payment\PromoService;
-use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;

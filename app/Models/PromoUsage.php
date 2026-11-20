@@ -11,7 +11,9 @@ class PromoUsage extends Model
     use HasFactory;
 
     public const STATUS_RESERVED = 'reserved';
+
     public const STATUS_USED = 'used';
+
     public const STATUS_RELEASED = 'released';
 
     protected $fillable = [

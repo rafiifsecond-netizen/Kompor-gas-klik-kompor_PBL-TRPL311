@@ -2,7 +2,6 @@
 
 namespace App\Services\Payment;
 
-use InvalidArgumentException;
 use LogicException;
 
 class FinancialCalculator
@@ -166,14 +165,14 @@ class FinancialCalculator
         // Verifikasi Invarian 1: N + C === S + T
         if (($N + $C) !== ($S + $T)) {
             throw new LogicException(
-                "Invariant 1 violated: N + C (" . ($N + $C) . ") !== S + T (" . ($S + $T) . ")"
+                'Invariant 1 violated: N + C ('.($N + $C).') !== S + T ('.($S + $T).')'
             );
         }
 
         // Verifikasi Invarian 2: P - N === C - D
         if (($P - $N) !== ($C - $D)) {
             throw new LogicException(
-                "Invariant 2 violated: P - N (" . ($P - $N) . ") !== C - D (" . ($C - $D) . ")"
+                'Invariant 2 violated: P - N ('.($P - $N).') !== C - D ('.($C - $D).')'
             );
         }
 

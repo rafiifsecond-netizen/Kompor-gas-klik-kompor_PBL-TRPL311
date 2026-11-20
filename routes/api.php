@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminPaymentController;
 use App\Http\Controllers\Api\AdditionalCostController;
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AdminController;
@@ -13,7 +14,6 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ServiceCatalogController;
 use App\Http\Controllers\Api\TechnicianController;
 use App\Http\Controllers\Api\WalletController;
-use App\Http\Controllers\Admin\AdminPaymentController;
 use Illuminate\Support\Facades\Route;
 
 /*

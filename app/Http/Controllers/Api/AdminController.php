@@ -135,35 +135,35 @@ class AdminController extends Controller
         ]);
 
         return DB::transaction(function () use ($admin, $user, $validated, $request) {
-        $oldRole = $user->role;
-        $user->update(['role' => $validated['role']]);
+            $oldRole = $user->role;
+            $user->update(['role' => $validated['role']]);
 
-        if ($validated['role'] === 'technician') {
-            TechnicianProfile::firstOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'skills' => ['Kompor Gas Standar'],
-                    'is_verified' => false,
-                    'is_available' => true,
-                ]
+            if ($validated['role'] === 'technician') {
+                TechnicianProfile::firstOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'skills' => ['Kompor Gas Standar'],
+                        'is_verified' => false,
+                        'is_available' => true,
+                    ]
+                );
+            }
+
+            ActivityLog::logEvent(
+                eventName: 'user.role.modified',
+                description: "Admin {$admin->name} mengubah role {$user->name} dari {$oldRole} menjadi {$validated['role']}",
+                entity: $user,
+                oldValues: ['role' => $oldRole],
+                newValues: ['role' => $validated['role']],
+                request: $request,
+                actor: $admin
             );
-        }
 
-        ActivityLog::logEvent(
-            eventName: 'user.role.modified',
-            description: "Admin {$admin->name} mengubah role {$user->name} dari {$oldRole} menjadi {$validated['role']}",
-            entity: $user,
-            oldValues: ['role' => $oldRole],
-            newValues: ['role' => $validated['role']],
-            request: $request,
-            actor: $admin
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Peran pengguna berhasil diubah.',
-            'data' => $user->fresh('technicianProfile'),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Peran pengguna berhasil diubah.',
+                'data' => $user->fresh('technicianProfile'),
+            ]);
         });
     }
 

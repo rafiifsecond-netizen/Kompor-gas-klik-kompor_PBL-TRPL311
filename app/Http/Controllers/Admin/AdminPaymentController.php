@@ -16,7 +16,6 @@ use App\Services\Payment\WalletService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
@@ -48,8 +47,8 @@ class AdminPaymentController extends Controller
             $search = $request->query('search');
             $query->where(function ($q) use ($search) {
                 $q->where('payment_number', 'like', "%{$search}%")
-                  ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$search}%"))
-                  ->orWhereHas('order', fn ($o) => $o->where('order_number', 'like', "%{$search}%"));
+                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('order', fn ($o) => $o->where('order_number', 'like', "%{$search}%"));
             });
         }
 
@@ -213,7 +212,7 @@ class AdminPaymentController extends Controller
     {
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="payments-' . date('Y-m-d') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="payments-'.date('Y-m-d').'.csv"',
         ];
 
         return response()->stream(function () {

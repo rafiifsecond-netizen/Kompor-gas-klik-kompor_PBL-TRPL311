@@ -8,14 +8,12 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PlatformSetting;
 use App\Models\Promo;
-use App\Models\PromoUsage;
 use App\Models\User;
 use App\Models\WebhookEvent;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -62,7 +60,7 @@ class PaymentService
                 ->firstOrFail();
 
             if ($order->status === Order::STATUS_COMPLETED || $order->status === Order::STATUS_CANCELLED) {
-                throw new Exception("Pesanan sudah selesai atau dibatalkan, tidak dapat dibayar.");
+                throw new Exception('Pesanan sudah selesai atau dibatalkan, tidak dapat dibayar.');
             }
 
             // Batalkan attempt aktif sebelumnya jika ada (misal retry pembayaran baru)
@@ -119,8 +117,8 @@ class PaymentService
                 'payment_method' => $paymentMethod,
             ]);
 
-            $paymentNumber = 'PAY-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(4)));
-            $gatewayOrderId = 'KP-' . $order->id . '-' . date('YmdHis') . '-' . strtoupper(Str::random(4));
+            $paymentNumber = 'PAY-'.date('Ymd').'-'.strtoupper(bin2hex(random_bytes(4)));
+            $gatewayOrderId = 'KP-'.$order->id.'-'.date('YmdHis').'-'.strtoupper(Str::random(4));
 
             $payment = new Payment([
                 'order_id' => $order->id,
@@ -193,20 +191,20 @@ class PaymentService
             $payment = Payment::where('id', $payment->id)->lockForUpdate()->firstOrFail();
 
             if ($payment->payment_method !== 'transfer') {
-                throw new Exception("Hanya pembayaran metode transfer yang membutuhkan bukti transfer.");
+                throw new Exception('Hanya pembayaran metode transfer yang membutuhkan bukti transfer.');
             }
 
             if ($payment->payment_status === Payment::STATUS_PAID) {
-                throw new Exception("Pembayaran ini sudah diverifikasi lunas.");
+                throw new Exception('Pembayaran ini sudah diverifikasi lunas.');
             }
 
             if ($payment->expires_at && now()->gt($payment->expires_at)) {
                 $payment->update(['payment_status' => Payment::STATUS_EXPIRED]);
-                throw new Exception("Batas waktu unggah bukti transfer telah kedaluwarsa.");
+                throw new Exception('Batas waktu unggah bukti transfer telah kedaluwarsa.');
             }
 
             // Simpan file ke disk private lokal
-            $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+            $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
             $path = $file->storeAs('payment_proofs', $filename, 'local');
 
             $payment->update([
@@ -241,7 +239,7 @@ class PaymentService
             $payment = Payment::where('id', $payment->id)->lockForUpdate()->firstOrFail();
 
             if ($payment->payment_method !== 'transfer') {
-                throw new Exception("Pembayaran bukan metode transfer manual.");
+                throw new Exception('Pembayaran bukan metode transfer manual.');
             }
 
             if ($payment->payment_status === Payment::STATUS_PAID) {
@@ -319,7 +317,7 @@ class PaymentService
             $payment = Payment::where('id', $payment->id)->lockForUpdate()->firstOrFail();
 
             if ($payment->payment_method !== 'cash') {
-                throw new Exception("Bukan pembayaran cash.");
+                throw new Exception('Bukan pembayaran cash.');
             }
 
             if ($payment->payment_status === Payment::STATUS_PAID) {
@@ -329,8 +327,8 @@ class PaymentService
             if ($amountReceived !== (int) $payment->amount) {
                 throw ValidationException::withMessages([
                     'amount_received' => [
-                        "Nominal tunai yang diterima (Rp " . number_format($amountReceived, 0, ',', '.') .
-                        ") harus sama persis dengan total tagihan (Rp " . number_format($payment->amount, 0, ',', '.') . ")."
+                        'Nominal tunai yang diterima (Rp '.number_format($amountReceived, 0, ',', '.').
+                        ') harus sama persis dengan total tagihan (Rp '.number_format($payment->amount, 0, ',', '.').').',
                     ],
                 ]);
             }
@@ -338,7 +336,7 @@ class PaymentService
             $order = Order::where('id', $payment->order_id)->lockForUpdate()->firstOrFail();
 
             if ($order->technician_id !== $technician->id) {
-                throw new Exception("Hanya teknisi yang bertugas pada pesanan ini yang dapat mengonfirmasi uang tunai.");
+                throw new Exception('Hanya teknisi yang bertugas pada pesanan ini yang dapat mengonfirmasi uang tunai.');
             }
 
             $payment->update([
@@ -361,7 +359,7 @@ class PaymentService
 
             ActivityLog::logEvent(
                 eventName: 'payment.cash_confirmed',
-                description: "Teknisi mengonfirmasi pembayaran cash #{$payment->payment_number} sebesar Rp " . number_format($amountReceived, 0, ',', '.'),
+                description: "Teknisi mengonfirmasi pembayaran cash #{$payment->payment_number} sebesar Rp ".number_format($amountReceived, 0, ',', '.'),
                 entity: $payment,
                 actor: $technician
             );
@@ -411,7 +409,7 @@ class PaymentService
             'payment_id' => null,
             'gateway_provider' => 'midtrans',
             'gateway_order_id' => $orderId,
-            'gateway_transaction_id' => $transactionId ?: ('TX-' . Str::uuid()),
+            'gateway_transaction_id' => $transactionId ?: ('TX-'.Str::uuid()),
             'transaction_status' => $transactionStatus ?: 'unknown',
             'signature_valid' => $isValidSignature,
             'is_processed' => false,
@@ -422,6 +420,7 @@ class PaymentService
 
         if (! $isValidSignature) {
             Log::warning("Midtrans Webhook: Invalid Signature for order {$orderId}");
+
             return ['success' => false, 'message' => 'Invalid signature', 'code' => 403];
         }
 
@@ -430,6 +429,7 @@ class PaymentService
 
         if (! $payment) {
             Log::warning("Midtrans Webhook: Payment not found for {$orderId}");
+
             return ['success' => false, 'message' => 'Payment not found', 'code' => 404];
         }
 
@@ -443,6 +443,7 @@ class PaymentService
         $payloadAmount = (int) explode('.', $grossAmount)[0];
         if ($payloadAmount !== (int) $payment->amount) {
             Log::error("Midtrans Webhook: Amount mismatch for {$orderId}. Expected {$payment->amount}, got {$payloadAmount}");
+
             return ['success' => false, 'message' => 'Amount mismatch', 'code' => 400];
         }
 
@@ -453,6 +454,7 @@ class PaymentService
             // Cek jika payment sudah pernah paid sebelumnya (Idempotensi webhook)
             if ($payment->payment_status === Payment::STATUS_PAID) {
                 $webhookEvent->update(['is_processed' => true, 'processed_at' => now()]);
+
                 return ['success' => true, 'message' => 'Payment already settled previously.'];
             }
 
@@ -474,6 +476,7 @@ class PaymentService
                     'payload' => $payload,
                 ]);
                 Log::warning("Midtrans Webhook: Flagged for manual refund because order #{$order->id} already paid via another attempt.");
+
                 return ['success' => true, 'message' => 'Flagged for manual refund.'];
             }
 
@@ -530,7 +533,7 @@ class PaymentService
             $payment = Payment::where('id', $payment->id)->lockForUpdate()->firstOrFail();
 
             if ($payment->payment_status !== Payment::STATUS_PAID) {
-                throw new Exception("Hanya pembayaran yang berstatus lunas (paid) yang dapat di-refund.");
+                throw new Exception('Hanya pembayaran yang berstatus lunas (paid) yang dapat di-refund.');
             }
 
             $order = Order::where('id', $payment->order_id)->lockForUpdate()->firstOrFail();
@@ -555,7 +558,7 @@ class PaymentService
 
             ActivityLog::logEvent(
                 eventName: 'payment.refunded',
-                description: "Admin merefund pembayaran #{$payment->payment_number} sebesar Rp " . number_format($payment->amount, 0, ',', '.') . ": {$reason}",
+                description: "Admin merefund pembayaran #{$payment->payment_number} sebesar Rp ".number_format($payment->amount, 0, ',', '.').": {$reason}",
                 entity: $payment,
                 actor: $admin
             );

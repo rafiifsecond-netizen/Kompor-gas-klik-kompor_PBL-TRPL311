@@ -232,7 +232,7 @@ class FinancialCalculatorTest extends TestCase
             $S = rand(10000, 500000);
             $T = rand(5000, 50000);
             $D = rand(0, $S + 10000);
-            $r = rand(1, 15) . '.00';
+            $r = rand(1, 15).'.00';
             $mode = $modes[array_rand($modes)];
             $unit = $units[array_rand($units)];
 

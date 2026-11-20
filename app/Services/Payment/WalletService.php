@@ -12,7 +12,6 @@ use App\Models\User;
 use App\Models\WalletTransaction;
 use Exception;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class WalletService
@@ -37,7 +36,7 @@ class WalletService
     protected function generateTransactionNumber(): string
     {
         do {
-            $number = 'WTX-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(4)));
+            $number = 'WTX-'.date('Ymd').'-'.strtoupper(bin2hex(random_bytes(4)));
         } while (WalletTransaction::where('transaction_number', $number)->exists());
 
         return $number;
@@ -232,7 +231,7 @@ class WalletService
                 $technician->update(['is_suspended_from_orders' => true]);
                 ActivityLog::logEvent(
                     eventName: 'technician.suspended_for_debt',
-                    description: "Teknisi #{$technician->id} {$technician->name} disuspend karena utang cash mencapai Rp " . number_format(abs($currentBalance), 0, ',', '.'),
+                    description: "Teknisi #{$technician->id} {$technician->name} disuspend karena utang cash mencapai Rp ".number_format(abs($currentBalance), 0, ',', '.'),
                     entity: $technician
                 );
             }
@@ -249,6 +248,23 @@ class WalletService
     }
 
     /**
+     * Scheduled Job: Evaluasi suspensi seluruh teknisi yang memiliki saldo negatif.
+     */
+    public function evaluateAllTechniciansSuspension(): int
+    {
+        $wallets = TechnicianWallet::where('balance', '<', 0)->with('technician')->get();
+        $count = 0;
+        foreach ($wallets as $wallet) {
+            if ($wallet->technician) {
+                $this->evaluateTechnicianSuspension($wallet->technician, (int) $wallet->balance);
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
      * 6. Payout Request:
      * - Mengunci dan memotong saldo saat request dibuat.
      */
@@ -259,7 +275,7 @@ class WalletService
 
             if ($amount < $minPayout) {
                 throw ValidationException::withMessages([
-                    'amount' => ["Minimum penarikan saldo adalah Rp " . number_format($minPayout, 0, ',', '.') . "."],
+                    'amount' => ['Minimum penarikan saldo adalah Rp '.number_format($minPayout, 0, ',', '.').'.'],
                 ]);
             }
 
@@ -284,7 +300,7 @@ class WalletService
             $wallet->bank_account_holder = $bankDetails['bank_account_holder'];
             $wallet->save();
 
-            $payoutNumber = 'PO-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
+            $payoutNumber = 'PO-'.date('Ymd').'-'.strtoupper(bin2hex(random_bytes(3)));
 
             // Catat mutasi debet penahanan saldo
             WalletTransaction::create([
@@ -323,7 +339,7 @@ class WalletService
                 ->firstOrFail();
 
             if ($lockedPayout->status !== PayoutRequest::STATUS_PENDING) {
-                throw new Exception("Pengajuan penarikan sudah diproses sebelumnya.");
+                throw new Exception('Pengajuan penarikan sudah diproses sebelumnya.');
             }
 
             $lockedPayout->update([
@@ -336,7 +352,7 @@ class WalletService
 
             ActivityLog::logEvent(
                 eventName: 'payout.approved',
-                description: "Admin menyetujui penarikan dana #{$lockedPayout->payout_number} sebesar Rp " . number_format($lockedPayout->amount, 0, ',', '.'),
+                description: "Admin menyetujui penarikan dana #{$lockedPayout->payout_number} sebesar Rp ".number_format($lockedPayout->amount, 0, ',', '.'),
                 entity: $lockedPayout,
                 actor: $admin
             );
@@ -357,7 +373,7 @@ class WalletService
                 ->firstOrFail();
 
             if ($lockedPayout->status !== PayoutRequest::STATUS_PENDING) {
-                throw new Exception("Pengajuan penarikan sudah diproses sebelumnya.");
+                throw new Exception('Pengajuan penarikan sudah diproses sebelumnya.');
             }
 
             $wallet = TechnicianWallet::where('technician_id', $lockedPayout->technician_id)
